@@ -270,7 +270,114 @@ export default function StaffDetailPage() {
           )}
         </div>
 
-        {/* Advance Section */}
+                {/* ===== Edit / Save Salary ===== */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <Wallet size={14} /> Payment / Save Salary
+            </h3>
+            {!isEditing && (
+              <button onClick={() => { initEditForm(data); setIsEditing(true); }} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold">
+                Edit
+              </button>
+            )}
+          </div>
+
+          {isEditing ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Attendance Amount</label>
+                  <Input type="number" value={editForm.attendanceAmount}
+                    onChange={(e) => { setEditForm({ ...editForm, attendanceAmount: e.target.value }); setTimeout(recalcNetPayable, 0); }} />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Commission</label>
+                  <Input type="number" value={editForm.commissionAmount}
+                    onChange={(e) => { setEditForm({ ...editForm, commissionAmount: e.target.value }); setTimeout(recalcNetPayable, 0); }} />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Bonus</label>
+                  <Input type="number" value={editForm.bonus} placeholder="0"
+                    onChange={(e) => { setEditForm({ ...editForm, bonus: e.target.value }); setTimeout(recalcNetPayable, 0); }} />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Deduction</label>
+                  <Input type="number" value={editForm.deduction} placeholder="0"
+                    onChange={(e) => { setEditForm({ ...editForm, deduction: e.target.value }); setTimeout(recalcNetPayable, 0); }} />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Advance Deduct</label>
+                  <Input type="number" value={editForm.advanceDeducted}
+                    onChange={(e) => { setEditForm({ ...editForm, advanceDeducted: e.target.value }); setTimeout(recalcNetPayable, 0); }} />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-600 mb-1">Net Payable</label>
+                  <Input type="number" value={editForm.netPayable} readOnly className="bg-slate-50" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-600 mb-1">Note (optional)</label>
+                <Input value={editForm.note} placeholder="e.g., Bonus for Eid"
+                  onChange={(e) => setEditForm({ ...editForm, note: e.target.value })} />
+              </div>
+              <div className="border-t border-slate-100 pt-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Paid Amount</label>
+                    <Input type="number" value={editForm.paidAmount}
+                      onChange={(e) => setEditForm({ ...editForm, paidAmount: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">Method</label>
+                    <select value={editForm.paymentMethod}
+                      onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value })}
+                      className="w-full h-10 rounded-md border border-slate-200 px-3 text-sm">
+                      <option value="CASH">Cash</option>
+                      <option value="BKASH">bKash</option>
+                      <option value="NAGAD">Nagad</option>
+                      <option value="ROCKET">Rocket</option>
+                      <option value="BANK">Bank</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button variant="outline" onClick={() => setIsEditing(false)} disabled={saving}>Cancel</Button>
+                <Button onClick={() => { setSaveMode("pay"); handleSaveSalary(); }} disabled={saving} className="bg-green-600 hover:bg-green-700">
+                  {saving ? <Loader2 size={14} className="animate-spin mr-2" /> : <CheckCircle size={14} className="mr-2" />}
+                  Mark as Paid
+                </Button>
+              </div>
+              <Button variant="outline" onClick={() => { setSaveMode("save"); handleSaveSalary(); }} disabled={saving} className="w-full">
+                <Save size={14} className="mr-2" /> Save (Draft, not paid)
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Status</span>
+                <span className={"font-bold " + (data.existingPayment?.status === "PAID" ? "text-green-600" : "text-orange-600")}>
+                  {data.existingPayment?.status || "NOT SAVED"}
+                </span>
+              </div>
+              {data.existingPayment && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Paid Amount</span>
+                    <span className="font-bold">৳{parseFloat(data.existingPayment.paidAmount?.toString() || "0").toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Method</span>
+                    <span className="font-medium">{data.existingPayment.paymentMethod || "CASH"}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+{/* Advance Section */}
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
