@@ -7,8 +7,7 @@ export async function POST(req: Request) {
   if (auth.error) return auth.error;
 
   try {
-    const { email } = await req.json();
-    const user = await prisma.user.findFirst({ where: { email } });
+        const user = await prisma.user.findFirst({ where: { email: auth.user.email }});
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     let pharmacy = null;

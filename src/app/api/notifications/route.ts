@@ -7,8 +7,7 @@ export async function POST(req: Request) {
   if (auth.error) return auth.error;
 
   try {
-    const { email } = await req.json();
-    const user = await prisma.user.findFirst({ where: { email } });
+        const user = await prisma.user.findFirst({ where: { email: auth.user.email }});
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     // Staff হলে শুধু staff-related category দেখবে, Owner হলে owner-related
@@ -46,8 +45,7 @@ export async function PUT(req: Request) {
   if (auth.error) return auth.error;
 
   try {
-    const { email } = await req.json();
-    const user = await prisma.user.findFirst({ where: { email } });
+        const user = await prisma.user.findFirst({ where: { email: auth.user.email }});
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     await prisma.notification.updateMany({
