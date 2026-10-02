@@ -383,6 +383,34 @@ export default function CheckoutPage() {
                 </div>
               </label>
             </div>
+
+          <label className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer border-slate-200">
+            <input type="radio" name="payment" value="NAGAD"
+              checked={formData.paymentMethod === "NAGAD"}
+              onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+              className="accent-orange-600" />
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <Wallet size={20} className="text-orange-600" />
+            </div>
+            <div>
+              <p className="font-medium text-sm text-slate-800">Nagad</p>
+              <p className="text-xs text-slate-500">Coming soon</p>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer border-slate-200">
+            <input type="radio" name="payment" value="CARD"
+              checked={formData.paymentMethod === "CARD"}
+              onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+              className="accent-blue-600" />
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <CreditCard size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="font-medium text-sm text-slate-800">Card / Bank</p>
+              <p className="text-xs text-slate-500">Coming soon</p>
+            </div>
+          </label>
           </div>
 
           {/* Notes */}
