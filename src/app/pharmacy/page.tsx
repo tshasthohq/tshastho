@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {Pill, Package, ShoppingCart, DollarSign, LogOut, Settings, Bell, TrendingUp, Clock, AlertCircle, Calendar, AlertTriangle, Users, UserCog, ClipboardList} from "lucide-react";
 import Link from "next/link";
 import { usePermissions } from "@/hooks/usePermissions";
+import DashboardCharts from "@/components/pharmacy/DashboardCharts";
 
 export default function PharmacyDashboard() {
   const router = useRouter();
@@ -332,6 +333,8 @@ export default function PharmacyDashboard() {
               <p className="text-xs text-slate-500 mt-1">Manage team</p>
             </Link>
           )}
+          <DashboardCharts />
+
           {hasAny(["manage_staff", "view_attendance"]) && (
             <Link href="/pharmacy/attendance" className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
               <ClipboardList className="text-teal-600 mb-3" size={24} />
