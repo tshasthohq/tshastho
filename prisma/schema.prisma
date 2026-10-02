@@ -67,6 +67,7 @@ model User {
   attendances     Attendance[]
   salaryPayments  SalaryPayment[]
   staffAdvances   StaffAdvance[]
+  payments        Payment[]       @relation("UserPayments")
 }
 
 model Patient {
@@ -191,6 +192,8 @@ model Order {
   deliveryPhone      String
   receiverPhone      String?
   paymentMethod      String      @default("COD")
+  paymentStatus      String      @default("PENDING")
+  isPaid             Boolean     @default(false)
   isDue              Boolean     @default(false)
   paidAmount         Decimal     @default(0)
   dueAmount          Decimal     @default(0)
@@ -199,6 +202,8 @@ model Order {
   prescriptionNote   String?
   notes              String?
   items              OrderItem[]
+  payments           Payment[]
+  commission         Commission?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 }
@@ -362,4 +367,187 @@ model AuditLog {
   userAgent  String?
   details    Json?
   createdAt  DateTime @default(now())
+}
+
+// ============================================
+// PHASE 3: PAYMENT & FINANCE
+// ============================================
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  BKASH
+  NAGAD
+  ROCKET
+  SSLCOMMERZ
+  STRIPE
+  CASH
+  COD
+  MANUAL
+}
+
+enum TransactionType {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerAccount {
+  CUSTOMER
+  PLATFORM
+  PARTNER
+  GATEWAY
+  COMMISSION
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  SETTLED
+  FAILED
+  ON_HOLD
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  paymentNumber   String        @unique
+  userId          String
+  user            User          @relation("UserPayments", fields: [userId], references: [id])
+  orderId         String?
+  order           Order?        @relation(fields: [orderId], references: [id])
+  amount          Decimal
+  currency        String        @default("BDT")
+  status          PaymentStatus @default(INITIATED)
+  method          PaymentMethod
+  gatewayProvider String?
+  gatewayTxnId    String?
+  gatewayRefId    String?
+  gatewayPayload  Json?
+  failureReason   String?
+  paidAt          DateTime?
+  refundedAmount  Decimal       @default(0)
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  transactions  Transaction[]
+  refunds       Refund[]
+  ledgerEntries LedgerEntry[]
+
+  @@index([userId, status])
+  @@index([gatewayTxnId])
+  @@index([status, createdAt])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  paymentId   String
+  payment     Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  account     LedgerAccount
+  amount      Decimal
+  description String?
+  referenceId String?
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  @@index([paymentId])
+  @@index([account, createdAt])
+}
+
+model LedgerEntry {
+  id            String        @id @default(cuid())
+  paymentId     String?
+  payment       Payment?      @relation(fields: [paymentId], references: [id])
+  debitAccount  LedgerAccount
+  creditAccount LedgerAccount
+  amount        Decimal
+  currency      String        @default("BDT")
+  description   String?
+  referenceId   String?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+
+  @@index([debitAccount, createdAt])
+  @@index([creditAccount, createdAt])
+}
+
+model Refund {
+  id           String    @id @default(cuid())
+  refundNumber String    @unique
+  paymentId    String
+  payment      Payment   @relation(fields: [paymentId], references: [id])
+  amount       Decimal
+  reason       String?
+  status       String    @default("PENDING")
+  processedAt  DateTime?
+  gatewayRefId String?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([paymentId])
+}
+
+model Commission {
+  id               String   @id @default(cuid())
+  orderId          String?  @unique
+  order            Order?   @relation(fields: [orderId], references: [id])
+  partnerId        String?
+  partnerType      String?
+  orderAmount      Decimal
+  commissionRate   Decimal
+  commissionAmount Decimal
+  partnerShare     Decimal
+  status           String   @default("PENDING")
+  metadata         Json?
+  createdAt        DateTime @default(now())
+
+  @@index([partnerId])
+}
+
+model Payout {
+  id            String           @id @default(cuid())
+  payoutNumber  String           @unique
+  partnerId     String
+  partnerType   String
+  amount        Decimal
+  currency      String           @default("BDT")
+  status        SettlementStatus @default(PENDING)
+  method        String?
+  accountInfo   Json?
+  scheduledAt   DateTime?
+  processedAt   DateTime?
+  failureReason String?
+  metadata      Json?
+  createdAt     DateTime         @default(now())
+
+  @@index([partnerId, status])
+}
+
+model Settlement {
+  id               String           @id @default(cuid())
+  settlementNumber String           @unique
+  partnerId        String
+  partnerType      String
+  periodStart      DateTime
+  periodEnd        DateTime
+  grossAmount      Decimal
+  commissionAmount Decimal
+  netPayable       Decimal
+  status           SettlementStatus @default(PENDING)
+  payoutId         String?
+  notes            String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([partnerId, status])
 }

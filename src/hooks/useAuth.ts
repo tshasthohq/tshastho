@@ -34,7 +34,7 @@ export function useAuth() {
           if (mounted) setUser(data.user);
         }
       } catch (e) {
-        // Not logged in
+        // not logged in
       } finally {
         if (mounted) setLoading(false);
       }

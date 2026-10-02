@@ -14,10 +14,12 @@ export async function getCurrentUser() {
       id: true,
       name: true,
       email: true,
+      phone: true,
       role: true,
       status: true,
       isVerified: true,
-      parentPharmacyId: true, // <--- এখানে ফিক্স করা হয়েছে
+      address: true,
+      parentPharmacyId: true,
       staffRole: true,
       permissions: true,
     },
