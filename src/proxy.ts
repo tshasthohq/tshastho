@@ -1,37 +1,36 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const role = request.cookies.get("userRole")?.value;
+const SECRET_KEY = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'fallback_secret_for_development_only'
+);
 
-  // Role-to-allowed-paths map
-  const allowedPaths: Record<string, string[]> = {
-    CUSTOMER: ["/dashboard"],
-    DOCTOR: ["/doctor"],
-    PHARMACY_OWNER: ["/pharmacy"],
-    PHARMACY_STAFF: ["/staff", "/pharmacy"], // Staff can access BOTH
-    SUPER_ADMIN: ["/admin"],
-  };
+export async function proxy(request: NextRequest) {
+  const token = request.cookies.get('tshastho_session')?.value;
 
-  const protectedPaths = ["/dashboard", "/doctor", "/pharmacy", "/staff", "/admin"];
+  // API routes that don't require authentication
+  const publicApiRoutes = ['/api/auth/login', '/api/auth/logout', '/api/auth/me'];
+  const isPublicApi = publicApiRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
-  for (const path of protectedPaths) {
-    if (pathname.startsWith(path)) {
-      // Not logged in
-      if (!role) {
-        return NextResponse.redirect(new URL("/login", request.url));
-      }
+  // Protected page routes
+  const protectedRoutes = ['/dashboard', '/profile', '/admin', '/doctor', '/pharmacy', '/international'];
+  const isProtectedPage = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
-      // Check if role has access to this path
-      const roleAccess = allowedPaths[role];
-      if (roleAccess) {
-        const hasAccess = roleAccess.some(allowed => pathname.startsWith(allowed));
-        if (!hasAccess) {
-          // Redirect to first allowed path
-          return NextResponse.redirect(new URL(roleAccess[0], request.url));
-        }
-      }
+  if (isPublicApi) {
+    return NextResponse.next();
+  }
+
+  if (isProtectedPage) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    try {
+      await jwtVerify(token, SECRET_KEY);
+      return NextResponse.next();
+    } catch (error) {
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
@@ -39,5 +38,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/doctor/:path*", "/pharmacy/:path*", "/staff/:path*", "/admin/:path*"],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 };
