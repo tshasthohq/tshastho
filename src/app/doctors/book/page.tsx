@@ -5,8 +5,10 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 function BookingForm() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const doctorId = searchParams.get("id");
@@ -19,7 +21,7 @@ function BookingForm() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-    const patientEmail = localStorage.getItem("userEmail");
+    const patientEmail = user?.email;
 
     if (!patientEmail) {
       setMessage("Please login first to book.");

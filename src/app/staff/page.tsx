@@ -229,7 +229,7 @@ export default function StaffPage() {
             <LayoutDashboard size={14} className="text-white" />
             <span className="text-xs font-medium text-white">Dashboard</span>
           </Link>
-          <button onClick={() => { localStorage.clear(); document.cookie = "userRole=; path=/; max-age=0"; router.push("/login"); }} className="text-red-300 p-2">
+          <button onClick={async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); router.push("/login"); }} className="text-red-300 p-2">
             <LogOut size={20} />
           </button>
         </div>
