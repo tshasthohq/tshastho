@@ -1,0 +1,201 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, ShoppingCart, Clock, CheckCircle, Truck, XCircle, Phone, MapPin, User, Pill } from "lucide-react";
+
+export default function PharmacyOrdersPage() {
+  const router = useRouter();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("PENDING");
+
+  const loadOrders = () => {
+    const email = localStorage.getItem("userEmail");
+    if (!email) { setLoading(false); return; }
+
+    fetch("/api/pharmacy/orders/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.orders) setOrders(data.orders);
+      setLoading(false);
+    })
+    .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { loadOrders(); }, []);
+
+  const updateStatus = async (orderId: string, status: string) => {
+    let reason = "";
+    if (status === "REJECTED") {
+      reason = prompt("Rejection reason:") || "Out of stock";
+    }
+    await fetch("/api/pharmacy/orders/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, status, reason }),
+    });
+    loadOrders();
+  };
+
+  const counts = {
+    PENDING: orders.filter(o => o.status === "PENDING").length,
+    ACCEPTED: orders.filter(o => o.status === "ACCEPTED").length,
+    OUT_FOR_DELIVERY: orders.filter(o => o.status === "OUT_FOR_DELIVERY").length,
+    DELIVERED: orders.filter(o => o.status === "DELIVERED").length,
+  };
+
+  const filterButtons = [
+    { key: "PENDING", label: "New", count: counts.PENDING, color: "bg-yellow-500" },
+    { key: "ACCEPTED", label: "Accepted", count: counts.ACCEPTED, color: "bg-blue-500" },
+    { key: "OUT_FOR_DELIVERY", label: "Delivering", count: counts.OUT_FOR_DELIVERY, color: "bg-purple-500" },
+    { key: "DELIVERED", label: "Delivered", count: counts.DELIVERED, color: "bg-green-500" },
+    { key: "REJECTED", label: "Rejected", count: orders.filter(o => o.status === "REJECTED").length, color: "bg-red-500" },
+  ];
+
+  const filtered = orders.filter(o => o.status === filter);
+
+  const formatDate = (d: string) => {
+    return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (loading) return <div className="p-6 text-center text-slate-500">Loading...</div>;
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-10">
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-50">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-600">
+          <ArrowLeft size={20} /> Back
+        </button>
+        <h1 className="font-bold text-slate-800">Orders</h1>
+        <Link href="/pharmacy/orders/history" className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-medium">
+          History
+        </Link>
+      </header>
+
+      <div className="max-w-4xl mx-auto p-6">
+        {/* Filter Tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+          {filterButtons.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-2 ${filter === f.key ? "bg-slate-800 text-white" : "bg-white text-slate-600 border border-slate-200"}`}
+            >
+              {f.label}
+              {f.count > 0 && (
+                <span className={`text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold ${filter === f.key ? "bg-white text-slate-800" : f.color + " text-white"}`}>
+                  {f.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="bg-white p-12 rounded-2xl text-center border border-slate-100">
+            <ShoppingCart size={64} className="mx-auto text-slate-300 mb-4" />
+            <h2 className="text-lg font-bold text-slate-800 mb-2">No {filter.toLowerCase()} orders</h2>
+            <p className="text-sm text-slate-500">Orders will appear here when customers place them</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map((order) => (
+              <div key={order.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                {/* Order Header */}
+                <div className="flex items-start justify-between gap-2 mb-4 pb-4 border-b border-slate-100">
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm">{order.orderNumber}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{formatDate(order.createdAt)}</p>
+                  </div>
+                  <span className="text-lg font-bold text-green-700">৳{parseFloat(order.finalAmount).toFixed(2)}</span>
+                </div>
+
+                {/* Customer Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <User size={14} className="text-blue-600" />
+                    <span className="font-medium">{order.patient?.name}</span>
+                  </div>
+                  <a href={`tel:${order.deliveryPhone}`} className="flex items-center gap-2 text-xs text-slate-600">
+                    <Phone size={14} className="text-green-600" />
+                    <span>{order.deliveryPhone}</span>
+                  </a>
+                  <div className="flex items-start gap-2 text-xs text-slate-600 md:col-span-2">
+                    <MapPin size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+                    <span>{order.deliveryAddress}</span>
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div className="bg-slate-50 p-3 rounded-xl mb-4">
+                  {order.items.map((item: any) => (
+                    <div key={item.id} className="flex justify-between text-xs py-1">
+                      <span className="text-slate-700 flex items-center gap-1">
+                        <Pill size={12} className="text-purple-500" />
+                        {item.medicineName} × {item.quantity}
+                      </span>
+                      <span className="font-medium text-slate-800">৳{parseFloat(item.subtotal).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Notes */}
+                {order.notes && (
+                  <div className="bg-yellow-50 p-3 rounded-xl mb-4 text-xs">
+                    <p className="text-slate-500 mb-1">Customer Note:</p>
+                    <p className="text-slate-700">{order.notes}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                {order.status === "PENDING" && (
+                  <div className="flex gap-2 pt-3 border-t border-slate-100">
+                    <button onClick={() => updateStatus(order.id, "ACCEPTED")} className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-xl text-sm font-medium">
+                      <CheckCircle size={16} /> Accept
+                    </button>
+                    <button onClick={() => updateStatus(order.id, "REJECTED")} className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2.5 rounded-xl text-sm font-medium">
+                      <XCircle size={16} /> Reject
+                    </button>
+                  </div>
+                )}
+
+                {order.status === "ACCEPTED" && (
+                  <button onClick={() => updateStatus(order.id, "OUT_FOR_DELIVERY")} className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white py-2.5 rounded-xl text-sm font-medium mt-3">
+                    <Truck size={16} /> Send for Delivery
+                  </button>
+                )}
+
+                {order.status === "OUT_FOR_DELIVERY" && (
+                  <button onClick={() => updateStatus(order.id, "DELIVERED")} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-xl text-sm font-medium mt-3">
+                    <CheckCircle size={16} /> Mark as Delivered
+                  </button>
+                )}
+
+                {order.status === "DELIVERED" && (
+                  <div className="bg-green-50 p-3 rounded-xl mt-3 text-center">
+                    <p className="text-xs text-green-700 font-medium flex items-center justify-center gap-1">
+                      <CheckCircle size={14} /> Order Delivered Successfully
+                    </p>
+                  </div>
+                )}
+
+                {order.status === "REJECTED" && (
+                  <div className="bg-red-50 p-3 rounded-xl mt-3 text-center">
+                    <p className="text-xs text-red-600 font-medium flex items-center justify-center gap-1">
+                      <XCircle size={14} /> Order Rejected
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

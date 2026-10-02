@@ -1,0 +1,336 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  CUSTOMER
+  DOCTOR
+  PHARMACY_OWNER
+  PHARMACY_STAFF
+  DIAGNOSTIC_OWNER
+  HOSPITAL_ADMIN
+  PHARMA_COMPANY
+  AMBULANCE_PROVIDER
+  BLOOD_BANK_ADMIN
+  MARKETING_MANAGER
+  FIELD_EXECUTIVE
+  DELIVERY_MAN
+}
+
+enum AccountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String        @unique
+  phone         String        @unique
+  password      String
+  role          Role
+  status        AccountStatus @default(PENDING)
+  isVerified    Boolean       @default(false)
+  rejectReason  String?
+  address       String?
+  parentPharmacyId String?
+  staffRole     String?
+  permissions   Json?
+  basicSalary   Decimal  @default(0)
+  dailyRate     Decimal  @default(0)
+  commissionPercent Decimal @default(0)
+  workingDaysPerMonth Int  @default(30)
+  hoursPerDay      Int      @default(8)
+  salaryType       String   @default("MONTHLY")
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  patientProfile  Patient?
+  doctorProfile   Doctor?
+  pharmacyProfile Pharmacy?
+  appointments    Appointment[] @relation("PatientAppointments")
+  notifications   Notification[]
+  cartItems       CartItem[]
+  patientOrders   Order[]       @relation("PatientOrders")
+  attendances     Attendance[]
+  salaryPayments  SalaryPayment[]
+  staffAdvances   StaffAdvance[]
+}
+
+model Patient {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bloodGroup  String?
+  dateOfBirth DateTime?
+  address     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Doctor {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty       String
+  licenseNumber   String   @unique
+  experience      Int
+  consultationFee Decimal
+  bookingPhone    String?
+  chamberAddress  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  appointments    Appointment[] @relation("DoctorAppointments")
+}
+
+model Pharmacy {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopName       String
+  logo           String?
+  drugLicense    String   @unique
+  tradeLicense   String
+  address        String
+  area           String?
+  city           String
+  deliveryRadius Int      @default(5)
+  isOpen         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  medicines      Medicine[]
+  orders         Order[]
+  dues           Due[]
+  attendances    Attendance[]
+  salaryPayments SalaryPayment[]
+  staffAdvances  StaffAdvance[]
+}
+
+model MasterMedicine {
+  id           String   @id @default(cuid())
+  name         String
+  brand        String?
+  genericName  String?
+  strength     String?
+  category     String?
+  manufacturer String?
+  imageUrl     String?
+  description  String?
+  createdAt    DateTime @default(now())
+  medicines    Medicine[]
+}
+
+model Medicine {
+  id               String   @id @default(cuid())
+  pharmacyId       String
+  pharmacy         Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  masterMedicineId String?
+  masterMedicine   MasterMedicine? @relation(fields: [masterMedicineId], references: [id])
+  name             String
+  brand            String?
+  genericName      String?
+  category         String?
+  description      String?
+  purchasePrice    Decimal
+  sellingPrice     Decimal
+  discountPercent  Decimal  @default(0)
+  stock            Int      @default(0)
+  unit             String   @default("piece")
+  stripSize        Int      @default(10)
+  boxSize          Int      @default(100)
+  manufacturer     String?
+  images           Json?
+  expiryDate       DateTime?
+  batchNumber      String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  cartItems        CartItem[]
+}
+
+model CartItem {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  quantity   Int      @default(1)
+  unitType   String   @default("piece")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  patientId       String
+  patient         User     @relation("PatientOrders", fields: [patientId], references: [id])
+  pharmacyId      String
+  pharmacy        Pharmacy @relation(fields: [pharmacyId], references: [id])
+  totalAmount     Decimal
+  platformFee     Decimal
+  deliveryFee     Decimal  @default(0)
+  discountAmount  Decimal  @default(0)
+  finalAmount     Decimal
+  totalCost       Decimal  @default(0)
+  netProfit       Decimal  @default(0)
+  status          String   @default("PENDING")
+  deliveryAddress String
+  deliveryPhone   String
+  receiverPhone   String?
+  paymentMethod   String   @default("COD")
+  isDue           Boolean  @default(false)
+  paidAmount      Decimal  @default(0)
+  dueAmount       Decimal  @default(0)
+  prescriptionUrl     String?
+  prescriptionStatus  String   @default("NONE")
+  prescriptionNote    String?
+  notes           String?
+  items           OrderItem[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  medicineId    String
+  medicineName  String
+  quantity      Int
+  unitType      String   @default("piece")
+  unitPrice     Decimal
+  purchasePrice Decimal
+  costPrice     Decimal  @default(0)
+  subtotal      Decimal
+  createdAt     DateTime @default(now())
+}
+
+model Due {
+  id          String   @id @default(cuid())
+  pharmacyId  String
+  pharmacy    Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  patientId   String
+  patientName String
+  patientPhone String
+  amount      Decimal
+  paidAmount  Decimal  @default(0)
+  orderId     String?
+  note        String?
+  status      String   @default("UNPAID")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  patientId String
+  doctorId  String
+  date      String
+  time      String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  patient   User     @relation("PatientAppointments", fields: [patientId], references: [id])
+  doctor    Doctor   @relation("DoctorAppointments", fields: [doctorId], references: [id])
+}
+
+
+model Attendance {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pharmacyId      String
+  pharmacy        Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  checkInTime     DateTime @default(now())
+  checkOutTime    DateTime?
+  checkInLat      String?
+  checkInLng      String?
+  checkInSelfie   String?
+  checkOutSelfie  String?
+  checkOutLat     String?
+  checkOutLng     String?
+  totalHours      Decimal?
+  date            String   @db.VarChar(10)
+  status          String   @default("PRESENT")
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model SalaryPayment {
+  id               String   @id @default(cuid())
+  staffId          String
+  staff            User     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  pharmacyId       String
+  pharmacy         Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  month            String   @db.VarChar(7)
+  basicSalary      Decimal  @default(0)
+  presentDays      Int      @default(0)
+  totalDays        Int      @default(0)
+  attendanceAmount Decimal  @default(0)
+  commissionAmount Decimal  @default(0)
+  bonus            Decimal  @default(0)
+  deduction        Decimal  @default(0)
+  advanceDeducted  Decimal  @default(0)
+  netPayable       Decimal  @default(0)
+  paidAmount       Decimal  @default(0)
+  status           String   @default("PENDING")
+  note             String?
+  paymentMethod    String   @default("CASH")
+  paidAt           DateTime?
+  customAttendanceAmount Decimal?
+  customCommissionAmount Decimal?
+  customDeduction        Decimal?
+  customNetPayable       Decimal?
+  isCustomized           Boolean  @default(false)
+  editNote               String?
+  workingDaysThisMonth   Int      @default(30)
+  hoursPerDayUsed        Int      @default(8)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model StaffAdvance {
+  id              String   @id @default(cuid())
+  staffId         String
+  staff           User     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  pharmacyId      String
+  pharmacy        Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  amount          Decimal
+  paidAmount      Decimal  @default(0)
+  remainingAmount Decimal
+  reason          String?
+  status          String   @default("PENDING")
+  givenAt         DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
