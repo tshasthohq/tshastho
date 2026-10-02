@@ -68,3 +68,33 @@ export function getDefaultPermissions(role: string): string[] {
   // Custom roles get practical default set
   return CUSTOM_DEFAULTS;
 }
+
+// ===== Validation Helpers (Part D-5) =====
+
+// সব valid permission keys
+export const ALL_PERMISSION_KEYS = ALL_PERMISSIONS.map(p => p.key);
+
+// Permission validate করি - শুধু valid key রাখি
+export function validatePermissions(perms: unknown): string[] {
+  if (!Array.isArray(perms)) return [];
+  return perms.filter((p): p is string => 
+    typeof p === "string" && ALL_PERMISSION_KEYS.includes(p)
+  );
+}
+
+// Staff-এর জন্য dangerous permissions block করি (owner-e exclusive)
+export const OWNER_ONLY_PERMISSIONS = ["manage_staff", "manage_settings"];
+
+// Staff permission sanitize - dangerous বাদ দিই
+export function sanitizeStaffPermissions(perms: string[], isOwner: boolean): string[] {
+  if (isOwner) return perms;
+  return perms.filter(p => !OWNER_ONLY_PERMISSIONS.includes(p));
+}
+
+// Custom role-এর জন্য minimum guaranteed permissions
+export const MINIMUM_STAFF_PERMISSIONS = ["view_dashboard"];
+
+export function ensureMinimumPermissions(perms: string[]): string[] {
+  if (perms.length === 0) return [...MINIMUM_STAFF_PERMISSIONS];
+  return perms;
+}

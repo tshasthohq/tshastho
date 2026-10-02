@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { getDefaultPermissions } from "@/lib/permissions";
+import { getDefaultPermissions, validatePermissions, sanitizeStaffPermissions, ensureMinimumPermissions } from "@/lib/permissions";
 
 const prisma = new PrismaClient();
 
@@ -31,9 +31,13 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const finalPermissions = Array.isArray(permissions) && permissions.length > 0
+    // Part D-5: Permission validation + sanitization
+    const rawPerms = Array.isArray(permissions) && permissions.length > 0
       ? permissions
       : getDefaultPermissions(staffRole);
+    const validated = validatePermissions(rawPerms);
+    const safePerms = sanitizeStaffPermissions(validated, false);
+    const finalPermissions = ensureMinimumPermissions(safePerms);
 
     const staff = await prisma.user.create({
       data: {
