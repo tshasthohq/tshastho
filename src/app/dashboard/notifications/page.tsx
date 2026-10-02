@@ -34,7 +34,7 @@ export default function PatientNotificationsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-    // Reset badge counter in localStorage
+    // Reset badge counter
 
   };
 
