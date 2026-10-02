@@ -6,10 +6,9 @@ export async function POST(req: Request) {
   if (auth.error) return auth.error;
 
   try {
-    const { email, deliveryAddress, deliveryPhone, receiverPhone, paymentMethod, notes, deliveryCharge, paidAmount: paidInput, prescriptionUrl } = await req.json();
+    const { deliveryAddress, deliveryPhone, receiverPhone, paymentMethod, notes, deliveryCharge, paidAmount: paidInput, prescriptionUrl } = await req.json();
 
-    const user = await prisma.user.findFirst({ where: { email } });
-    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
+    const user = auth.user!;
 
     const cartItems = await prisma.cartItem.findMany({
       where: { userId: user.id },

@@ -136,26 +136,77 @@ export default function CheckoutPage() {
     if (rxInputRef.current) rxInputRef.current.value = "";
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) { setMessage("Cart is empty"); return; }
-
     setPlacing(true);
     setMessage("");
 
-    const email = user?.email;
-    const res = await fetch("/api/orders/place", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, ...formData, deliveryCharge: finalDelivery, paidAmount: payNowNum, prescriptionUrl: prescriptionUrl || null }),
-    });
+    try {
+      // Step 1: Place order
+      const res = await fetch("/api/orders/place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...formData,
+          deliveryCharge: finalDelivery,
+          paidAmount: payNowNum,
+          prescriptionUrl: prescriptionUrl || null,
+        }),
+      });
 
-    const data = await res.json();
-    if (res.ok) {
-      setMessage("✅ Order placed successfully!");
-      setTimeout(() => router.push("/dashboard/orders"), 1500);
-    } else {
-      setMessage(data.message || "Failed to place order");
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.message || "Failed to place order");
+        setPlacing(false);
+        return;
+      }
+
+      const firstOrderId = data.orders?.[0]?.id;
+
+      // Step 2: If online payment, initiate payment
+      const method = (formData.paymentMethod || "COD").toUpperCase();
+
+      if (method === "COD" || method === "CASH") {
+        setMessage("✅ Order placed successfully!");
+        setTimeout(() => router.push("/dashboard/orders"), 1500);
+        return;
+      }
+
+      if (!firstOrderId) {
+        setMessage("✅ Order placed! Redirecting...");
+        setTimeout(() => router.push("/dashboard/orders"), 1500);
+        return;
+      }
+
+      // Online payment flow
+      setMessage("Order placed. Redirecting to payment gateway...");
+
+      const payRes = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId: firstOrderId,
+          amount: payNowNum > 0 ? payNowNum : undefined,
+          gateway: "SSLCOMMERZ",
+          purpose: "MEDICINE_ORDER",
+        }),
+      });
+
+      const payData = await payRes.json();
+
+      if (payData.redirectUrl) {
+        window.location.href = payData.redirectUrl;
+      } else {
+        setMessage(payData.message || "Payment initiation failed");
+        setPlacing(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("Something went wrong. Please try again.");
       setPlacing(false);
     }
   };
