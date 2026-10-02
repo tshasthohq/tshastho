@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
+import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth/guards';
 export async function POST(req: Request) {
+  const auth = await requireRole(['DOCTOR', 'SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     const { email } = await req.json();
     const user = await prisma.user.findFirst({ where: { email } });

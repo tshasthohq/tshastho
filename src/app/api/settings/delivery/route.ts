@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
+import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth/guards';
 export async function GET() {
+  const auth = await requireRole(['SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     const charge = await prisma.systemSetting.findUnique({ where: { key: "delivery_charge" } });
     const free = await prisma.systemSetting.findUnique({ where: { key: "delivery_charge_free" } });

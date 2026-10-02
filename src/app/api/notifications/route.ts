@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
+import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth/guards';
 // GET/POST: Fetch user's notifications (role-based filter)
 export async function POST(req: Request) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+
   try {
     const { email } = await req.json();
     const user = await prisma.user.findFirst({ where: { email } });
@@ -41,6 +42,9 @@ export async function POST(req: Request) {
 
 // PUT: Mark all as read
 export async function PUT(req: Request) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+
   try {
     const { email } = await req.json();
     const user = await prisma.user.findFirst({ where: { email } });

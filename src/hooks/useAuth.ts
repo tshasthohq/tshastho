@@ -1,0 +1,56 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export type AuthUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  status: string;
+  isVerified: boolean;
+  parentPharmacyId: string | null;
+  staffRole: string | null;
+  permissions: any;
+};
+
+export function useAuth() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) setUser(data.user);
+        }
+      } catch (e) {
+        // Not logged in
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    fetchUser();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      window.location.href = "/login";
+    }
+  };
+
+  return { user, loading, logout };
+}

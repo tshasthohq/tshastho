@@ -1,9 +1,12 @@
 import { PrismaClient, Prisma } from "@prisma/client";
+import { requireRole } from '@/lib/auth/guards';
 import { NextResponse } from "next/server";
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
+  const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     const { email } = await req.json();
     const user = await prisma.user.findFirst({ where: { email } });
@@ -33,6 +36,9 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     const body = await req.json();
     const { email, name, brand, genericName, category, description, purchasePrice, sellingPrice, discountPercent, stock, unit, manufacturer, masterMedicineId, images, expiryDate, batchNumber } = body;

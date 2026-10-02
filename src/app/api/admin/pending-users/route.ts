@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { requireRole } from '@/lib/auth/guards';
+import { prisma } from '@/lib/prisma';
 
 export async function POST() {
+  const auth = await requireRole(['SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     const users = await prisma.user.findMany({
       where: { role: { in: ["DOCTOR", "PHARMACY_OWNER"] } },

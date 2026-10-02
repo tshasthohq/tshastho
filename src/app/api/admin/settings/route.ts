@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { requireRole } from '@/lib/auth/guards';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
+  const auth = await requireRole(['SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     const all = await prisma.systemSetting.findMany();
     const settings: any = {};
@@ -15,6 +17,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireRole(['SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     const { settings } = await req.json();
 

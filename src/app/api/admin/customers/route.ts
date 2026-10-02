@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { requireRole } from '@/lib/auth/guards';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
+  const auth = await requireRole(['SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+
   try {
     // All orders across all pharmacies
     const orders = await prisma.order.findMany({

@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,19 +29,20 @@ export default function Register() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        credentials: "include",
       });
 
       const data = await res.json();
 
-      if (res.ok) {
-        setMessage("Registration Successful! Redirecting to login...");
-        setTimeout(() => router.push("/login"), 2000);
+      if (res.ok && data.success) {
+        setMessage("Registration Successful! Redirecting to dashboard...");
+        setTimeout(() => router.push("/dashboard"), 1200);
       } else {
-        setMessage(data.message || "Something went wrong");
+        setMessage(data.message || data.error || "Something went wrong");
       }
     } catch (error) {
       setMessage("Error connecting to server");
@@ -53,34 +55,72 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-8">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-bold text-blue-600">Tshastho</Link>
-          <h2 className="text-2xl font-bold text-slate-800 mt-4">Create Account</h2>
-          <p className="text-slate-500 text-sm mt-1">Join Tshastho today</p>
+          <Link href="/" className="text-3xl font-bold text-blue-600">
+            Tshastho
+          </Link>
+          <h2 className="text-2xl font-bold text-slate-800 mt-4">
+            Create Account
+          </h2>
+          <p className="text-slate-500 text-sm mt-1">
+            Join Tshastho today
+          </p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-            <Input name="name" value={formData.name} onChange={handleChange} type="text" placeholder="Enter your name" required />
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Full Name
+            </label>
+            <Input
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              type="text"
+              placeholder="Enter your full name"
+              required
+            />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-            <Input name="email" value={formData.email} onChange={handleChange} type="email" placeholder="Enter your email" required />
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Email
+            </label>
+            <Input
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              type="email"
+              placeholder="Enter your email"
+              required
+            />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
-            <Input name="phone" value={formData.phone} onChange={handleChange} type="text" placeholder="Enter your phone number" required />
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Phone (Optional)
+            </label>
+            <Input
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              type="tel"
+              placeholder="Enter your phone number"
+            />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Password
+            </label>
             <div className="relative">
-              <Input 
-                name="password" 
-                value={formData.password} 
-                onChange={handleChange} 
-                type={showPassword ? "text" : "password"} 
-                placeholder="Create a password" 
-                required 
+              <Input
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                type={showPassword ? "text" : "password"}
+                placeholder="Min 6 characters"
+                required
+                minLength={6}
               />
               <button
                 type="button"
@@ -91,17 +131,26 @@ export default function Register() {
               </button>
             </div>
           </div>
-          
-          {message && <p className="text-center text-sm font-medium text-blue-600">{message}</p>}
-          
+
+          {message && (
+            <p className="text-center text-sm font-medium text-blue-600">
+              {message}
+            </p>
+          )}
+
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Creating Account..." : "Sign Up"}
+            {loading ? "Creating account..." : "Register"}
           </Button>
         </form>
-        
-        <p className="text-center text-sm text-slate-500 mt-6">
-          Already have an account? <Link href="/login" className="text-blue-600 font-medium hover:underline">Login</Link>
-        </p>
+
+        <div className="mt-6 pt-6 border-t border-slate-100 text-center">
+          <p className="text-sm text-slate-500">
+            Already have an account?{" "}
+            <Link href="/login" className="text-blue-600 hover:underline font-medium">
+              Login
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
