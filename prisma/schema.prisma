@@ -281,9 +281,12 @@ model Notification {
   title     String
   message   String
   type      String   @default("info")
+  category  String   @default("GENERAL")
   isRead    Boolean  @default(false)
   link      String?
   createdAt DateTime @default(now())
+
+  @@index([userId, category])
 }
 
 model SalaryPayment {
