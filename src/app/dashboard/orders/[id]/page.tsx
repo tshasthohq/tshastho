@@ -4,8 +4,11 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, MapPin, Store, Pill, FileText, Package, Truck, CheckCircle, Clock, XCircle, Wallet, DollarSign, ShoppingBag } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PatientOrderDetailPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const params = useParams();
   const orderId = params?.id as string;
@@ -15,7 +18,7 @@ export default function PatientOrderDetailPage() {
 
   useEffect(() => {
     if (!orderId) return;
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/orders/my-detail", {

@@ -3,8 +3,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, Clock, User, Check, X, LogOut, Bell } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DoctorDashboard() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [doctor, setDoctor] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -12,7 +15,7 @@ export default function DoctorDashboard() {
   const [loading, setLoading] = useState(true);
 
   const loadData = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/doctor/my-appointments", {
@@ -49,7 +52,7 @@ export default function DoctorDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+
     document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "userEmail=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");

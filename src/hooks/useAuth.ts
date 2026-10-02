@@ -6,12 +6,17 @@ export type AuthUser = {
   id: string;
   name: string | null;
   email: string;
+  phone: string | null;
   role: string;
   status: string;
   isVerified: boolean;
+  address: string | null;
   parentPharmacyId: string | null;
   staffRole: string | null;
   permissions: any;
+  patientProfile?: any;
+  doctorProfile?: any;
+  pharmacyProfile?: any;
 };
 
 export function useAuth() {

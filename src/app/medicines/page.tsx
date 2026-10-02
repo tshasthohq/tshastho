@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { Search, Pill, Plus, Store, MapPin, ArrowLeft, ShoppingCart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function MedicinesSearchPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [medicines, setMedicines] = useState<any[]>([]);
@@ -14,7 +17,7 @@ export default function MedicinesSearchPage() {
   const [cartCount, setCartCount] = useState(0);
 
   const loadCart = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) return;
     fetch("/api/cart", {
       method: "POST",
@@ -61,7 +64,7 @@ export default function MedicinesSearchPage() {
   }, [query]);
 
   const addToCart = async (medicineId: string) => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) {
       router.push("/login");
       return;

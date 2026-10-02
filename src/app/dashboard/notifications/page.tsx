@@ -1,13 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Bell, CheckCircle, XCircle, Calendar, FileText, Info, Check, ShoppingBag } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PatientNotificationsPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadNotifications = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/notifications", {
@@ -24,7 +27,7 @@ export default function PatientNotificationsPage() {
   };
 
   const markAllRead = async () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) return;
     await fetch("/api/notifications", {
       method: "PUT",
@@ -32,7 +35,7 @@ export default function PatientNotificationsPage() {
       body: JSON.stringify({ email }),
     });
     // Reset badge counter in localStorage
-    localStorage.setItem("lastNotifCount", "0");
+
   };
 
   useEffect(() => {

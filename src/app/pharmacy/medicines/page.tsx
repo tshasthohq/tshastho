@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Pill, Search, Edit, Trash2, X, Save, TrendingUp, Info, Library, Image as ImageIcon, Loader2, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 function PharmacyMedicinesPageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [medicines, setMedicines] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ function PharmacyMedicinesPageInner() {
   const [formData, setFormData] = useState(emptyForm);
 
   const loadMedicines = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
     fetch("/api/pharmacy/medicines", {
       method: "POST",
@@ -157,7 +159,7 @@ function PharmacyMedicinesPageInner() {
     e.preventDefault();
     setSaving(true);
     setMessage("");
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     let res;
     if (editing) {
       res = await fetch("/api/pharmacy/medicines/update", {

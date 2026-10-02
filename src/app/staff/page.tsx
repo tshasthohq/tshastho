@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { Clock, MapPin, LogIn, LogOut, CheckCircle, AlertCircle, Loader2, User, Bell, Calendar, Timer, Phone, Camera, Home, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import SelfieCapture from "@/components/staff/SelfieCapture";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function StaffPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [userName, setUserName] = useState("Staff");
   const [staffRole, setStaffRole] = useState("");
@@ -23,7 +26,7 @@ export default function StaffPage() {
 
   // Load today's attendance
   const loadAttendance = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/pharmacy/attendance/today", {
@@ -42,8 +45,8 @@ export default function StaffPage() {
   };
 
   useEffect(() => {
-    const storedName = localStorage.getItem("userName");
-    const storedRole = localStorage.getItem("staffRole");
+    const storedName = user?.name;
+    const storedRole = user?.staffRole;
     if (storedName) setUserName(storedName);
     if (storedRole) setStaffRole(storedRole);
 
@@ -130,7 +133,7 @@ export default function StaffPage() {
     setShowCamera(false);
 
     const loc = await getLocation();
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
 
     // Upload selfie
     const selfieUrl = await uploadSelfie(selfie);
@@ -168,7 +171,7 @@ export default function StaffPage() {
     setShowCamera(false);
 
     const loc = await getLocation();
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
 
     const selfieUrl = await uploadSelfie(selfie);
     if (!selfieUrl) {

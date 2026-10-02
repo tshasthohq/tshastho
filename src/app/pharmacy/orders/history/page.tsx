@@ -6,9 +6,11 @@ import Link from "next/link";
 import { ArrowLeft, Search, FileText, ShoppingBag, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 function OrderHistoryPageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -21,7 +23,7 @@ function OrderHistoryPageInner() {
 
   const loadOrders = () => {
     setLoading(true);
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/orders/all", {

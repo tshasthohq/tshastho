@@ -1,14 +1,40 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/user';
+import { prisma } from '@/lib/prisma';
+import { getSessionToken, verifySessionToken } from '@/lib/auth/session';
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const token = await getSessionToken();
+    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+    const payload = await verifySessionToken(token);
+    if (!payload || !payload.id) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.id as string },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        isVerified: true,
+        address: true,
+        parentPharmacyId: true,
+        staffRole: true,
+        permissions: true,
+        patientProfile: true,
+        doctorProfile: true,
+        pharmacyProfile: true,
+      },
+    });
+
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
     return NextResponse.json({ success: true, user });
   } catch (error) {
+    console.error('[AUTH_ME]', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

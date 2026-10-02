@@ -2,14 +2,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingBag, Package, Clock, CheckCircle, Truck, XCircle, Store, Pill } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PatientOrdersPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("ALL");
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/orders/my-orders", {

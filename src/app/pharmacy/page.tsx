@@ -5,8 +5,11 @@ import {Pill, Package, ShoppingCart, DollarSign, LogOut, Settings, Bell, Trendin
 import Link from "next/link";
 import { usePermissions } from "@/hooks/usePermissions";
 import DashboardCharts from "@/components/pharmacy/DashboardCharts";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PharmacyDashboard() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [pharmacy, setPharmacy] = useState<any>(null);
   const [stats, setStats] = useState<any>({
@@ -30,7 +33,7 @@ export default function PharmacyDashboard() {
   const [profitView, setProfitView] = useState<"today" | "yesterday" | "week" | "month" | "total">("today");
 
   const loadData = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/profile", {
@@ -70,7 +73,7 @@ export default function PharmacyDashboard() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear();
+
     document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
   };

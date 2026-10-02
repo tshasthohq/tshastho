@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, MapPin, Phone, CreditCard, Wallet, FileText, ShoppingBag, Pill, Truck, User, DollarSign, Calculator, Upload, Image as ImageIcon, Loader2, X, CheckCircle, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CheckoutPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +31,7 @@ export default function CheckoutPage() {
   });
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/user/profile", {
@@ -140,7 +143,7 @@ export default function CheckoutPage() {
     setPlacing(true);
     setMessage("");
 
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     const res = await fetch("/api/orders/place", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

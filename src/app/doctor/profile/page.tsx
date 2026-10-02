@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DoctorProfilePage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [doctor, setDoctor] = useState<any>(null);
   const [bookingPhone, setBookingPhone] = useState("");
@@ -14,7 +17,7 @@ export default function DoctorProfilePage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/doctor/my-appointments", {
@@ -67,7 +70,7 @@ export default function DoctorProfilePage() {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+
     router.push("/login");
   };
 

@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, LogOut, Upload, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PharmacyProfilePage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [pharmacy, setPharmacy] = useState<any>(null);
   const [formData, setFormData] = useState({ shopName: "", address: "", area: "", city: "", deliveryRadius: "5", logo: "" });
@@ -16,7 +19,7 @@ export default function PharmacyProfilePage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/pharmacy/profile", {
@@ -86,7 +89,7 @@ export default function PharmacyProfilePage() {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+
     document.cookie = "userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
   };

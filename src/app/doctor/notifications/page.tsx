@@ -2,14 +2,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bell, Calendar, User, Info } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DoctorNotificationsPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/doctor/my-appointments", {

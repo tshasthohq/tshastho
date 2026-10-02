@@ -4,8 +4,11 @@ import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, DollarSign, Calculator, Plus, Wallet, TrendingUp, Calendar, CheckCircle, Clock, Loader2, X, Save, Receipt, HandCoins, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function StaffDetailPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const params = useParams();
   const staffId = params?.id as string;
@@ -31,7 +34,7 @@ export default function StaffDetailPage() {
   const [message, setMessage] = useState("");
 
   const loadData = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/pharmacy/staff/salary-calc", {
@@ -75,7 +78,7 @@ export default function StaffDetailPage() {
   const handleSaveSalary = async () => {
     setSaving(true);
     setMessage("");
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
 
     const isCustomized = 
       parseFloat(editForm.attendanceAmount) !== data.attendanceAmount ||
@@ -135,7 +138,7 @@ export default function StaffDetailPage() {
       return;
     }
     setSaving(true);
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     const res = await fetch("/api/pharmacy/staff/advance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

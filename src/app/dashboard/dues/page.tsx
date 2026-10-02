@@ -3,15 +3,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DollarSign, Phone, Store, AlertCircle, ShoppingBag, CheckCircle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PatientDuesPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [dues, setDues] = useState<any[]>([]);
   const [totalDue, setTotalDue] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/orders/my-dues", {

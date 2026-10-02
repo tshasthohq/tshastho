@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ShoppingCart, Clock, CheckCircle, Truck, XCircle, Phone, MapPin, User, Pill, FileText, Eye, Shield, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 function PharmacyOrdersPageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("PENDING");
 
   const loadOrders = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/orders/list", {

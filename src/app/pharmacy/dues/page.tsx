@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, DollarSign, Phone, User, CheckCircle, Clock, AlertCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 
 function PharmacyDuesPageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [dues, setDues] = useState<any[]>([]);
   const [totalUnpaid, setTotalUnpaid] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -16,7 +18,7 @@ function PharmacyDuesPageInner() {
   const [payAmount, setPayAmount] = useState("");
 
   const loadDues = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/dues", {

@@ -2,14 +2,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bell, ShoppingCart, Info, Check } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function StaffNotificationsPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadNotifications = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/notifications", {
@@ -26,14 +29,14 @@ export default function StaffNotificationsPage() {
   };
 
   const markAllRead = async () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) return;
     await fetch("/api/notifications", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-    localStorage.setItem("lastNotifCount", "0");
+
   };
 
   useEffect(() => {

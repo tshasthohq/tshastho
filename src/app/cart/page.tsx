@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ShoppingCart, Pill, Trash2, Store, ShoppingBag, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CartPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadCart = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/cart", {

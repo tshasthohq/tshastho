@@ -3,8 +3,11 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, Crown, Star, UserPlus, ShoppingBag, TrendingUp, DollarSign, Package, Clock, CheckCircle, XCircle, Truck, Pill, Wallet, Award } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CustomerDetailPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const params = useParams();
   const customerId = params?.id as string;
@@ -13,7 +16,7 @@ export default function CustomerDetailPage() {
 
   useEffect(() => {
     if (!customerId) return;
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     fetch("/api/pharmacy/customers/detail", {

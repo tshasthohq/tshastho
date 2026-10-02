@@ -3,9 +3,11 @@ import PermissionGuard from "@/components/staff/PermissionGuard";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Package, AlertTriangle, XCircle, DollarSign, Pill, Calendar } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 function PharmacyInventoryPageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [medicines, setMedicines] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalItems: 0, lowStock: 0, outOfStock: 0, totalStockValue: 0,
@@ -14,7 +16,7 @@ function PharmacyInventoryPageInner() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/inventory", {

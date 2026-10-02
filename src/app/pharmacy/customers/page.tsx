@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users, Search, Phone, Mail, ShoppingBag, TrendingUp, Star, Crown, UserPlus, Clock, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 
 function CustomersPageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<any[]>([]);
   const [summary, setSummary] = useState({
     totalCustomers: 0,
@@ -22,7 +24,7 @@ function CustomersPageInner() {
   const [tagFilter, setTagFilter] = useState("ALL");
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/customers/list", {

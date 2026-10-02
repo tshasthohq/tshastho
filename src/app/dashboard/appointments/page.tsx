@@ -1,13 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Calendar, Clock, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AppointmentsPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (email) {
       fetch("/api/appointments/my-appointments", {
         method: "POST",

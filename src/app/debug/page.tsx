@@ -1,13 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DebugPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [storageData, setStorageData] = useState<any>({});
   const [apiResponse, setApiResponse] = useState<any>(null);
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail");
-    const name = localStorage.getItem("userName");
+    const email = user?.email;
+    const name = user?.name;
     
     setStorageData({
       userEmail: email,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Printer, Calendar, Wallet, TrendingUp, CheckCircle, Clock, FileText, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Payment {
   id: string;
@@ -36,6 +37,8 @@ interface StaffInfo {
 }
 
 export default function SalaryHistoryPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const params = useParams();
   const staffId = params.id as string;
@@ -46,7 +49,7 @@ export default function SalaryHistoryPage() {
   const [selected, setSelected] = useState<Payment | null>(null);
 
   const loadHistory = async () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { router.push("/login"); return; }
 
     try {

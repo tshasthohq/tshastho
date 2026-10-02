@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, Users, Clock, CheckCircle, AlertCircle, XCircle, MapPin, Plus, X, Save, TrendingUp, Loader2, Eye, Camera } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 function AttendancePageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [records, setRecords] = useState<any[]>([]);
   const [summary, setSummary] = useState({ total: 0, present: 0, completed: 0, late: 0, absent: 0 });
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -24,7 +26,7 @@ function AttendancePageInner() {
   const [message, setMessage] = useState("");
 
   const loadToday = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/attendance/list", {
@@ -45,7 +47,7 @@ function AttendancePageInner() {
 
   const loadMonthly = () => {
     setMonthlyLoading(true);
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     fetch("/api/pharmacy/attendance/monthly", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -68,7 +70,7 @@ function AttendancePageInner() {
     if (!manualForm.date) { setMessage("Please select date"); return; }
 
     setManualSaving(true);
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     const res = await fetch("/api/pharmacy/attendance/manual", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

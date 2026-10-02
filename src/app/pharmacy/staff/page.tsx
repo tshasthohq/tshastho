@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { ALL_PERMISSIONS, getDefaultPermissions } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import PermissionGuard from "@/components/staff/PermissionGuard";
+import { useAuth } from "@/hooks/useAuth";
 
 function StaffPageInner() {
   const router = useRouter();
+  const { user } = useAuth();
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -40,7 +42,7 @@ function StaffPageInner() {
   }, [showForm]);
 
   const loadStaff = () => {
-    const email = localStorage.getItem("userEmail");
+    const email = user?.email;
     if (!email) { setLoading(false); return; }
 
     fetch("/api/pharmacy/staff/list", {
@@ -96,7 +98,7 @@ function StaffPageInner() {
     setSaving(true);
     setMessage("");
 
-    const ownerEmail = localStorage.getItem("userEmail");
+    const ownerEmail = user?.email;
     const res = await fetch("/api/pharmacy/staff/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -122,7 +124,7 @@ function StaffPageInner() {
     await fetch("/api/pharmacy/staff/toggle", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ staffId, isActive: !currentActive, requesterEmail: localStorage.getItem("userEmail") }),
+      body: JSON.stringify({ staffId, isActive: !currentActive, requesterEmail: user?.email }),
     });
     loadStaff();
   };
@@ -132,7 +134,7 @@ function StaffPageInner() {
     await fetch("/api/pharmacy/staff/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ staffId, requesterEmail: localStorage.getItem("userEmail") }),
+      body: JSON.stringify({ staffId, requesterEmail: user?.email }),
     });
     loadStaff();
   };
