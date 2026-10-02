@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, DollarSign, Calculator, Plus, Wallet, TrendingUp, Calendar, CheckCircle, Clock, Loader2, X, Save, Receipt, HandCoins } from "lucide-react";
+import { ArrowLeft, DollarSign, Calculator, Plus, Wallet, TrendingUp, Calendar, CheckCircle, Clock, Loader2, X, Save, Receipt, HandCoins, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -161,6 +161,9 @@ export default function StaffDetailPage() {
           <ArrowLeft size={20} /> Back
         </button>
         <h1 className="font-bold text-slate-800">Staff Salary</h1>
+          <button onClick={() => router.push(`/pharmacy/staff/${staffId}/history`)} className="flex items-center gap-1 text-blue-600 text-xs font-bold bg-blue-50 px-3 py-1.5 rounded-lg">
+            <FileText size={14} /> History
+          </button>
         <div className="w-6"></div>
       </header>
 
