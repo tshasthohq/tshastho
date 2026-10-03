@@ -68,6 +68,7 @@ model User {
   salaryPayments  SalaryPayment[]
   staffAdvances   StaffAdvance[]
   payments        Payment[]       @relation("UserPayments")
+  stockMovements  StockMovement[] @relation("UserStockMovements")
 }
 
 model Patient {
@@ -117,6 +118,10 @@ model Pharmacy {
   attendances    Attendance[]
   salaryPayments SalaryPayment[]
   staffAdvances  StaffAdvance[]
+  batches        Batch[]
+  stockMovements StockMovement[]
+  suppliers      Supplier[]
+  purchases      PurchaseOrder[]
 }
 
 model MasterMedicine {
@@ -159,6 +164,9 @@ model Medicine {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   cartItems        CartItem[]
+  batches          Batch[]
+  stockMovements   StockMovement[]
+  purchaseItems    PurchaseItem[]
 }
 
 model CartItem {
@@ -550,4 +558,149 @@ model Settlement {
   updatedAt        DateTime         @updatedAt
 
   @@index([partnerId, status])
+}
+
+// ============================================
+// PHASE 2A: BATCH, EXPIRY & STOCK MOVEMENT
+// ============================================
+
+enum StockMovementType {
+  PURCHASE
+  SALE
+  RETURN_IN
+  RETURN_OUT
+  ADJUSTMENT
+  DAMAGE
+  EXPIRED
+  TRANSFER_IN
+  TRANSFER_OUT
+  OPENING
+}
+
+enum PurchaseStatus {
+  DRAFT
+  ORDERED
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+model Batch {
+  id            String    @id @default(cuid())
+  pharmacyId    String
+  pharmacy      Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  medicineId    String
+  medicine      Medicine  @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  batchNumber   String
+  mfgDate       DateTime?
+  expiryDate    DateTime
+  quantity      Int       @default(0)
+  initialQty    Int       @default(0)
+  purchasePrice Decimal
+  sellingPrice  Decimal
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
+  isActive      Boolean   @default(true)
+  note          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  movements     StockMovement[]
+  purchaseItems PurchaseItem[]
+
+  @@index([pharmacyId, medicineId])
+  @@index([expiryDate])
+  @@index([pharmacyId, isActive, expiryDate])
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  pharmacyId    String
+  pharmacy      Pharmacy          @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  medicineId    String
+  medicine      Medicine          @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  batchId       String?
+  batch         Batch?            @relation(fields: [batchId], references: [id])
+  type          StockMovementType
+  quantity      Int
+  previousStock Int
+  newStock      Int
+  referenceId   String?
+  reason        String?
+  userId        String?
+  user          User?             @relation("UserStockMovements", fields: [userId], references: [id])
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+
+  @@index([pharmacyId, createdAt])
+  @@index([medicineId, createdAt])
+  @@index([type, createdAt])
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  pharmacyId    String
+  pharmacy      Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  name          String
+  companyName   String?
+  phone         String
+  email         String?
+  address       String?
+  contactPerson String?
+  notes         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  batches   Batch[]
+  purchases PurchaseOrder[]
+
+  @@index([pharmacyId, isActive])
+}
+
+model PurchaseOrder {
+  id             String         @id @default(cuid())
+  purchaseNumber String
+  pharmacyId     String
+  pharmacy       Pharmacy       @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  supplierId     String
+  supplier       Supplier       @relation(fields: [supplierId], references: [id])
+  status         PurchaseStatus @default(DRAFT)
+  totalAmount    Decimal        @default(0)
+  paidAmount     Decimal        @default(0)
+  dueAmount      Decimal        @default(0)
+  invoiceNumber  String?
+  orderDate      DateTime       @default(now())
+  receivedDate   DateTime?
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  items PurchaseItem[]
+
+  @@unique([pharmacyId, purchaseNumber])
+  @@index([pharmacyId, status])
+  @@index([supplierId])
+}
+
+model PurchaseItem {
+  id          String        @id @default(cuid())
+  purchaseId  String
+  purchase    PurchaseOrder @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  medicineId  String
+  medicine    Medicine      @relation(fields: [medicineId], references: [id])
+  batchId     String?
+  batch       Batch?        @relation(fields: [batchId], references: [id])
+  batchNumber String
+  mfgDate     DateTime?
+  expiryDate  DateTime
+  quantity    Int
+  receivedQty Int           @default(0)
+  unitCost    Decimal
+  subtotal    Decimal
+  createdAt   DateTime      @default(now())
+
+  @@index([purchaseId])
+  @@index([medicineId])
 }
