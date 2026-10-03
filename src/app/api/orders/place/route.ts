@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/guards';
+import { recordStockMovement } from "@/lib/pharmacy/stock";
 export async function POST(req: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
@@ -158,6 +159,24 @@ export async function POST(req: Request) {
       }
 
       orders.push(order);
+
+        // Deduct stock for this order via FIFO batch logic
+        for (const item of items) {
+          try {
+            await recordStockMovement({
+              pharmacyId,
+              medicineId: item.medicine.id,
+              type: 'SALE',
+              quantity: item.quantity,
+              referenceId: order.id,
+              reason: `Order ${orderNumber}`,
+              userId: user.id,
+            });
+          } catch (stockErr) {
+            console.error('[ORDER_STOCK_DEDUCT]', stockErr);
+            // Continue anyway — the order was created
+          }
+        }
     }
 
     await prisma.cartItem.deleteMany({ where: { userId: user.id } });
