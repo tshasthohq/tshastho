@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/guards';
 import { recordStockMovement } from "@/lib/pharmacy/stock";
 import { recordOrderSale } from "@/lib/pharmacy/ledger";
+import { earnPoints } from "@/lib/pharmacy/loyalty";
 export async function POST(req: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;

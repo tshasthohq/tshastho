@@ -5,6 +5,7 @@ import { recordStockMovement } from '@/lib/pharmacy/stock';
 import { errorResponse, ErrorCodes } from '@/lib/errors';
 import { z } from 'zod';
 import { recordPosSale } from "@/lib/pharmacy/ledger";
+import { earnPoints } from "@/lib/pharmacy/loyalty";
 
 function generateSaleNumber(seq: number) {
   const d = new Date();
