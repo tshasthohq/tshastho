@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/guards';
 import { recordStockMovement } from '@/lib/pharmacy/stock';
 import { errorResponse, ErrorCodes } from '@/lib/errors';
+import { recordPurchase } from "@/lib/pharmacy/ledger";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/guards';
 import { recordStockMovement } from "@/lib/pharmacy/stock";
+import { recordOrderSale } from "@/lib/pharmacy/ledger";
 export async function POST(req: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
