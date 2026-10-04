@@ -69,6 +69,8 @@ model User {
   staffAdvances   StaffAdvance[]
   payments        Payment[]       @relation("UserPayments")
   stockMovements  StockMovement[] @relation("UserStockMovements")
+  posSales        PosSale[]       @relation("StaffPosSales")
+  posShifts       PosShift[]      @relation("StaffShifts")
 }
 
 model Patient {
@@ -122,6 +124,9 @@ model Pharmacy {
   stockMovements StockMovement[]
   suppliers      Supplier[]
   purchases      PurchaseOrder[]
+  posCustomers   PosCustomer[]
+  posSales       PosSale[]
+  posShifts      PosShift[]
 }
 
 model MasterMedicine {
@@ -167,6 +172,7 @@ model Medicine {
   batches          Batch[]
   stockMovements   StockMovement[]
   purchaseItems    PurchaseItem[]
+  posSaleItems     PosSaleItem[]
 }
 
 model CartItem {
@@ -703,4 +709,117 @@ model PurchaseItem {
 
   @@index([purchaseId])
   @@index([medicineId])
+}
+
+// ============================================
+// PHASE 2B: POINT OF SALE (POS)
+// ============================================
+
+enum PosPaymentMethod {
+  CASH
+  CARD
+  BKASH
+  NAGAD
+  MIXED
+  DUE
+}
+
+enum PosShiftStatus {
+  OPEN
+  CLOSED
+}
+
+model PosCustomer {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  name       String?
+  phone      String?
+  address    String?
+  totalSpent Decimal  @default(0)
+  visitCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sales PosSale[]
+
+  @@index([pharmacyId, phone])
+}
+
+model PosSale {
+  id             String           @id @default(cuid())
+  saleNumber     String
+  pharmacyId     String
+  pharmacy       Pharmacy         @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       PosCustomer?     @relation(fields: [customerId], references: [id])
+  customerName   String?
+  customerPhone  String?
+  staffId        String?
+  staff          User?            @relation("StaffPosSales", fields: [staffId], references: [id])
+  shiftId        String?
+  shift          PosShift?        @relation(fields: [shiftId], references: [id])
+  subtotal       Decimal          @default(0)
+  discountAmount Decimal          @default(0)
+  totalAmount    Decimal
+  paidAmount     Decimal          @default(0)
+  changeAmount   Decimal          @default(0)
+  dueAmount      Decimal          @default(0)
+  paymentMethod  PosPaymentMethod @default(CASH)
+  notes          String?
+  profit         Decimal          @default(0)
+  isReturned     Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  items PosSaleItem[]
+
+  @@unique([pharmacyId, saleNumber])
+  @@index([pharmacyId, createdAt])
+  @@index([shiftId])
+}
+
+model PosSaleItem {
+  id            String   @id @default(cuid())
+  saleId        String
+  sale          PosSale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicineId    String
+  medicine      Medicine @relation(fields: [medicineId], references: [id])
+  medicineName  String
+  quantity      Int
+  unitPrice     Decimal
+  purchasePrice Decimal  @default(0)
+  discount      Decimal  @default(0)
+  subtotal      Decimal
+  createdAt     DateTime @default(now())
+
+  @@index([saleId])
+  @@index([medicineId])
+}
+
+model PosShift {
+  id           String         @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy       @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  staffId      String
+  staff        User           @relation("StaffShifts", fields: [staffId], references: [id])
+  status       PosShiftStatus @default(OPEN)
+  openingCash  Decimal        @default(0)
+  closingCash  Decimal?
+  expectedCash Decimal        @default(0)
+  difference   Decimal        @default(0)
+  totalSales   Decimal        @default(0)
+  totalCash    Decimal        @default(0)
+  totalCard    Decimal        @default(0)
+  totalDigital Decimal        @default(0)
+  totalDue     Decimal        @default(0)
+  saleCount    Int            @default(0)
+  openedAt     DateTime       @default(now())
+  closedAt     DateTime?
+  notes        String?
+
+  sales PosSale[]
+
+  @@index([pharmacyId, status])
+  @@index([staffId, status])
 }
