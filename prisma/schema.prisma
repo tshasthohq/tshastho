@@ -92,6 +92,8 @@ model User {
   branchAssignments     BranchStaff[]       @relation("BranchStaffAssign")
   regulatoryLogs        RegulatoryLog[]     @relation("RegulatoryLogs")
   dgdaReports           DGDAReport[]        @relation("DGDAReports")
+  verifiedDoctorDocs    DoctorDocument[]    @relation("VerifiedDoctorDocs")
+  patientReviews        DoctorReview[]      @relation("PatientReviews")
 }
 
 model Patient {
@@ -106,18 +108,32 @@ model Patient {
 }
 
 model Doctor {
-  id              String        @id @default(cuid())
-  userId          String        @unique
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialty       String
-  licenseNumber   String        @unique
-  experience      Int
-  consultationFee Decimal
-  bookingPhone    String?
-  chamberAddress  String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  appointments    Appointment[] @relation("DoctorAppointments")
+  id                  String                   @id @default(cuid())
+  userId              String                   @unique
+  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty           String
+  licenseNumber       String                   @unique
+  experience          Int
+  consultationFee     Decimal
+  bookingPhone        String?
+  chamberAddress      String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  bio                 String?
+  gender              DoctorGender?
+  languages           String?
+  hospitalAffiliation String?
+  subSpecialties      String?
+  onlineAvailable     Boolean                  @default(true)
+  inPersonAvailable   Boolean                  @default(true)
+  averageRating       Decimal                  @default(0)
+  totalReviews        Int                      @default(0)
+  verificationStatus  DoctorVerificationStatus @default(PENDING)
+  appointments        Appointment[]            @relation("DoctorAppointments")
+  specialties         DoctorSpecialty[]
+  qualifications      DoctorQualification[]
+  documents           DoctorDocument[]
+  reviews             DoctorReview[]
 }
 
 model Pharmacy {
@@ -1435,4 +1451,89 @@ model DGDAReport {
   createdAt       DateTime  @default(now())
 
   @@index([pharmacyId, createdAt])
+}
+
+enum DoctorVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum DoctorDocumentType {
+  LICENSE
+  DEGREE
+  CERTIFICATE
+  NID
+  PHOTO
+  OTHER
+}
+
+enum DoctorGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model DoctorSpecialty {
+  id        String   @id @default(cuid())
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  name      String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([doctorId])
+  @@index([name])
+}
+
+model DoctorQualification {
+  id          String   @id @default(cuid())
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  degree      String
+  institution String?
+  year        Int?
+  country     String?
+  createdAt   DateTime @default(now())
+
+  @@index([doctorId])
+}
+
+model DoctorDocument {
+  id              String                   @id @default(cuid())
+  doctorId        String
+  doctor          Doctor                   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  type            DoctorDocumentType
+  title           String?
+  fileUrl         String
+  status          DoctorVerificationStatus @default(PENDING)
+  verifiedById    String?
+  verifiedBy      User?                    @relation("VerifiedDoctorDocs", fields: [verifiedById], references: [id])
+  verifiedAt      DateTime?
+  rejectionReason String?
+  notes           String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([doctorId])
+  @@index([status])
+}
+
+model DoctorReview {
+  id           String   @id @default(cuid())
+  doctorId     String
+  doctor       Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId    String
+  patient      User     @relation("PatientReviews", fields: [patientId], references: [id], onDelete: Cascade)
+  rating       Int
+  comment      String?
+  isPublic     Boolean  @default(true)
+  isReported   Boolean  @default(false)
+  reportReason String?
+  createdAt    DateTime @default(now())
+
+  @@unique([doctorId, patientId])
+  @@index([doctorId, createdAt])
+  @@index([rating])
 }
