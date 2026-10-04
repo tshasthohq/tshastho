@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Pill, Package, History, Truck, ShoppingCart,
-  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText
+  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw
 } from "lucide-react";
 
 const NAV = [
@@ -22,6 +22,7 @@ const NAV = [
   { href: "/pharmacy/dues", icon: DollarSign, label: "Dues" },
   { href: "/pharmacy/finance", icon: Wallet, label: "Finance" },
   { href: "/pharmacy/prescriptions", icon: FileText, label: "Rx Verify" },
+  { href: "/pharmacy/returns", icon: RotateCcw, label: "Returns" },
   { href: "/pharmacy/notifications", icon: Bell, label: "Notifications" },
 ];
 
