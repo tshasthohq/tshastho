@@ -1,0 +1,228 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth/guards';
+import { recordStockMovement } from '@/lib/pharmacy/stock';
+import { errorResponse, ErrorCodes } from '@/lib/errors';
+import { z } from 'zod';
+
+function generateSaleNumber(seq: number) {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `POS-${y}${m}${day}-${String(seq).padStart(4, '0')}`;
+}
+
+const schema = z.object({
+  items: z.array(z.object({
+    medicineId: z.string().min(1),
+    quantity: z.coerce.number().int().positive(),
+    unitPrice: z.coerce.number().min(0),
+    discount: z.coerce.number().min(0).default(0),
+  })).min(1),
+  customerName: z.string().optional(),
+  customerPhone: z.string().optional(),
+  discountAmount: z.coerce.number().min(0).default(0),
+  paymentMethod: z.enum(['CASH', 'CARD', 'BKASH', 'NAGAD', 'MIXED', 'DUE']).default('CASH'),
+  paidAmount: z.coerce.number().min(0).default(0),
+  notes: z.string().optional(),
+});
+
+export async function POST(req: Request) {
+  const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
+  if (auth.error) return auth.error;
+  const user = auth.user!;
+
+  try {
+    const body = await req.json();
+    const data = schema.parse(body);
+
+    // Resolve pharmacyId
+    let pharmacyId = user.parentPharmacyId;
+    if (user.role === 'PHARMACY_OWNER') {
+      const pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
+      pharmacyId = pharmacy?.id || null;
+    }
+    if (!pharmacyId) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Pharmacy not found', 404);
+
+    // Get open shift for this staff
+    const openShift = await prisma.posShift.findFirst({
+      where: { pharmacyId, staffId: user.id, status: 'OPEN' },
+      orderBy: { openedAt: 'desc' },
+    });
+
+    // Verify medicines & get prices
+    const medicineIds = data.items.map(i => i.medicineId);
+    const medicines = await prisma.medicine.findMany({
+      where: { id: { in: medicineIds }, pharmacyId },
+    });
+
+    if (medicines.length !== medicineIds.length) {
+      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'One or more medicines not found', 400);
+    }
+
+    // Build items with calculated subtotals & profit
+    const itemsData = data.items.map(item => {
+      const med = medicines.find(m => m.id === item.medicineId)!;
+      const subtotal = (item.unitPrice * item.quantity) - item.discount;
+      const purchasePrice = Number(med.purchasePrice);
+      const profit = subtotal - (purchasePrice * item.quantity);
+      return {
+        medicineId: item.medicineId,
+        medicineName: med.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        purchasePrice: med.purchasePrice,
+        discount: item.discount,
+        subtotal,
+        profit,
+      };
+    });
+
+    const subtotal = itemsData.reduce((s, i) => s + i.subtotal, 0);
+    const totalAmount = subtotal - data.discountAmount;
+    const totalProfit = itemsData.reduce((s, i) => s + i.profit, 0) - data.discountAmount;
+
+    const paidAmount = data.paymentMethod === 'DUE' ? 0 : (data.paidAmount || totalAmount);
+    const changeAmount = Math.max(0, paidAmount - totalAmount);
+    const dueAmount = Math.max(0, totalAmount - paidAmount);
+
+    // Get next sale number
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayCount = await prisma.posSale.count({
+      where: { pharmacyId, createdAt: { gte: todayStart } },
+    });
+    const saleNumber = generateSaleNumber(todayCount + 1);
+
+    // Handle customer (optional)
+    let customerId: string | null = null;
+    if (data.customerPhone) {
+      const existing = await prisma.posCustomer.findFirst({
+        where: { pharmacyId, phone: data.customerPhone },
+      });
+      if (existing) {
+        await prisma.posCustomer.update({
+          where: { id: existing.id },
+          data: {
+            totalSpent: { increment: totalAmount },
+            visitCount: { increment: 1 },
+            name: data.customerName || existing.name,
+          },
+        });
+        customerId = existing.id;
+      } else {
+        const created = await prisma.posCustomer.create({
+          data: {
+            pharmacyId,
+            name: data.customerName || null,
+            phone: data.customerPhone,
+            totalSpent: totalAmount,
+            visitCount: 1,
+          },
+        });
+        customerId = created.id;
+      }
+    }
+
+    // Create sale + items + deduct stock atomically
+    const sale = await prisma.$transaction(async (tx) => {
+      const createdSale = await tx.posSale.create({
+        data: {
+          saleNumber,
+          pharmacyId,
+          customerId,
+          customerName: data.customerName || null,
+          customerPhone: data.customerPhone || null,
+          staffId: user.id,
+          shiftId: openShift?.id || null,
+          subtotal,
+          discountAmount: data.discountAmount,
+          totalAmount,
+          paidAmount,
+          changeAmount,
+          dueAmount,
+          paymentMethod: data.paymentMethod as any,
+          notes: data.notes || null,
+          profit: totalProfit,
+          items: {
+            create: itemsData.map(i => ({
+              medicineId: i.medicineId,
+              medicineName: i.medicineName,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              purchasePrice: i.purchasePrice,
+              discount: i.discount,
+              subtotal: i.subtotal,
+            })),
+          },
+        },
+      });
+
+      // FIFO deduct stock
+      for (const item of data.items) {
+        await recordStockMovement({
+          pharmacyId,
+          medicineId: item.medicineId,
+          type: 'SALE',
+          quantity: item.quantity,
+          referenceId: createdSale.id,
+          reason: `POS Sale ${saleNumber}`,
+          userId: user.id,
+        });
+      }
+
+      // Update shift totals if open
+      if (openShift) {
+        await tx.posShift.update({
+          where: { id: openShift.id },
+          data: {
+            totalSales: { increment: totalAmount },
+            totalCash: data.paymentMethod === 'CASH' ? { increment: totalAmount } : undefined,
+            totalCard: data.paymentMethod === 'CARD' ? { increment: totalAmount } : undefined,
+            totalDigital: ['BKASH', 'NAGAD'].includes(data.paymentMethod) ? { increment: totalAmount } : undefined,
+            totalDue: dueAmount > 0 ? { increment: dueAmount } : undefined,
+            saleCount: { increment: 1 },
+          },
+        });
+      }
+
+      return createdSale;
+    });
+
+    return NextResponse.json({
+      success: true,
+      sale: {
+        id: sale.id,
+        saleNumber: sale.saleNumber,
+        totalAmount: sale.totalAmount,
+        changeAmount: sale.changeAmount,
+        dueAmount: sale.dueAmount,
+        paymentMethod: sale.paymentMethod,
+        createdAt: sale.createdAt,
+      },
+      receipt: {
+        saleNumber,
+        items: itemsData.map(i => ({
+          name: i.medicineName,
+          qty: i.quantity,
+          price: i.unitPrice,
+          subtotal: i.subtotal,
+        })),
+        subtotal,
+        discount: data.discountAmount,
+        total: totalAmount,
+        paid: paidAmount,
+        change: changeAmount,
+        due: dueAmount,
+      },
+    }, { status: 201 });
+
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return errorResponse(ErrorCodes.VALIDATION_ERROR, error.issues[0].message, 400);
+    }
+    console.error('[POS_SALE]', error);
+    return errorResponse(ErrorCodes.INTERNAL_ERROR, error.message || 'Sale failed', 500);
+  }
+}

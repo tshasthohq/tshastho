@@ -14,6 +14,8 @@ const NAV = [
   { href: "/pharmacy/stock-movements", icon: History, label: "Stock" },
   { href: "/pharmacy/suppliers", icon: Truck, label: "Suppliers" },
   { href: "/pharmacy/purchases", icon: ShoppingCart, label: "Purchases" },
+  { href: "/pharmacy/pos", icon: ShoppingCart, label: "POS" },
+  { href: "/pharmacy/pos/sales", icon: History, label: "POS Sales" },
   { href: "/pharmacy/orders", icon: ClipboardList, label: "Orders" },
   { href: "/pharmacy/customers", icon: Users, label: "Customers" },
   { href: "/pharmacy/staff", icon: UserCog, label: "Staff" },
