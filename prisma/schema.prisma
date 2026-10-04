@@ -83,6 +83,8 @@ model User {
   verifiedPrescriptions Prescription[]      @relation("VerifiedPrescriptions")
   processedReturns      ReturnOrder[]       @relation("ProcessedReturns")
   approvedReturns       ReturnOrder[]       @relation("ApprovedReturns")
+  loyalty               LoyaltyAccount?     @relation("UserLoyalty")
+  doctorReferrals       DoctorReferral[]    @relation("DoctorReferrals")
 }
 
 model Patient {
@@ -1149,4 +1151,82 @@ model ReturnItem {
 
   @@index([returnId])
   @@index([medicineId])
+}
+
+// ============================================
+// PHASE 2F: LOYALTY & REFERRAL
+// ============================================
+
+model LoyaltyAccount {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation("UserLoyalty", fields: [userId], references: [id], onDelete: Cascade)
+  points         Int      @default(0)
+  lifetimePoints Int      @default(0)
+  tier           String   @default("BRONZE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  transactions LoyaltyTransaction[]
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUSTMENT
+}
+
+model LoyaltyTransaction {
+  id            String                 @id @default(cuid())
+  accountId     String
+  account       LoyaltyAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type          LoyaltyTransactionType
+  points        Int
+  balance       Int
+  referenceId   String?
+  referenceType String?
+  description   String?
+  metadata      Json?
+  createdAt     DateTime               @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+model DoctorReferral {
+  id             String   @id @default(cuid())
+  doctorId       String
+  doctor         User     @relation("DoctorReferrals", fields: [doctorId], references: [id], onDelete: Cascade)
+  code           String   @unique
+  commissionRate Decimal  @default(5)
+  totalReferrals Int      @default(0)
+  totalSales     Decimal  @default(0)
+  totalEarned    Decimal  @default(0)
+  totalPaid      Decimal  @default(0)
+  isActive       Boolean  @default(true)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  usages ReferralUsage[]
+
+  @@index([doctorId])
+}
+
+model ReferralUsage {
+  id               String         @id @default(cuid())
+  referralId       String
+  referral         DoctorReferral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  orderId          String?
+  posSaleId        String?
+  customerId       String?
+  orderAmount      Decimal
+  commissionAmount Decimal
+  status           String         @default("PENDING")
+  paidAt           DateTime?
+  notes            String?
+  createdAt        DateTime       @default(now())
+
+  @@index([referralId, createdAt])
+  @@index([orderId])
 }
