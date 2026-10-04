@@ -81,6 +81,8 @@ model User {
   patientPrescriptions  Prescription[]      @relation("PatientPrescriptions")
   doctorPrescriptions   Prescription[]      @relation("DoctorPrescriptions")
   verifiedPrescriptions Prescription[]      @relation("VerifiedPrescriptions")
+  processedReturns      ReturnOrder[]       @relation("ProcessedReturns")
+  approvedReturns       ReturnOrder[]       @relation("ApprovedReturns")
 }
 
 model Patient {
@@ -141,6 +143,7 @@ model Pharmacy {
   ledgerEntries  PharmacyLedger[]
   dailyClosings  DailyClosing[]
   settlements    SettlementRequest[]
+  returns        ReturnOrder[]
 }
 
 model MasterMedicine {
@@ -187,6 +190,7 @@ model Medicine {
   stockMovements   StockMovement[]
   purchaseItems    PurchaseItem[]
   posSaleItems     PosSaleItem[]
+  returnItems      ReturnItem[]
 }
 
 model CartItem {
@@ -629,6 +633,7 @@ model Batch {
 
   movements     StockMovement[]
   purchaseItems PurchaseItem[]
+  returnItems   ReturnItem[]
 
   @@index([pharmacyId, medicineId])
   @@index([expiryDate])
@@ -676,6 +681,7 @@ model Supplier {
 
   batches   Batch[]
   purchases PurchaseOrder[]
+  returns   ReturnOrder[]
 
   @@index([pharmacyId, isActive])
 }
@@ -788,7 +794,8 @@ model PosSale {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  items PosSaleItem[]
+  items        PosSaleItem[]
+  returnOrders ReturnOrder[]
 
   @@unique([pharmacyId, saleNumber])
   @@index([pharmacyId, createdAt])
@@ -1060,4 +1067,86 @@ model PrescriptionItem {
   createdAt      DateTime     @default(now())
 
   @@index([prescriptionId])
+}
+
+// ============================================
+// PHASE 2E: RETURNS & ADJUSTMENTS
+// ============================================
+
+enum ReturnType {
+  CUSTOMER_RETURN
+  SUPPLIER_RETURN
+  DAMAGE_WRITE_OFF
+  EXPIRED_WRITE_OFF
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  PROCESSED
+  REJECTED
+}
+
+enum RefundMethod {
+  CASH
+  ORIGINAL
+  STORE_CREDIT
+  NO_REFUND
+}
+
+model ReturnOrder {
+  id             String       @id @default(cuid())
+  returnNumber   String
+  pharmacyId     String
+  pharmacy       Pharmacy     @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  type           ReturnType
+  status         ReturnStatus @default(PENDING)
+  referenceId    String?
+  referenceType  String?
+  originalSaleId String?
+  originalSale   PosSale?     @relation(fields: [originalSaleId], references: [id])
+  supplierId     String?
+  supplier       Supplier?    @relation(fields: [supplierId], references: [id])
+  customerName   String?
+  customerPhone  String?
+  totalAmount    Decimal      @default(0)
+  refundMethod   RefundMethod @default(CASH)
+  refundAmount   Decimal      @default(0)
+  reason         String?
+  notes          String?
+  processedById  String?
+  processedBy    User?        @relation("ProcessedReturns", fields: [processedById], references: [id])
+  approvedById   String?
+  approvedBy     User?        @relation("ApprovedReturns", fields: [approvedById], references: [id])
+  approvedAt     DateTime?
+  processedAt    DateTime?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  items ReturnItem[]
+
+  @@unique([pharmacyId, returnNumber])
+  @@index([pharmacyId, status])
+  @@index([pharmacyId, type])
+}
+
+model ReturnItem {
+  id           String      @id @default(cuid())
+  returnId     String
+  return       ReturnOrder @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  medicineId   String
+  medicine     Medicine    @relation(fields: [medicineId], references: [id])
+  batchId      String?
+  batch        Batch?      @relation(fields: [batchId], references: [id])
+  medicineName String
+  quantity     Int
+  unitPrice    Decimal     @default(0)
+  subtotal     Decimal     @default(0)
+  isRestocked  Boolean     @default(false)
+  reason       String?
+  createdAt    DateTime    @default(now())
+
+  @@index([returnId])
+  @@index([medicineId])
 }
