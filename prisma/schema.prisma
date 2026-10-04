@@ -57,20 +57,27 @@ model User {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  patientProfile  Patient?
-  doctorProfile   Doctor?
-  pharmacyProfile Pharmacy?
-  appointments    Appointment[]   @relation("PatientAppointments")
-  notifications   Notification[]
-  cartItems       CartItem[]
-  patientOrders   Order[]         @relation("PatientOrders")
-  attendances     Attendance[]
-  salaryPayments  SalaryPayment[]
-  staffAdvances   StaffAdvance[]
-  payments        Payment[]       @relation("UserPayments")
-  stockMovements  StockMovement[] @relation("UserStockMovements")
-  posSales        PosSale[]       @relation("StaffPosSales")
-  posShifts       PosShift[]      @relation("StaffShifts")
+  patientProfile   Patient?
+  doctorProfile    Doctor?
+  pharmacyProfile  Pharmacy?
+  appointments     Appointment[]       @relation("PatientAppointments")
+  notifications    Notification[]
+  cartItems        CartItem[]
+  patientOrders    Order[]             @relation("PatientOrders")
+  attendances      Attendance[]
+  salaryPayments   SalaryPayment[]
+  staffAdvances    StaffAdvance[]
+  payments         Payment[]           @relation("UserPayments")
+  stockMovements   StockMovement[]     @relation("UserStockMovements")
+  posSales         PosSale[]           @relation("StaffPosSales")
+  posShifts        PosShift[]          @relation("StaffShifts")
+  expensesCreated  PharmacyExpense[]   @relation("UserExpenses")
+  expensesApproved PharmacyExpense[]   @relation("ApprovedExpenses")
+  ledgerEntries    PharmacyLedger[]    @relation("UserLedgerEntries")
+  dailyClosings    DailyClosing[]      @relation("UserDailyClosings")
+  dailyClosingsVer DailyClosing[]      @relation("VerifiedDailyClosings")
+  settlementsReq   SettlementRequest[] @relation("RequestedSettlements")
+  settlementsApp   SettlementRequest[] @relation("ApprovedSettlements")
 }
 
 model Patient {
@@ -100,20 +107,20 @@ model Doctor {
 }
 
 model Pharmacy {
-  id             String          @id @default(cuid())
-  userId         String          @unique
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String              @id @default(cuid())
+  userId         String              @unique
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   shopName       String
   logo           String?
-  drugLicense    String          @unique
+  drugLicense    String              @unique
   tradeLicense   String
   address        String
   area           String?
   city           String
-  deliveryRadius Int             @default(5)
-  isOpen         Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  deliveryRadius Int                 @default(5)
+  isOpen         Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
   medicines      Medicine[]
   orders         Order[]
   dues           Due[]
@@ -127,6 +134,10 @@ model Pharmacy {
   posCustomers   PosCustomer[]
   posSales       PosSale[]
   posShifts      PosShift[]
+  expenses       PharmacyExpense[]
+  ledgerEntries  PharmacyLedger[]
+  dailyClosings  DailyClosing[]
+  settlements    SettlementRequest[]
 }
 
 model MasterMedicine {
@@ -822,4 +833,168 @@ model PosShift {
 
   @@index([pharmacyId, status])
   @@index([staffId, status])
+}
+
+// ============================================
+// PHASE 2C: FINANCIAL LEDGER PER PHARMACY
+// ============================================
+
+enum ExpenseCategory {
+  RENT
+  SALARY
+  UTILITY
+  TRANSPORT
+  PURCHASE
+  MAINTENANCE
+  MARKETING
+  TAX
+  MISC
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum LedgerEntryType {
+  SALE
+  POS_SALE
+  PURCHASE
+  EXPENSE
+  PAYMENT_RECEIVED
+  REFUND
+  SETTLEMENT
+  ADJUSTMENT
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum DailyClosingStatus {
+  DRAFT
+  SUBMITTED
+  VERIFIED
+}
+
+enum SettlementRequestStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+model PharmacyExpense {
+  id           String          @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  category     ExpenseCategory
+  amount       Decimal
+  description  String
+  receiptUrl   String?
+  status       ExpenseStatus   @default(PENDING)
+  expenseDate  DateTime        @default(now())
+  createdById  String?
+  createdBy    User?           @relation("UserExpenses", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?           @relation("ApprovedExpenses", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  notes        String?
+  metadata     Json?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([pharmacyId, expenseDate])
+  @@index([pharmacyId, status])
+  @@index([pharmacyId, category])
+}
+
+model PharmacyLedger {
+  id            String          @id @default(cuid())
+  pharmacyId    String
+  pharmacy      Pharmacy        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  entryType     LedgerEntryType
+  direction     LedgerDirection
+  amount        Decimal
+  balance       Decimal         @default(0)
+  description   String?
+  referenceId   String?
+  referenceType String?
+  createdById   String?
+  createdBy     User?           @relation("UserLedgerEntries", fields: [createdById], references: [id])
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+
+  @@index([pharmacyId, createdAt])
+  @@index([pharmacyId, entryType])
+  @@index([referenceId])
+}
+
+model DailyClosing {
+  id             String             @id @default(cuid())
+  pharmacyId     String
+  pharmacy       Pharmacy           @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  closingDate    DateTime
+  status         DailyClosingStatus @default(DRAFT)
+  openingCash    Decimal            @default(0)
+  closingCash    Decimal            @default(0)
+  expectedCash   Decimal            @default(0)
+  difference     Decimal            @default(0)
+  totalSales     Decimal            @default(0)
+  totalPosSales  Decimal            @default(0)
+  totalExpenses  Decimal            @default(0)
+  totalPurchases Decimal            @default(0)
+  totalCashIn    Decimal            @default(0)
+  totalCashOut   Decimal            @default(0)
+  netCashFlow    Decimal            @default(0)
+  orderCount     Int                @default(0)
+  posSaleCount   Int                @default(0)
+  notes          String?
+  closedById     String?
+  closedBy       User?              @relation("UserDailyClosings", fields: [closedById], references: [id])
+  verifiedById   String?
+  verifiedBy     User?              @relation("VerifiedDailyClosings", fields: [verifiedById], references: [id])
+  verifiedAt     DateTime?
+  metadata       Json?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([pharmacyId, closingDate])
+  @@index([pharmacyId, closingDate])
+  @@index([pharmacyId, status])
+}
+
+model SettlementRequest {
+  id               String                  @id @default(cuid())
+  requestNumber    String
+  pharmacyId       String
+  pharmacy         Pharmacy                @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  status           SettlementRequestStatus @default(REQUESTED)
+  periodStart      DateTime
+  periodEnd        DateTime
+  grossSales       Decimal                 @default(0)
+  commissionAmount Decimal                 @default(0)
+  refundAmount     Decimal                 @default(0)
+  netPayable       Decimal                 @default(0)
+  requestedById    String?
+  requestedBy      User?                   @relation("RequestedSettlements", fields: [requestedById], references: [id])
+  approvedById     String?
+  approvedBy       User?                   @relation("ApprovedSettlements", fields: [approvedById], references: [id])
+  approvedAt       DateTime?
+  completedAt      DateTime?
+  payoutId         String?
+  bankAccount      Json?
+  notes            String?
+  rejectionReason  String?
+  metadata         Json?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([pharmacyId, requestNumber])
+  @@index([pharmacyId, status])
+  @@index([status, createdAt])
 }
