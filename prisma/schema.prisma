@@ -85,6 +85,13 @@ model User {
   approvedReturns       ReturnOrder[]       @relation("ApprovedReturns")
   loyalty               LoyaltyAccount?     @relation("UserLoyalty")
   doctorReferrals       DoctorReferral[]    @relation("DoctorReferrals")
+  managedBranches       PharmacyBranch[]    @relation("BranchManager")
+  requestedTransfers    BranchTransfer[]    @relation("RequestedTransfers")
+  approvedTransfers     BranchTransfer[]    @relation("ApprovedTransfers")
+  receivedTransfers     BranchTransfer[]    @relation("ReceivedTransfers")
+  branchAssignments     BranchStaff[]       @relation("BranchStaffAssign")
+  regulatoryLogs        RegulatoryLog[]     @relation("RegulatoryLogs")
+  dgdaReports           DGDAReport[]        @relation("DGDAReports")
 }
 
 model Patient {
@@ -114,38 +121,42 @@ model Doctor {
 }
 
 model Pharmacy {
-  id             String              @id @default(cuid())
-  userId         String              @unique
-  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shopName       String
-  logo           String?
-  drugLicense    String              @unique
-  tradeLicense   String
-  address        String
-  area           String?
-  city           String
-  deliveryRadius Int                 @default(5)
-  isOpen         Boolean             @default(true)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  medicines      Medicine[]
-  orders         Order[]
-  dues           Due[]
-  attendances    Attendance[]
-  salaryPayments SalaryPayment[]
-  staffAdvances  StaffAdvance[]
-  batches        Batch[]
-  stockMovements StockMovement[]
-  suppliers      Supplier[]
-  purchases      PurchaseOrder[]
-  posCustomers   PosCustomer[]
-  posSales       PosSale[]
-  posShifts      PosShift[]
-  expenses       PharmacyExpense[]
-  ledgerEntries  PharmacyLedger[]
-  dailyClosings  DailyClosing[]
-  settlements    SettlementRequest[]
-  returns        ReturnOrder[]
+  id              String              @id @default(cuid())
+  userId          String              @unique
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopName        String
+  logo            String?
+  drugLicense     String              @unique
+  tradeLicense    String
+  address         String
+  area            String?
+  city            String
+  deliveryRadius  Int                 @default(5)
+  isOpen          Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  medicines       Medicine[]
+  orders          Order[]
+  dues            Due[]
+  attendances     Attendance[]
+  salaryPayments  SalaryPayment[]
+  staffAdvances   StaffAdvance[]
+  batches         Batch[]
+  stockMovements  StockMovement[]
+  suppliers       Supplier[]
+  purchases       PurchaseOrder[]
+  posCustomers    PosCustomer[]
+  posSales        PosSale[]
+  posShifts       PosShift[]
+  expenses        PharmacyExpense[]
+  ledgerEntries   PharmacyLedger[]
+  dailyClosings   DailyClosing[]
+  settlements     SettlementRequest[]
+  returns         ReturnOrder[]
+  branches        PharmacyBranch[]
+  branchTransfers BranchTransfer[]
+  regulatoryLogs  RegulatoryLog[]
+  dgdaReports     DGDAReport[]
 }
 
 model MasterMedicine {
@@ -163,11 +174,11 @@ model MasterMedicine {
 }
 
 model Medicine {
-  id               String          @id @default(cuid())
+  id               String               @id @default(cuid())
   pharmacyId       String
-  pharmacy         Pharmacy        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  pharmacy         Pharmacy             @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
   masterMedicineId String?
-  masterMedicine   MasterMedicine? @relation(fields: [masterMedicineId], references: [id])
+  masterMedicine   MasterMedicine?      @relation(fields: [masterMedicineId], references: [id])
   name             String
   brand            String?
   genericName      String?
@@ -175,24 +186,27 @@ model Medicine {
   description      String?
   purchasePrice    Decimal
   sellingPrice     Decimal
-  discountPercent  Decimal         @default(0)
-  stock            Int             @default(0)
-  unit             String          @default("piece")
-  stripSize        Int             @default(10)
-  boxSize          Int             @default(100)
+  discountPercent  Decimal              @default(0)
+  stock            Int                  @default(0)
+  unit             String               @default("piece")
+  stripSize        Int                  @default(10)
+  boxSize          Int                  @default(100)
   manufacturer     String?
   images           Json?
   expiryDate       DateTime?
   batchNumber      String?
-  isActive         Boolean         @default(true)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  isActive         Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
   cartItems        CartItem[]
   batches          Batch[]
   stockMovements   StockMovement[]
   purchaseItems    PurchaseItem[]
   posSaleItems     PosSaleItem[]
   returnItems      ReturnItem[]
+  branchStocks     BranchStock[]
+  regulatoryLogs   RegulatoryLog[]
+  transferItems    BranchTransferItem[]
 }
 
 model CartItem {
@@ -1229,4 +1243,196 @@ model ReferralUsage {
 
   @@index([referralId, createdAt])
   @@index([orderId])
+}
+
+// ============================================
+// PHASE 2G: MULTI-BRANCH SUPPORT
+// ============================================
+
+model PharmacyBranch {
+  id           String   @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  name         String
+  code         String
+  address      String
+  area         String?
+  city         String?
+  phone        String?
+  managerId    String?
+  manager      User?    @relation("BranchManager", fields: [managerId], references: [id])
+  isActive     Boolean  @default(true)
+  isMainBranch Boolean  @default(false)
+  openingCash  Decimal  @default(0)
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  stocks       BranchStock[]
+  transfersOut BranchTransfer[] @relation("TransferFrom")
+  transfersIn  BranchTransfer[] @relation("TransferTo")
+  staffAssign  BranchStaff[]
+
+  @@unique([pharmacyId, code])
+  @@index([pharmacyId, isActive])
+}
+
+model BranchStock {
+  id           String         @id @default(cuid())
+  branchId     String
+  branch       PharmacyBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  medicineId   String
+  medicine     Medicine       @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  quantity     Int            @default(0)
+  reorderLevel Int            @default(10)
+  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime       @default(now())
+
+  @@unique([branchId, medicineId])
+  @@index([branchId])
+  @@index([medicineId])
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  IN_TRANSIT
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+model BranchTransfer {
+  id             String         @id @default(cuid())
+  transferNumber String
+  pharmacyId     String
+  pharmacy       Pharmacy       @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  fromBranchId   String
+  fromBranch     PharmacyBranch @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranchId     String
+  toBranch       PharmacyBranch @relation("TransferTo", fields: [toBranchId], references: [id])
+  status         TransferStatus @default(PENDING)
+  reason         String?
+  notes          String?
+  requestedById  String?
+  requestedBy    User?          @relation("RequestedTransfers", fields: [requestedById], references: [id])
+  approvedById   String?
+  approvedBy     User?          @relation("ApprovedTransfers", fields: [approvedById], references: [id])
+  receivedById   String?
+  receivedBy     User?          @relation("ReceivedTransfers", fields: [receivedById], references: [id])
+  approvedAt     DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  items BranchTransferItem[]
+
+  @@unique([pharmacyId, transferNumber])
+  @@index([pharmacyId, status])
+  @@index([fromBranchId])
+  @@index([toBranchId])
+}
+
+model BranchTransferItem {
+  id           String         @id @default(cuid())
+  transferId   String
+  transfer     BranchTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  medicineId   String
+  medicine     Medicine       @relation(fields: [medicineId], references: [id])
+  medicineName String
+  quantity     Int
+  receivedQty  Int            @default(0)
+  createdAt    DateTime       @default(now())
+
+  @@index([transferId])
+}
+
+model BranchStaff {
+  id       String         @id @default(cuid())
+  branchId String
+  branch   PharmacyBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User           @relation("BranchStaffAssign", fields: [userId], references: [id], onDelete: Cascade)
+  role     String?
+  isActive Boolean        @default(true)
+  joinedAt DateTime       @default(now())
+  leftAt   DateTime?
+
+  @@unique([branchId, userId])
+  @@index([userId, isActive])
+}
+
+// ============================================
+// PHASE 2H: DGDA REGULATORY
+// ============================================
+
+enum DrugSchedule {
+  OTC
+  PRESCRIPTION
+  NARCOTIC
+  CONTROLLED
+  ANTIBIOTIC
+}
+
+enum RegulatoryLogType {
+  INWARD
+  OUTWARD
+  DISPOSAL
+  TRANSFER
+  ADJUSTMENT
+  RETURN
+}
+
+model RegulatoryLog {
+  id              String            @id @default(cuid())
+  pharmacyId      String
+  pharmacy        Pharmacy          @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  logNumber       String
+  logType         RegulatoryLogType
+  medicineId      String
+  medicine        Medicine          @relation(fields: [medicineId], references: [id])
+  medicineName    String
+  drugSchedule    DrugSchedule
+  batchNumber     String?
+  quantity        Int
+  unit            String            @default("piece")
+  supplierName    String?
+  customerName    String?
+  customerAddress String?
+  doctorName      String?
+  prescriptionNo  String?
+  referenceId     String?
+  referenceType   String?
+  notes           String?
+  reportedById    String?
+  reportedBy      User?             @relation("RegulatoryLogs", fields: [reportedById], references: [id])
+  entryDate       DateTime          @default(now())
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+
+  @@index([pharmacyId, entryDate])
+  @@index([pharmacyId, drugSchedule])
+  @@index([medicineId])
+}
+
+model DGDAReport {
+  id              String    @id @default(cuid())
+  pharmacyId      String
+  pharmacy        Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  reportNumber    String
+  reportType      String
+  periodStart     DateTime
+  periodEnd       DateTime
+  totalEntries    Int       @default(0)
+  narcoticCount   Int       @default(0)
+  controlledCount Int       @default(0)
+  fileUrl         String?
+  generatedById   String?
+  generatedBy     User?     @relation("DGDAReports", fields: [generatedById], references: [id])
+  submittedAt     DateTime?
+  notes           String?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+
+  @@index([pharmacyId, createdAt])
 }
