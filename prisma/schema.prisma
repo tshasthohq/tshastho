@@ -365,6 +365,7 @@ model Appointment {
   patient       User                       @relation("PatientAppointments", fields: [patientId], references: [id])
   doctor        Doctor                     @relation("DoctorAppointments", fields: [doctorId], references: [id])
   statusHistory AppointmentStatusHistory[]
+  prescriptions Prescription[]
 
   @@index([patientId, status])
   @@index([doctorId, status])
@@ -1102,6 +1103,11 @@ enum PrescriptionStatus {
   EXPIRED
 }
 
+enum PrescriptionSource {
+  UPLOADED
+  DOCTOR_CREATED
+}
+
 model Prescription {
   id              String             @id @default(cuid())
   patientId       String
@@ -1116,6 +1122,15 @@ model Prescription {
   imageUrl        String
   notes           String?
   diagnosis       String?
+  source          PrescriptionSource @default(UPLOADED)
+  appointmentId   String?
+  chiefComplaint  String?
+  examination     String?
+  investigations  String?
+  advice          String?
+  followUpDate    String?
+  followUpNotes   String?
+  prescriptionPdf String?
   status          PrescriptionStatus @default(PENDING)
   verifiedById    String?
   verifiedBy      User?              @relation("VerifiedPrescriptions", fields: [verifiedById], references: [id])
@@ -1126,25 +1141,29 @@ model Prescription {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
-  items  PrescriptionItem[]
-  orders Order[]
+  items       PrescriptionItem[]
+  orders      Order[]
+  appointment Appointment?       @relation(fields: [appointmentId], references: [id])
 
   @@index([patientId, status])
   @@index([status, createdAt])
 }
 
 model PrescriptionItem {
-  id             String       @id @default(cuid())
-  prescriptionId String
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  medicineName   String
-  strength       String?
-  dosage         String?
-  frequency      String?
-  duration       String?
-  quantity       Int?
-  instructions   String?
-  createdAt      DateTime     @default(now())
+  id              String       @id @default(cuid())
+  prescriptionId  String
+  prescription    Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicineName    String
+  strength        String?
+  dosage          String?
+  frequency       String?
+  duration        String?
+  quantity        Int?
+  beforeAfterMeal String?
+  route           String?
+  unit            String?
+  instructions    String?
+  createdAt       DateTime     @default(now())
 
   @@index([prescriptionId])
 }
