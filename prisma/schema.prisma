@@ -107,6 +107,9 @@ model User {
   medicalAccessLogs        MedicalHistoryAccessLog[]  @relation("MedicalAccessLog")
   chatThreads              ChatThread[]               @relation("PatientChatThreads")
   telemedicineSessions     TelemedicineSession[]      @relation("PatientTelemedicine")
+  referralCases            DoctorReferralCase[]       @relation("PatientReferralCases")
+  medicalCertificates      MedicalCertificate[]       @relation("PatientCertificates")
+  followUpReminders        FollowUpReminder[]         @relation("PatientFollowUps")
 }
 
 model Patient {
@@ -162,6 +165,10 @@ model Doctor {
   slotOverrides        DoctorSlotOverride[]
   chatThreads          ChatThread[]
   templates            PrescriptionTemplate[]
+  referralsSent        DoctorReferralCase[]     @relation("ReferringCases")
+  referralsReceived    DoctorReferralCase[]     @relation("ConsultingCases")
+  certificates         MedicalCertificate[]     @relation("DoctorCertificates")
+  followUps            FollowUpReminder[]       @relation("DoctorFollowUps")
 }
 
 model Pharmacy {
@@ -1883,6 +1890,7 @@ model LocalPatient {
   updatedAt     DateTime            @updatedAt
 
   prescriptions LocalPrescription[]
+  certificates  MedicalCertificate[] @relation("LocalPatientCertificates")
   WalkInEarning WalkInEarning[]
 
   @@index([doctorId, createdAt])
@@ -2293,4 +2301,112 @@ model PrescriptionTemplateItem {
   createdAt       DateTime             @default(now())
 
   @@index([templateId])
+}
+
+// ============================================
+// PHASE D11 + D12
+// ============================================
+
+enum ReferralPriority {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
+enum ReferralStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COMPLETED
+  CANCELLED
+}
+
+enum CertificateType {
+  FITNESS
+  SICK_LEAVE
+  MEDICAL_FITNESS
+  DISABILITY
+  VACCINATION
+  SURGERY
+  OTHER
+}
+
+model DoctorReferralCase {
+  id                    String           @id @default(cuid())
+  caseNumber            String           @unique
+  referringDoctorId     String
+  referringDoctor       Doctor           @relation("ReferringCases", fields: [referringDoctorId], references: [id], onDelete: Cascade)
+  consultingDoctorId    String?
+  consultingDoctor      Doctor?          @relation("ConsultingCases", fields: [consultingDoctorId], references: [id])
+  patientId             String
+  patient               User             @relation("PatientReferralCases", fields: [patientId], references: [id], onDelete: Cascade)
+  priority              ReferralPriority @default(ROUTINE)
+  status                ReferralStatus   @default(PENDING)
+  reason                String?
+  clinicalSummary       String?          @db.Text
+  questionForSpecialist String?          @db.Text
+  consultingNotes       String?          @db.Text
+  acceptedAt            DateTime?
+  completedAt           DateTime?
+  declinedAt            DateTime?
+  declinedReason        String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([referringDoctorId, status])
+  @@index([consultingDoctorId, status])
+  @@index([patientId])
+}
+
+model MedicalCertificate {
+  id             String          @id @default(cuid())
+  certificateNo  String          @unique
+  doctorId       String
+  doctor         Doctor          @relation("DoctorCertificates", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId      String?
+  patient        User?           @relation("PatientCertificates", fields: [patientId], references: [id])
+  localPatientId String?
+  localPatient   LocalPatient?   @relation("LocalPatientCertificates", fields: [localPatientId], references: [id])
+  type           CertificateType @default(FITNESS)
+  title          String?
+  subject        String
+  body           String          @db.Text
+  diagnosis      String?
+  validFrom      DateTime?
+  validUntil     DateTime?
+  restDays       Int?
+  issuedAt       DateTime        @default(now())
+  signatureUrl   String?
+  isRevoked      Boolean         @default(false)
+  revokedAt      DateTime?
+  revokedReason  String?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([doctorId, createdAt])
+  @@index([patientId])
+  @@index([localPatientId])
+}
+
+model FollowUpReminder {
+  id               String    @id @default(cuid())
+  doctorId         String
+  doctor           Doctor    @relation("DoctorFollowUps", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId        String
+  patient          User      @relation("PatientFollowUps", fields: [patientId], references: [id], onDelete: Cascade)
+  appointmentId    String?
+  prescriptionId   String?
+  reminderDate     DateTime
+  reason           String?
+  notes            String?
+  isCompleted      Boolean   @default(false)
+  completedAt      DateTime?
+  notificationSent Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([doctorId, reminderDate])
+  @@index([patientId, reminderDate])
+  @@index([reminderDate, isCompleted])
 }
