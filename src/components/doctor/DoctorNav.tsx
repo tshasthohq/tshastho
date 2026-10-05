@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Calendar, Users, FileText, Stethoscope, Briefcase,
+  LayoutDashboard, Settings, Calendar, Users, FileText, Stethoscope, Briefcase,
   Building2, Wallet, Banknote, Share2, User, Bell, Video, MessageSquare,
   Clipboard, Award, UserPlus, Star
 } from "lucide-react";
@@ -25,6 +25,7 @@ const NAV = [
   { href: "/doctor/schedule", icon: Calendar, label: "Schedule" },
   { href: "/doctor/staff", icon: Users, label: "Staff" },
   { href: "/doctor/staff-attendance", icon: Users, label: "Attendance" },
+  { href: "/doctor/attendance-rules", icon: Settings, label: "Rules" },
   { href: "/doctor/walk-in-earnings", icon: Wallet, label: "Walk-in $" },
   { href: "/doctor/earnings", icon: Banknote, label: "Earnings" },
   { href: "/doctor/payouts", icon: Banknote, label: "Payouts" },
