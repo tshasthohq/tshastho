@@ -105,6 +105,7 @@ model User {
   familyHistory            PatientFamilyHistory[]     @relation("PatientFamilyHistory")
   consentsGiven            DoctorPatientConsent[]     @relation("PatientConsentsGiven")
   medicalAccessLogs        MedicalHistoryAccessLog[]  @relation("MedicalAccessLog")
+  chatThreads              ChatThread[]               @relation("PatientChatThreads")
   telemedicineSessions     TelemedicineSession[]      @relation("PatientTelemedicine")
 }
 
@@ -158,6 +159,7 @@ model Doctor {
   schedules            DoctorSchedule[]
   leaves               DoctorLeave[]
   slotOverrides        DoctorSlotOverride[]
+  chatThreads          ChatThread[]
 }
 
 model Pharmacy {
@@ -2206,4 +2208,45 @@ model TelemedicineMessage {
   createdAt  DateTime  @default(now())
 
   @@index([sessionId, createdAt])
+}
+
+// ============================================
+// PHASE D9: PERSISTENT CHAT
+// ============================================
+
+model ChatThread {
+  id            String    @id @default(cuid())
+  doctorId      String
+  doctor        Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId     String
+  patient       User      @relation("PatientChatThreads", fields: [patientId], references: [id], onDelete: Cascade)
+  lastMessage   String?
+  lastMessageAt DateTime?
+  doctorUnread  Int       @default(0)
+  patientUnread Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages ChatMessage[]
+
+  @@unique([doctorId, patientId])
+  @@index([doctorId, lastMessageAt])
+  @@index([patientId, lastMessageAt])
+}
+
+model ChatMessage {
+  id         String     @id @default(cuid())
+  threadId   String
+  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId   String
+  senderRole String
+  message    String?    @db.Text
+  fileUrl    String?
+  fileType   String?
+  isRead     Boolean    @default(false)
+  readAt     DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([threadId, createdAt])
 }
