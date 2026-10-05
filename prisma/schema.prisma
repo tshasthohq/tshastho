@@ -105,6 +105,7 @@ model User {
   familyHistory            PatientFamilyHistory[]     @relation("PatientFamilyHistory")
   consentsGiven            DoctorPatientConsent[]     @relation("PatientConsentsGiven")
   medicalAccessLogs        MedicalHistoryAccessLog[]  @relation("MedicalAccessLog")
+  telemedicineSessions     TelemedicineSession[]      @relation("PatientTelemedicine")
 }
 
 model Patient {
@@ -119,43 +120,44 @@ model Patient {
 }
 
 model Doctor {
-  id                  String                   @id @default(cuid())
-  userId              String                   @unique
-  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialty           String
-  licenseNumber       String                   @unique
-  experience          Int
-  consultationFee     Decimal
-  bookingPhone        String?
-  chamberAddress      String?
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  bio                 String?
-  gender              DoctorGender?
-  languages           String?
-  hospitalAffiliation String?
-  subSpecialties      String?
-  onlineAvailable     Boolean                  @default(true)
-  inPersonAvailable   Boolean                  @default(true)
-  averageRating       Decimal                  @default(0)
-  totalReviews        Int                      @default(0)
-  verificationStatus  DoctorVerificationStatus @default(PENDING)
-  appointments        Appointment[]            @relation("DoctorAppointments")
-  specialties         DoctorSpecialty[]
-  qualifications      DoctorQualification[]
-  documents           DoctorDocument[]
-  reviews             DoctorReview[]
-  earnings            DoctorEarning[]
-  chambers            DoctorChamber[]
-  staff               DoctorStaff[]
-  localPatients       LocalPatient[]
-  localPrescriptions  LocalPrescription[]
-  walkInEarnings      WalkInEarning[]
-  patientConsents     DoctorPatientConsent[]
-  payouts             DoctorPayout[]
-  schedules           DoctorSchedule[]
-  leaves              DoctorLeave[]
-  slotOverrides       DoctorSlotOverride[]
+  id                   String                   @id @default(cuid())
+  userId               String                   @unique
+  user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty            String
+  licenseNumber        String                   @unique
+  experience           Int
+  consultationFee      Decimal
+  bookingPhone         String?
+  chamberAddress       String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  bio                  String?
+  gender               DoctorGender?
+  languages            String?
+  hospitalAffiliation  String?
+  subSpecialties       String?
+  onlineAvailable      Boolean                  @default(true)
+  inPersonAvailable    Boolean                  @default(true)
+  averageRating        Decimal                  @default(0)
+  totalReviews         Int                      @default(0)
+  verificationStatus   DoctorVerificationStatus @default(PENDING)
+  appointments         Appointment[]            @relation("DoctorAppointments")
+  specialties          DoctorSpecialty[]
+  qualifications       DoctorQualification[]
+  documents            DoctorDocument[]
+  reviews              DoctorReview[]
+  earnings             DoctorEarning[]
+  chambers             DoctorChamber[]
+  staff                DoctorStaff[]
+  localPatients        LocalPatient[]
+  localPrescriptions   LocalPrescription[]
+  walkInEarnings       WalkInEarning[]
+  patientConsents      DoctorPatientConsent[]
+  telemedicineSessions TelemedicineSession[]
+  payouts              DoctorPayout[]
+  schedules            DoctorSchedule[]
+  leaves               DoctorLeave[]
+  slotOverrides        DoctorSlotOverride[]
 }
 
 model Pharmacy {
@@ -385,6 +387,7 @@ model Appointment {
   statusHistory AppointmentStatusHistory[]
   prescriptions Prescription[]
   earning       DoctorEarning?
+  telemedicine  TelemedicineSession?
 
   @@index([patientId, status])
   @@index([doctorId, status])
@@ -2138,4 +2141,69 @@ model MedicalHistoryAccessLog {
 
   @@index([patientId, createdAt])
   @@index([accessedById])
+}
+
+// ============================================
+// PHASE D8: TELEMEDICINE (Video/Audio)
+// ============================================
+
+enum TelemedicineStatus {
+  SCHEDULED
+  WAITING
+  ACTIVE
+  COMPLETED
+  MISSED
+  CANCELLED
+}
+
+enum TelemedicineType {
+  VIDEO
+  AUDIO
+  CHAT
+}
+
+model TelemedicineSession {
+  id              String             @id @default(cuid())
+  appointmentId   String?            @unique
+  appointment     Appointment?       @relation(fields: [appointmentId], references: [id])
+  doctorId        String
+  doctor          Doctor             @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId       String
+  patient         User               @relation("PatientTelemedicine", fields: [patientId], references: [id], onDelete: Cascade)
+  roomId          String             @unique
+  type            TelemedicineType   @default(VIDEO)
+  status          TelemedicineStatus @default(SCHEDULED)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  duration        Int?
+  doctorJoined    Boolean            @default(false)
+  patientJoined   Boolean            @default(false)
+  doctorJoinedAt  DateTime?
+  patientJoinedAt DateTime?
+  notes           String?
+  prescriptionId  String?
+  recordingUrl    String?
+  metadata        Json?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([doctorId, status])
+  @@index([patientId, status])
+  @@index([scheduledAt])
+}
+
+model TelemedicineMessage {
+  id         String    @id @default(cuid())
+  sessionId  String
+  senderId   String
+  senderRole String
+  message    String?   @db.Text
+  fileUrl    String?
+  fileType   String?
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([sessionId, createdAt])
 }
