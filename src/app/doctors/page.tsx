@@ -50,7 +50,7 @@ export default function DoctorsPage() {
         {loading ? <p className="text-slate-500">Loading doctors...</p> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((doc) => (
-              <div key={doc.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 hover:shadow-md transition">
+              <Link key={doc.id} href={`/doctors/${doc.id}`} className="block bg-white rounded-2xl shadow-sm border border-slate-100 p-6 hover:shadow-md hover:border-blue-200 transition cursor-pointer">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl font-bold">
                     {doc.user.name.charAt(0)}
@@ -75,7 +75,7 @@ export default function DoctorsPage() {
                     </Link>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
