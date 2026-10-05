@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, X, Printer,
-  Wallet, CheckCircle
+  Wallet, CheckCircle, Barcode
 } from "lucide-react";
 
 interface CartItem {
@@ -38,6 +38,8 @@ export default function POSPage() {
   const [openingCash, setOpeningCash] = useState(0);
   const [closingCash, setClosingCash] = useState(0);
   const searchTimer = useRef<any>(null);
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [showBarcode, setShowBarcode] = useState(false);
 
   const loadShift = async () => {
     const res = await fetch("/api/pharmacy/pos/shift/current", { credentials: "include" });
@@ -79,6 +81,20 @@ export default function POSPage() {
     }
     setSearch("");
     setResults([]);
+  };
+
+  const handleBarcodeScan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barcodeInput.trim()) return;
+    const res = await fetch(`/api/pharmacy/pos/scan?barcode=${encodeURIComponent(barcodeInput.trim())}`, { credentials: "include" });
+    if (res.ok) {
+      const data = await res.json();
+      addToCart(data.medicine);
+      setBarcodeInput("");
+    } else {
+      alert("Barcode not found");
+      setBarcodeInput("");
+    }
   };
 
   const updateQty = (id: string, delta: number) => {
@@ -209,6 +225,10 @@ export default function POSPage() {
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search medicine by name, brand, generic..."
               className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            <button type="button" onClick={() => setShowBarcode(true)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+              <Barcode size={16} />
+            </button>
           </div>
 
           {/* Search Results */}
@@ -435,7 +455,33 @@ export default function POSPage() {
               {showReceipt.items.map((i: any, idx: number) => (
                 <div key={idx} className="flex justify-between">
                   <span>{i.qty} × {i.name}</span>
-                  <span>৳ {Number(i.subtotal).toFixed(2)}</span>
+                  <span>৳ {Number(i.subtotal).toFixed(2)}
+
+      {/* Barcode scanning modal */}
+      {showBarcode && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Barcode className="text-blue-600" size={24} />
+              </div>
+              <h2 className="font-bold text-lg">Scan Barcode</h2>
+              <p className="text-xs text-slate-500">Use scanner or type barcode number</p>
+            </div>
+            <form onSubmit={(e) => { handleBarcodeScan(e); if (true) setTimeout(() => setShowBarcode(false), 100); }}>
+              <input autoFocus value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)}
+                placeholder="Scan or type barcode..."
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-center font-mono text-lg mb-3" />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setShowBarcode(false); setBarcodeInput(""); }}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-medium">Cancel</button>
+                <button type="submit"
+                  className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}</span>
                 </div>
               ))}
             </div>

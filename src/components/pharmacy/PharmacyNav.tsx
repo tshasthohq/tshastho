@@ -4,13 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Pill, Package, History, Truck, ShoppingCart,
-  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, Shield
+  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, Shield, AlertTriangle, Repeat
 } from "lucide-react";
 
 const NAV = [
   { href: "/pharmacy", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/pharmacy/medicines", icon: Pill, label: "Medicines" },
   { href: "/pharmacy/batches", icon: Package, label: "Batches" },
+  { href: "/pharmacy/stock-alerts", icon: AlertTriangle, label: "Low Stock" },
+  { href: "/pharmacy/refill-reminders", icon: Repeat, label: "Refills" },
   { href: "/pharmacy/stock-movements", icon: History, label: "Stock" },
   { href: "/pharmacy/suppliers", icon: Truck, label: "Suppliers" },
   { href: "/pharmacy/purchases", icon: ShoppingCart, label: "Purchases" },
