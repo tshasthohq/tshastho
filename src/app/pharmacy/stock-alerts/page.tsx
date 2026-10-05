@@ -32,6 +32,23 @@ export default function StockAlertsPage() {
     load();
   };
 
+  const handleAutoPO = async (id: string) => {
+    if (!confirm("Auto-generate a purchase order for this item?")) return;
+    setProcessing(id);
+    const res = await fetch(`/api/pharmacy/stock-alerts/${id}/auto-po`, {
+      method: "POST",
+      credentials: "include",
+    });
+    const data = await res.json();
+    setProcessing(null);
+    if (res.ok) {
+      alert(`✅ PO ${data.purchaseOrder.purchaseNumber} created!`);
+      load();
+    } else {
+      alert(data.message || "Failed to create PO");
+    }
+  };
+
   const statusColor = (s: string) => {
     switch (s) {
       case "ORDERED": return "bg-blue-100 text-blue-700";
@@ -91,6 +108,11 @@ export default function StockAlertsPage() {
                   <button onClick={() => updateStatus(a.id, "ORDERED")} disabled={processing === a.id}
                     className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50">
                     <ShoppingCart size={12} /> Mark Ordered
+                  </button>
+                  <button onClick={() => handleAutoPO(a.id)} disabled={processing === a.id}
+                    className="bg-green-600 text-white py-2 px-3 rounded-xl text-xs font-medium disabled:opacity-50"
+                    title="Auto-generate Purchase Order">
+                    Auto PO
                   </button>
                   <button onClick={() => updateStatus(a.id, "CANCELLED")} disabled={processing === a.id}
                     className="bg-slate-100 text-slate-600 py-2 px-3 rounded-xl text-xs font-medium disabled:opacity-50">
