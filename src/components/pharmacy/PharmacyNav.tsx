@@ -13,6 +13,7 @@ const NAV = [
   { href: "/pharmacy/medicines/bulk", icon: FileSpreadsheet, label: "Bulk" },
   { href: "/pharmacy/barcodes", icon: Barcode, label: "Barcodes" },
   { href: "/pharmacy/sms", icon: MessageSquare, label: "SMS" },
+  { href: "/pharmacy/rx-requests", icon: FileText, label: "Rx Requests" },
   { href: "/pharmacy/batches", icon: Package, label: "Batches" },
   { href: "/pharmacy/stock-alerts", icon: AlertTriangle, label: "Low Stock" },
   { href: "/pharmacy/refill-reminders", icon: Repeat, label: "Refills" },
