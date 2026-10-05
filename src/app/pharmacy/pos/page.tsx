@@ -37,6 +37,9 @@ export default function POSPage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [showSplitModal, setShowSplitModal] = useState(false);
+  const [loyaltyInfo, setLoyaltyInfo] = useState<any>(null);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyaltyChecked, setLoyaltyChecked] = useState(false);
   const [openingCash, setOpeningCash] = useState(0);
   const [closingCash, setClosingCash] = useState(0);
   const searchTimer = useRef<any>(null);
@@ -112,9 +115,25 @@ export default function POSPage() {
   const removeItem = (id: string) => setCart(cart.filter(c => c.medicineId !== id));
 
   const subtotal = cart.reduce((s, i) => s + (i.unitPrice * i.quantity - i.discount), 0);
-  const total = Math.max(0, subtotal - discountAmount);
+  const loyaltyDiscountAmount = Math.min(loyaltyPoints, loyaltyInfo?.points || 0);
+  const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount);
   const change = Math.max(0, paidAmount - total);
   const due = Math.max(0, total - paidAmount);
+
+  const checkLoyalty = async (phone: string) => {
+    setLoyaltyChecked(false);
+    setLoyaltyInfo(null);
+    setLoyaltyPoints(0);
+    if (!phone || phone.length < 6) return;
+    try {
+      const res = await fetch(`/api/pharmacy/pos/customer-loyalty?phone=${encodeURIComponent(phone)}`, { credentials: "include" });
+      const data = await res.json();
+      if (data.loyalty) {
+        setLoyaltyInfo(data.loyalty);
+      }
+    } catch {}
+    setLoyaltyChecked(true);
+  };
 
   const handleSplitConfirm = async (splits: any[], notes: string) => {
     if (cart.length === 0) return;
@@ -136,6 +155,7 @@ export default function POSPage() {
         paymentMethod: "MIXED",
         paidAmount: splits.filter(s => s.method !== "CREDIT" && s.method !== "DUE").reduce((a, b) => a + b.amount, 0),
         notes: notes || undefined,
+        loyaltyPointsToRedeem: loyaltyPoints,
         splits,
       }),
     });
@@ -177,6 +197,7 @@ export default function POSPage() {
         paymentMethod,
         paidAmount: paymentMethod === "DUE" ? 0 : (paidAmount || total),
         notes: notes || undefined,
+        loyaltyPointsToRedeem: loyaltyPoints,
       }),
     });
     const data = await res.json();
@@ -190,6 +211,8 @@ export default function POSPage() {
       setPaidAmount(0);
       setNotes("");
       setPaymentMethod("CASH");
+      setLoyaltyInfo(null);
+      setLoyaltyPoints(0);
       setShowPayment(false);
       loadShift();
     } else {
@@ -438,6 +461,35 @@ export default function POSPage() {
               </div>
 
               <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Phone (for loyalty)</label>
+                <input value={customerPhone}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomerPhone(val);
+                    if (val.length >= 11) checkLoyalty(val);
+                  }}
+                  placeholder="01XXXXXXXXX"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono" />
+                {loyaltyChecked && loyaltyInfo && loyaltyInfo.points > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-2 mt-2 text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-green-700 font-medium">🎁 {loyaltyInfo.name}</span>
+                      <span className="text-green-700 font-bold">{loyaltyInfo.points} pts</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] text-slate-600">Redeem:</label>
+                      <input type="number" min={0} max={Math.min(loyaltyInfo.points, Math.floor(subtotal))}
+                        value={loyaltyPoints}
+                        onChange={(e) => setLoyaltyPoints(Math.min(Number(e.target.value), loyaltyInfo.points))}
+                        className="w-20 px-2 py-1 border border-slate-200 rounded text-xs text-right" />
+                      <button type="button" onClick={() => setLoyaltyPoints(Math.min(loyaltyInfo.points, Math.floor(subtotal)))}
+                        className="text-[10px] text-blue-600 underline">Use Max</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Payment Method</label>
                 <div className="grid grid-cols-3 gap-2">
                   {(["CASH", "CARD", "BKASH", "NAGAD", "DUE"] as const).map((m) => (
@@ -461,6 +513,12 @@ export default function POSPage() {
               )}
 
               <div className="bg-slate-50 p-3 rounded-xl text-sm space-y-1">
+                {loyaltyDiscountAmount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Loyalty Discount</span>
+                    <span className="font-bold">-৳ {loyaltyDiscountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between"><span className="text-slate-500">Total</span><span className="font-bold">৳ {total.toFixed(2)}</span></div>
                 {paymentMethod !== "DUE" && (
                   <>

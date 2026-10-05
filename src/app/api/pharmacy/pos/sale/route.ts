@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/guards';
 import { recordStockMovement } from '@/lib/pharmacy/stock';
+import { redeemPoints } from '@/lib/pharmacy/loyalty';
 import { errorResponse, ErrorCodes } from '@/lib/errors';
 import { z } from 'zod';
 import { recordPosSale } from "@/lib/pharmacy/ledger";
@@ -32,6 +33,7 @@ const schema = z.object({
     reference: z.string().optional(),
   })).optional(),
   paidAmount: z.coerce.number().min(0).default(0),
+  loyaltyPointsToRedeem: z.coerce.number().int().min(0).default(0),
   notes: z.string().optional(),
 });
 
@@ -87,7 +89,25 @@ export async function POST(req: Request) {
     });
 
     const subtotal = itemsData.reduce((s, i) => s + i.subtotal, 0);
-    const totalAmount = subtotal - data.discountAmount;
+
+    // Loyalty redemption
+    let loyaltyDiscount = 0;
+    let linkedUser: any = null;
+    if (data.loyaltyPointsToRedeem > 0 && data.customerPhone) {
+      linkedUser = await prisma.user.findFirst({
+        where: { phone: data.customerPhone, role: 'CUSTOMER' as any },
+        select: { id: true },
+      });
+      if (linkedUser) {
+        const acc = await prisma.loyaltyAccount.findUnique({ where: { userId: linkedUser.id } });
+        if (acc && acc.points >= data.loyaltyPointsToRedeem) {
+          loyaltyDiscount = data.loyaltyPointsToRedeem;
+        } else {
+          return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Insufficient loyalty points', 400);
+        }
+      }
+    }
+    const totalAmount = Math.max(0, subtotal - data.discountAmount - loyaltyDiscount);
     const totalProfit = itemsData.reduce((s, i) => s + i.profit, 0) - data.discountAmount;
 
     const paidAmount = data.paymentMethod === 'DUE' ? 0 : (data.paidAmount || totalAmount);
