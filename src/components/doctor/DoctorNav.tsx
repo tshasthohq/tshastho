@@ -24,6 +24,7 @@ const NAV = [
   { href: "/doctor/chambers", icon: Building2, label: "Chambers" },
   { href: "/doctor/schedule", icon: Calendar, label: "Schedule" },
   { href: "/doctor/staff", icon: Users, label: "Staff" },
+  { href: "/doctor/staff-attendance", icon: Users, label: "Attendance" },
   { href: "/doctor/walk-in-earnings", icon: Wallet, label: "Walk-in $" },
   { href: "/doctor/earnings", icon: Banknote, label: "Earnings" },
   { href: "/doctor/payouts", icon: Banknote, label: "Payouts" },
