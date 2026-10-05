@@ -97,6 +97,7 @@ model User {
   appointmentStatusChanges AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
   patientEarnings          DoctorEarning[]            @relation("PatientEarnings")
   approvedPayouts          DoctorPayout[]             @relation("ApprovedPayouts")
+  linkedLocalPatients      LocalPatient[]             @relation("LinkedLocalPatients")
 }
 
 model Patient {
@@ -138,6 +139,10 @@ model Doctor {
   documents           DoctorDocument[]
   reviews             DoctorReview[]
   earnings            DoctorEarning[]
+  chambers            DoctorChamber[]
+  localPatients       LocalPatient[]
+  localPrescriptions  LocalPrescription[]
+  walkInEarnings      WalkInEarning[]
   payouts             DoctorPayout[]
   schedules           DoctorSchedule[]
   leaves              DoctorLeave[]
@@ -1638,20 +1643,22 @@ enum SlotType {
 }
 
 model DoctorSchedule {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   doctorId        String
-  doctor          Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor          Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   dayOfWeek       WeekDay
   startTime       String
   endTime         String
-  slotDuration    Int      @default(30)
-  maxPatients     Int      @default(10)
-  slotType        SlotType @default(IN_PERSON)
+  slotDuration    Int            @default(30)
+  maxPatients     Int            @default(10)
+  slotType        SlotType       @default(IN_PERSON)
+  chamberId       String?
+  chamber         DoctorChamber? @relation(fields: [chamberId], references: [id])
   chamberAddress  String?
   consultationFee Decimal?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([doctorId, dayOfWeek])
   @@index([doctorId, isActive])
@@ -1795,4 +1802,127 @@ model DoctorPayout {
 
   @@index([doctorId, status])
   @@index([status, createdAt])
+}
+
+// ============================================
+// PHASE D6: LOCAL PRACTICE & CHAMBER
+// ============================================
+
+enum LocalPatientGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum WalkInEarningStatus {
+  RECORDED
+  VOIDED
+}
+
+model DoctorChamber {
+  id             String   @id @default(cuid())
+  doctorId       String
+  doctor         Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  name           String
+  address        String
+  area           String?
+  city           String?
+  phone          String?
+  gpsLatitude    Decimal?
+  gpsLongitude   Decimal?
+  mapUrl         String?
+  defaultFee     Decimal  @default(0)
+  isPrimary      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  operatingHours String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  localPrescriptions LocalPrescription[]
+  walkInEarnings     WalkInEarning[]
+  schedules          DoctorSchedule[]
+
+  @@index([doctorId, isActive])
+  @@index([doctorId, isPrimary])
+}
+
+model LocalPatient {
+  id            String              @id @default(cuid())
+  doctorId      String
+  doctor        Doctor              @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  linkedUserId  String?
+  linkedUser    User?               @relation("LinkedLocalPatients", fields: [linkedUserId], references: [id])
+  name          String
+  phone         String?
+  age           Int?
+  gender        LocalPatientGender?
+  bloodGroup    String?
+  address       String?
+  notes         String?
+  totalVisits   Int                 @default(0)
+  lastVisitDate DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  prescriptions LocalPrescription[]
+  WalkInEarning WalkInEarning[]
+
+  @@index([doctorId, createdAt])
+  @@index([doctorId, phone])
+  @@index([linkedUserId])
+}
+
+model LocalPrescription {
+  id             String         @id @default(cuid())
+  prescriptionNo String         @unique
+  doctorId       String
+  doctor         Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  localPatientId String
+  localPatient   LocalPatient   @relation(fields: [localPatientId], references: [id], onDelete: Cascade)
+  chamberId      String?
+  chamber        DoctorChamber? @relation(fields: [chamberId], references: [id])
+  visitDate      DateTime       @default(now())
+  chiefComplaint String?
+  examination    String?
+  diagnosis      String?
+  investigations String?
+  advice         String?
+  followUpDate   String?
+  followUpNotes  String?
+  notes          String?
+  items          Json?
+  fee            Decimal        @default(0)
+  isPrinted      Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([doctorId, visitDate])
+  @@index([localPatientId, visitDate])
+  @@index([chamberId])
+}
+
+model WalkInEarning {
+  id             String              @id @default(cuid())
+  doctorId       String
+  doctor         Doctor              @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  chamberId      String?
+  chamber        DoctorChamber?      @relation(fields: [chamberId], references: [id])
+  localPatientId String?
+  localPatient   LocalPatient?       @relation(fields: [localPatientId], references: [id])
+  patientName    String?
+  amount         Decimal
+  method         String              @default("CASH")
+  serviceType    String?
+  description    String?
+  status         WalkInEarningStatus @default(RECORDED)
+  earningDate    DateTime            @default(now())
+  voidedAt       DateTime?
+  voidedReason   String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([doctorId, earningDate])
+  @@index([doctorId, chamberId, earningDate])
+  @@index([status])
 }
