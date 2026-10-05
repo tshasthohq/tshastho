@@ -134,6 +134,9 @@ model Doctor {
   qualifications      DoctorQualification[]
   documents           DoctorDocument[]
   reviews             DoctorReview[]
+  schedules           DoctorSchedule[]
+  leaves              DoctorLeave[]
+  slotOverrides       DoctorSlotOverride[]
 }
 
 model Pharmacy {
@@ -1536,4 +1539,85 @@ model DoctorReview {
   @@unique([doctorId, patientId])
   @@index([doctorId, createdAt])
   @@index([rating])
+}
+
+// ============================================
+// PHASE D2: SCHEDULE & AVAILABILITY
+// ============================================
+
+enum WeekDay {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum SlotType {
+  IN_PERSON
+  ONLINE
+  BOTH
+}
+
+model DoctorSchedule {
+  id              String   @id @default(cuid())
+  doctorId        String
+  doctor          Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek       WeekDay
+  startTime       String
+  endTime         String
+  slotDuration    Int      @default(30)
+  maxPatients     Int      @default(10)
+  slotType        SlotType @default(IN_PERSON)
+  chamberAddress  String?
+  consultationFee Decimal?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([doctorId, dayOfWeek])
+  @@index([doctorId, isActive])
+}
+
+model DoctorLeave {
+  id        String      @id @default(cuid())
+  doctorId  String
+  doctor    Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  status    LeaveStatus @default(APPROVED)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([doctorId, startDate])
+  @@index([doctorId, status])
+}
+
+model DoctorSlotOverride {
+  id              String   @id @default(cuid())
+  doctorId        String
+  doctor          Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  date            DateTime
+  startTime       String
+  endTime         String
+  slotDuration    Int      @default(30)
+  maxPatients     Int      @default(10)
+  slotType        SlotType @default(IN_PERSON)
+  chamberAddress  String?
+  consultationFee Decimal?
+  isBlocked       Boolean  @default(false)
+  note            String?
+  createdAt       DateTime @default(now())
+
+  @@index([doctorId, date])
 }
