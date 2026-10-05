@@ -114,6 +114,8 @@ model User {
   narcoticEntries          NarcoticRegister[]         @relation("NarcoticRegisterEntries")
   expiryWriteOffReviews    ExpiryWriteOffBatch[]      @relation("ExpiryWriteOffReviewer")
   creditEntries            CustomerCreditLedger[]     @relation("CustomerCreditEntries")
+  smsLogs                  SmsLog[]                   @relation("CustomerSmsLogs")
+  smsLogsCreated           SmsLog[]                   @relation("SmsLogCreator")
   staffPayrolls            StaffPayroll[]             @relation("StaffPayrollUser")
   approvedStaffPayrolls    StaffPayroll[]             @relation("StaffPayrollApprover")
   staffPerformance         StaffPerformance[]         @relation("StaffPerformanceUser")
@@ -221,6 +223,8 @@ model Pharmacy {
   NarcoticRegister       NarcoticRegister[]
   ExpiryWriteOffBatch    ExpiryWriteOffBatch[]
   CustomerCreditLedger   CustomerCreditLedger[]
+  smsLogs                SmsLog[]
+  smsTemplates           SmsTemplate[]
   StaffPayroll           StaffPayroll[]
   StaffPerformance       StaffPerformance[]
   StaffTarget            StaffTarget[]
@@ -280,6 +284,8 @@ model Medicine {
   narcoticEntries  NarcoticRegister[]
   expiryWriteOffs  ExpiryWriteOffBatch[]
   creditEntries    CustomerCreditLedger[]
+  smsLogs          SmsLog[]
+  smsTemplates     SmsTemplate[]
   staffPayrolls    StaffPayroll[]
   staffPerformance StaffPerformance[]
   staffTargets     StaffTarget[]
@@ -2744,4 +2750,71 @@ model StaffAttendanceRule {
   requireGps        Boolean       @default(true)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+}
+
+// ============================================
+// PHASE 2P: SMS & WHATSAPP
+// ============================================
+
+enum SmsStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  BLOCKED
+}
+
+enum SmsProvider {
+  SSL_WIRELESS
+  TWILIO
+  BANGLALINK
+  MANUAL
+}
+
+model SmsLog {
+  id            String      @id @default(cuid())
+  pharmacyId    String?
+  pharmacy      Pharmacy?   @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      User?       @relation("CustomerSmsLogs", fields: [customerId], references: [id])
+  recipientName String?
+  phone         String
+  message       String      @db.Text
+  templateKey   String?
+  provider      SmsProvider @default(MANUAL)
+  status        SmsStatus   @default(QUEUED)
+  providerRefId String?
+  failureReason String?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  metadata      Json?
+  createdById   String?
+  createdBy     User?       @relation("SmsLogCreator", fields: [createdById], references: [id])
+  createdAt     DateTime    @default(now())
+  Medicine      Medicine?   @relation(fields: [medicineId], references: [id])
+  medicineId    String?
+
+  @@index([pharmacyId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([status])
+  @@index([phone])
+}
+
+model SmsTemplate {
+  id         String    @id @default(cuid())
+  pharmacyId String?
+  pharmacy   Pharmacy? @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  key        String
+  name       String
+  language   String    @default("bn")
+  body       String    @db.Text
+  isActive   Boolean   @default(true)
+  isSystem   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  Medicine   Medicine? @relation(fields: [medicineId], references: [id])
+  medicineId String?
+
+  @@unique([pharmacyId, key, language])
+  @@index([pharmacyId, isActive])
 }
