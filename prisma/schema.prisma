@@ -99,6 +99,12 @@ model User {
   approvedPayouts          DoctorPayout[]             @relation("ApprovedPayouts")
   linkedLocalPatients      LocalPatient[]             @relation("LinkedLocalPatients")
   doctorStaffProfile       DoctorStaff?               @relation("DoctorStaffUser")
+  allergies                PatientAllergy[]           @relation("PatientAllergies")
+  conditions               PatientCondition[]         @relation("PatientConditions")
+  medications              PatientMedication[]        @relation("PatientMedications")
+  familyHistory            PatientFamilyHistory[]     @relation("PatientFamilyHistory")
+  consentsGiven            DoctorPatientConsent[]     @relation("PatientConsentsGiven")
+  medicalAccessLogs        MedicalHistoryAccessLog[]  @relation("MedicalAccessLog")
 }
 
 model Patient {
@@ -145,6 +151,7 @@ model Doctor {
   localPatients       LocalPatient[]
   localPrescriptions  LocalPrescription[]
   walkInEarnings      WalkInEarning[]
+  patientConsents     DoctorPatientConsent[]
   payouts             DoctorPayout[]
   schedules           DoctorSchedule[]
   leaves              DoctorLeave[]
@@ -1997,4 +2004,138 @@ model StaffAttendance {
 
   @@index([staffId, date])
   @@index([date])
+}
+
+// ============================================
+// PHASE D7B: PATIENT MEDICAL HISTORY + CONSENT
+// ============================================
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+  LIFE_THREATENING
+}
+
+enum HistoryType {
+  CONDITION
+  SURGERY
+  HOSPITALIZATION
+  PROCEDURE
+}
+
+enum ConsentScope {
+  FULL_HISTORY
+  SPECIFIC_REPORTS
+  CURRENT_VISIT
+  PRESCRIPTIONS_ONLY
+}
+
+enum ConsentStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model PatientAllergy {
+  id        String          @id @default(cuid())
+  patientId String
+  patient   User            @relation("PatientAllergies", fields: [patientId], references: [id], onDelete: Cascade)
+  allergen  String
+  type      String          @default("DRUG")
+  severity  AllergySeverity @default(MODERATE)
+  reaction  String?
+  notedBy   String?
+  notedAt   DateTime        @default(now())
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([patientId, isActive])
+}
+
+model PatientCondition {
+  id            String      @id @default(cuid())
+  patientId     String
+  patient       User        @relation("PatientConditions", fields: [patientId], references: [id], onDelete: Cascade)
+  name          String
+  type          HistoryType @default(CONDITION)
+  diagnosedDate DateTime?
+  hospital      String?
+  doctorName    String?
+  notes         String?
+  isChronic     Boolean     @default(false)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([patientId, isActive])
+  @@index([patientId, type])
+}
+
+model PatientMedication {
+  id           String    @id @default(cuid())
+  patientId    String
+  patient      User      @relation("PatientMedications", fields: [patientId], references: [id], onDelete: Cascade)
+  medicineName String
+  dosage       String?
+  frequency    String?
+  startDate    DateTime?
+  endDate      DateTime?
+  isOngoing    Boolean   @default(true)
+  prescribedBy String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([patientId, isOngoing])
+}
+
+model PatientFamilyHistory {
+  id        String   @id @default(cuid())
+  patientId String
+  patient   User     @relation("PatientFamilyHistory", fields: [patientId], references: [id], onDelete: Cascade)
+  relation  String
+  condition String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([patientId])
+}
+
+model DoctorPatientConsent {
+  id            String        @id @default(cuid())
+  patientId     String
+  patient       User          @relation("PatientConsentsGiven", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  scope         ConsentScope  @default(FULL_HISTORY)
+  status        ConsentStatus @default(ACTIVE)
+  expiresAt     DateTime?
+  grantedAt     DateTime      @default(now())
+  revokedAt     DateTime?
+  revokedReason String?
+  accessLog     Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([patientId, doctorId])
+  @@index([doctorId, status])
+  @@index([patientId, status])
+}
+
+model MedicalHistoryAccessLog {
+  id           String   @id @default(cuid())
+  consentId    String?
+  patientId    String
+  accessedById String
+  accessedBy   User     @relation("MedicalAccessLog", fields: [accessedById], references: [id])
+  accessType   String
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([patientId, createdAt])
+  @@index([accessedById])
 }
