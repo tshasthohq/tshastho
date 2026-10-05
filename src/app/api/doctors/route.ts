@@ -12,9 +12,7 @@ export async function GET(req: Request) {
   const sort = url.searchParams.get('sort') || 'rating';
   const limit = Math.min(Number(url.searchParams.get('limit') || 50), 100);
 
-  const where: any = {
-    user: { isActive: true, role: 'DOCTOR' },
-  };
+  const where: any = { user: { isActive: true, role: 'DOCTOR' } };
 
   if (q) {
     where.OR = [
@@ -23,19 +21,9 @@ export async function GET(req: Request) {
       { specialties: { some: { name: { contains: q, mode: 'insensitive' } } } },
     ];
   }
-
-  if (specialty) {
-    where.specialties = { some: { name: { contains: specialty, mode: 'insensitive' } } };
-  }
-
-  if (city) {
-    where.chamberAddress = { contains: city, mode: 'insensitive' };
-  }
-
-  if (online) {
-    where.onlineAvailable = true;
-  }
-
+  if (specialty) where.specialties = { some: { name: { contains: specialty, mode: 'insensitive' } } };
+  if (city) where.chamberAddress = { contains: city, mode: 'insensitive' };
+  if (online) where.onlineAvailable = true;
   if (minFee || maxFee) {
     where.consultationFee = {};
     if (minFee) where.consultationFee.gte = Number(minFee);
