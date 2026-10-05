@@ -1,4 +1,5 @@
 "use client";
+import { QRCodeSVG } from "qrcode.react";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
