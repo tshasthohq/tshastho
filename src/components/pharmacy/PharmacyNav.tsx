@@ -17,6 +17,7 @@ const NAV = [
   { href: "/pharmacy/narcotic-register", icon: ShieldAlert, Trash2, label: "Narcotic" },
   { href: "/pharmacy/expiry-write-off", icon: Trash2, label: "Expiry" },
   { href: "/pharmacy/credit-ledger", icon: BookOpen, label: "Credit" },
+  { href: "/pharmacy/payroll", icon: Wallet, label: "Payroll" },
   { href: "/pharmacy/stock-movements", icon: History, label: "Stock" },
   { href: "/pharmacy/suppliers", icon: Truck, label: "Suppliers" },
   { href: "/pharmacy/purchases", icon: ShoppingCart, label: "Purchases" },
