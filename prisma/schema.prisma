@@ -1892,6 +1892,9 @@ model DoctorChamber {
   walkInEarnings     WalkInEarning[]
   schedules          DoctorSchedule[]
   staffAssignments   StaffChamberAssignment[]
+  staffShifts        StaffShift[]
+  attendanceRule     StaffAttendanceRule?
+  StaffAttendance    StaffAttendance[]
 
   @@index([doctorId, isActive])
   @@index([doctorId, isPrimary])
@@ -2015,6 +2018,7 @@ model DoctorStaff {
 
   chamberAssignments StaffChamberAssignment[]
   attendances        StaffAttendance[]
+  shifts             StaffShift[]
 
   @@index([doctorId, status])
   @@index([userId])
@@ -2034,17 +2038,39 @@ model StaffChamberAssignment {
 }
 
 model StaffAttendance {
-  id         String      @id @default(cuid())
-  staffId    String
-  staff      DoctorStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  checkInAt  DateTime    @default(now())
-  checkOutAt DateTime?
-  date       String
-  note       String?
-  createdAt  DateTime    @default(now())
+  id                String         @id @default(cuid())
+  staffId           String
+  staff             DoctorStaff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  chamberId         String?
+  chamber           DoctorChamber? @relation(fields: [chamberId], references: [id])
+  date              String
+  checkInAt         DateTime       @default(now())
+  checkOutAt        DateTime?
+  checkInSelfie     String?
+  checkInLat        Decimal?
+  checkInLng        Decimal?
+  checkInDistanceM  Int?
+  checkInDevice     String?
+  checkInIp         String?
+  checkOutSelfie    String?
+  checkOutLat       Decimal?
+  checkOutLng       Decimal?
+  checkOutDistanceM Int?
+  checkOutDevice    String?
+  checkOutIp        String?
+  status            String         @default("PRESENT")
+  isLate            Boolean        @default(false)
+  lateMinutes       Int            @default(0)
+  isEarlyLeave      Boolean        @default(false)
+  earlyMinutes      Int            @default(0)
+  isManualEntry     Boolean        @default(false)
+  manualReason      String?
+  note              String?
+  createdAt         DateTime       @default(now())
 
   @@index([staffId, date])
   @@index([date])
+  @@index([chamberId, date])
 }
 
 // ============================================
@@ -2682,4 +2708,40 @@ model StaffTarget {
   medicineId     String?
 
   @@unique([pharmacyId, staffId, month])
+}
+
+// ============================================
+// PHASE D13: PREMIUM STAFF ATTENDANCE
+// ============================================
+
+model StaffShift {
+  id           String        @id @default(cuid())
+  staffId      String
+  staff        DoctorStaff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  chamberId    String
+  chamber      DoctorChamber @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+  dayOfWeek    String
+  startTime    String
+  endTime      String
+  graceMinutes Int           @default(10)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([staffId, isActive])
+  @@index([chamberId, dayOfWeek])
+}
+
+model StaffAttendanceRule {
+  id                String        @id @default(cuid())
+  chamberId         String        @unique
+  chamber           DoctorChamber @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+  radiusMeters      Int           @default(200)
+  workingHoursStart String        @default("09:00")
+  workingHoursEnd   String        @default("18:00")
+  lateGraceMinutes  Int           @default(10)
+  requireSelfie     Boolean       @default(true)
+  requireGps        Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
