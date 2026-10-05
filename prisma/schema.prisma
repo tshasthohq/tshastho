@@ -2818,3 +2818,21 @@ model SmsTemplate {
   @@unique([pharmacyId, key, language])
   @@index([pharmacyId, isActive])
 }
+
+// ============================================
+// PHASE 2Q: SPLIT PAYMENTS
+// ============================================
+
+model PaymentSplit {
+  id            String   @id @default(cuid())
+  referenceId   String // orderId or posSaleId
+  referenceType String // ORDER or POS_SALE
+  method        String // CASH, BKASH, NAGAD, CARD, CREDIT, DUE
+  amount        Decimal
+  reference     String?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([referenceId, referenceType])
+  @@index([method])
+}

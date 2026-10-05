@@ -26,6 +26,11 @@ const schema = z.object({
   customerPhone: z.string().optional(),
   discountAmount: z.coerce.number().min(0).default(0),
   paymentMethod: z.enum(['CASH', 'CARD', 'BKASH', 'NAGAD', 'MIXED', 'DUE']).default('CASH'),
+  splits: z.array(z.object({
+    method: z.enum(['CASH', 'BKASH', 'NAGAD', 'CARD', 'CREDIT', 'DUE']),
+    amount: z.coerce.number().min(0),
+    reference: z.string().optional(),
+  })).optional(),
   paidAmount: z.coerce.number().min(0).default(0),
   notes: z.string().optional(),
 });

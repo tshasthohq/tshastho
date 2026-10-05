@@ -1,4 +1,5 @@
 "use client";
+import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +36,7 @@ export default function POSPage() {
   const [paidAmount, setPaidAmount] = useState(0);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showSplitModal, setShowSplitModal] = useState(false);
   const [openingCash, setOpeningCash] = useState(0);
   const [closingCash, setClosingCash] = useState(0);
   const searchTimer = useRef<any>(null);
@@ -113,6 +115,47 @@ export default function POSPage() {
   const total = Math.max(0, subtotal - discountAmount);
   const change = Math.max(0, paidAmount - total);
   const due = Math.max(0, total - paidAmount);
+
+  const handleSplitConfirm = async (splits: any[], notes: string) => {
+    if (cart.length === 0) return;
+    setSaving(true);
+    const res = await fetch("/api/pharmacy/pos/sale", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        items: cart.map(c => ({
+          medicineId: c.medicineId,
+          quantity: c.quantity,
+          unitPrice: c.unitPrice,
+          discount: c.discount,
+        })),
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+        discountAmount,
+        paymentMethod: "MIXED",
+        paidAmount: splits.filter(s => s.method !== "CREDIT" && s.method !== "DUE").reduce((a, b) => a + b.amount, 0),
+        notes: notes || undefined,
+        splits,
+      }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (res.ok) {
+      setShowReceipt(data.receipt);
+      setCart([]);
+      setCustomerName("");
+      setCustomerPhone("");
+      setDiscountAmount(0);
+      setPaidAmount(0);
+      setNotes("");
+      setShowSplitModal(false);
+      setShowPayment(false);
+      loadShift();
+    } else {
+      alert(data.message || "Sale failed");
+    }
+  };
 
   const completeSale = async () => {
     if (cart.length === 0) return;
@@ -433,6 +476,10 @@ export default function POSPage() {
                 placeholder="Notes (optional)" rows={2}
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm" />
 
+              <button onClick={() => { setShowPayment(false); setShowSplitModal(true); }} type="button"
+                className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-medium flex items-center justify-center gap-2">
+                Split Payment
+              </button>
               <button onClick={completeSale} disabled={saving}
                 className="w-full bg-green-600 text-white py-3 rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2">
                 <CheckCircle size={16} /> {saving ? "Processing..." : "Complete Sale"}
@@ -481,6 +528,17 @@ export default function POSPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {showSplitModal && (
+        <SplitPaymentModal
+          total={total}
+          customerName={customerName || undefined}
+          customerPhone={customerPhone || undefined}
+          onConfirm={handleSplitConfirm}
+          onClose={() => setShowSplitModal(false)}
+          processing={saving}
+        />
       )}</span>
                 </div>
               ))}
