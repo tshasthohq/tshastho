@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-import {
-  ArrowLeft, User, Phone, MapPin, Droplet, Calendar, FileText,
-  Plus, Eye, Edit
-} from "lucide-react";
+import { ArrowLeft, User, Phone, MapPin, Droplet, Calendar, FileText, Plus, Eye, Edit, Shield } from "lucide-react";
 
 export default function PatientDetailPage() {
   const params = useParams();
@@ -107,6 +104,10 @@ export default function PatientDetailPage() {
           <Link href="/doctor/walk-in-earnings"
             className="bg-slate-100 text-slate-700 py-3 rounded-xl font-medium flex items-center justify-center gap-2">
             <FileText size={16} /> Add Earning
+          </Link>
+          <Link href={`/doctor/patients/${patient.id}`}
+            className="bg-purple-50 text-purple-600 py-3 rounded-xl font-medium flex items-center justify-center gap-2">
+            <Shield size={16} /> Medical History
           </Link>
         </div>
 
