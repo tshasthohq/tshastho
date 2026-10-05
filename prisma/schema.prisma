@@ -98,6 +98,7 @@ model User {
   patientEarnings          DoctorEarning[]            @relation("PatientEarnings")
   approvedPayouts          DoctorPayout[]             @relation("ApprovedPayouts")
   linkedLocalPatients      LocalPatient[]             @relation("LinkedLocalPatients")
+  doctorStaffProfile       DoctorStaff?               @relation("DoctorStaffUser")
 }
 
 model Patient {
@@ -140,6 +141,7 @@ model Doctor {
   reviews             DoctorReview[]
   earnings            DoctorEarning[]
   chambers            DoctorChamber[]
+  staff               DoctorStaff[]
   localPatients       LocalPatient[]
   localPrescriptions  LocalPrescription[]
   walkInEarnings      WalkInEarning[]
@@ -1842,6 +1844,7 @@ model DoctorChamber {
   localPrescriptions LocalPrescription[]
   walkInEarnings     WalkInEarning[]
   schedules          DoctorSchedule[]
+  staffAssignments   StaffChamberAssignment[]
 
   @@index([doctorId, isActive])
   @@index([doctorId, isPrimary])
@@ -1925,4 +1928,73 @@ model WalkInEarning {
   @@index([doctorId, earningDate])
   @@index([doctorId, chamberId, earningDate])
   @@index([status])
+}
+
+// ============================================
+// PHASE D7A: DOCTOR STAFF / ATTENDEES
+// ============================================
+
+enum DoctorStaffRole {
+  RECEPTIONIST
+  ASSISTANT
+  NURSE
+  COMPOUNDER
+  MANAGER
+  OTHER
+}
+
+enum DoctorStaffStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+model DoctorStaff {
+  id          String            @id @default(cuid())
+  doctorId    String
+  doctor      Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  userId      String            @unique
+  user        User              @relation("DoctorStaffUser", fields: [userId], references: [id], onDelete: Cascade)
+  role        DoctorStaffRole   @default(ASSISTANT)
+  status      DoctorStaffStatus @default(ACTIVE)
+  permissions Json?
+  joinedAt    DateTime          @default(now())
+  leftAt      DateTime?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  chamberAssignments StaffChamberAssignment[]
+  attendances        StaffAttendance[]
+
+  @@index([doctorId, status])
+  @@index([userId])
+}
+
+model StaffChamberAssignment {
+  id         String        @id @default(cuid())
+  staffId    String
+  staff      DoctorStaff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  chamberId  String
+  chamber    DoctorChamber @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+  isPrimary  Boolean       @default(false)
+  assignedAt DateTime      @default(now())
+
+  @@unique([staffId, chamberId])
+  @@index([chamberId])
+}
+
+model StaffAttendance {
+  id         String      @id @default(cuid())
+  staffId    String
+  staff      DoctorStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  checkInAt  DateTime    @default(now())
+  checkOutAt DateTime?
+  date       String
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  @@index([staffId, date])
+  @@index([date])
 }
