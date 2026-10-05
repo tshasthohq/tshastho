@@ -37,6 +37,8 @@ export default function DoctorProfilePage() {
   const [newSpecialty, setNewSpecialty] = useState({ name: "", isPrimary: false });
   const [newQual, setNewQual] = useState({ degree: "", institution: "", year: 2000, country: "" });
   const [newDoc, setNewDoc] = useState({ type: "LICENSE", title: "", fileUrl: "" });
+  const [signatureUrl, setSignatureUrl] = useState("");
+  const [uploadingSig, setUploadingSig] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -48,6 +50,7 @@ export default function DoctorProfilePage() {
     ]);
     if (p.doctor) {
       setProfile(p.doctor);
+      setSignatureUrl(p.doctor.signatureUrl || "");
       setBasicForm({
         specialty: p.doctor.specialty || "",
         licenseNumber: p.doctor.licenseNumber || "",
@@ -71,6 +74,35 @@ export default function DoctorProfilePage() {
   };
 
   useEffect(() => { if (user) load(); }, [user]);
+
+  const uploadSignature = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingSig(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
+    const data = await res.json();
+    if (res.ok && data.url) {
+      await fetch("/api/doctor/signature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ signatureUrl: data.url }),
+      });
+      setSignatureUrl(data.url);
+      setMessage("✅ Signature uploaded!");
+    } else {
+      setMessage("Upload failed");
+    }
+    setUploadingSig(false);
+  };
+
+  const removeSignature = async () => {
+    if (!confirm("Remove signature?")) return;
+    await fetch("/api/doctor/signature", { method: "DELETE", credentials: "include" });
+    setSignatureUrl("");
+  };
 
   const saveBasic = async () => {
     setSaving(true);
