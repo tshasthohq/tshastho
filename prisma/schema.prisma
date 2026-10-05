@@ -113,6 +113,7 @@ model User {
   refillReminders          CustomerRefillReminder[]   @relation("CustomerRefills")
   narcoticEntries          NarcoticRegister[]         @relation("NarcoticRegisterEntries")
   expiryWriteOffReviews    ExpiryWriteOffBatch[]      @relation("ExpiryWriteOffReviewer")
+  creditEntries            CustomerCreditLedger[]     @relation("CustomerCreditEntries")
 }
 
 model Patient {
@@ -215,6 +216,7 @@ model Pharmacy {
   CustomerRefillReminder CustomerRefillReminder[]
   NarcoticRegister       NarcoticRegister[]
   ExpiryWriteOffBatch    ExpiryWriteOffBatch[]
+  CustomerCreditLedger   CustomerCreditLedger[]
 }
 
 model MasterMedicine {
@@ -270,6 +272,7 @@ model Medicine {
   refillReminders  CustomerRefillReminder[]
   narcoticEntries  NarcoticRegister[]
   expiryWriteOffs  ExpiryWriteOffBatch[]
+  creditEntries    CustomerCreditLedger[]
 }
 
 model CartItem {
@@ -2547,5 +2550,38 @@ model ExpiryWriteOffBatch {
   updatedAt    DateTime             @updatedAt
 
   @@index([pharmacyId, status])
+  @@index([pharmacyId, createdAt])
+}
+
+// ============================================
+// PHASE 2M: CUSTOMER CREDIT LEDGER
+// ============================================
+
+enum CreditEntryType {
+  SALE_ON_CREDIT
+  PAYMENT_RECEIVED
+  ADJUSTMENT
+  WRITE_OFF
+}
+
+model CustomerCreditLedger {
+  id            String          @id @default(cuid())
+  pharmacyId    String
+  pharmacy      Pharmacy        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      User            @relation("CustomerCreditEntries", fields: [customerId], references: [id], onDelete: Cascade)
+  type          CreditEntryType
+  amount        Decimal
+  balance       Decimal         @default(0)
+  referenceId   String?
+  referenceType String?
+  description   String?
+  paymentMethod String?
+  createdById   String?
+  createdAt     DateTime        @default(now())
+  Medicine      Medicine?       @relation(fields: [medicineId], references: [id])
+  medicineId    String?
+
+  @@index([pharmacyId, customerId])
   @@index([pharmacyId, createdAt])
 }
