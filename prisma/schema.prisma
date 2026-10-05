@@ -125,7 +125,8 @@ model Doctor {
   userId               String                   @unique
   user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialty            String
-  licenseNumber        String                   @unique
+  licenseNumber        String
+  signatureUrl         String?                  @unique
   experience           Int
   consultationFee      Decimal
   bookingPhone         String?
@@ -160,6 +161,7 @@ model Doctor {
   leaves               DoctorLeave[]
   slotOverrides        DoctorSlotOverride[]
   chatThreads          ChatThread[]
+  templates            PrescriptionTemplate[]
 }
 
 model Pharmacy {
@@ -2249,4 +2251,46 @@ model ChatMessage {
   createdAt  DateTime   @default(now())
 
   @@index([threadId, createdAt])
+}
+
+// ============================================
+// PHASE D10: PRESCRIPTION TEMPLATES + SIGNATURE
+// ============================================
+
+model PrescriptionTemplate {
+  id             String   @id @default(cuid())
+  doctorId       String
+  doctor         Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  name           String
+  chiefComplaint String?
+  examination    String?
+  diagnosis      String?
+  investigations String?
+  advice         String?
+  isPublic       Boolean  @default(false)
+  usageCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  items PrescriptionTemplateItem[]
+
+  @@index([doctorId, createdAt])
+}
+
+model PrescriptionTemplateItem {
+  id              String               @id @default(cuid())
+  templateId      String
+  template        PrescriptionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  medicineName    String
+  strength        String?
+  dosage          String?
+  frequency       String?
+  duration        String?
+  quantity        String?
+  beforeAfterMeal String?
+  instructions    String?
+  orderIndex      Int                  @default(0)
+  createdAt       DateTime             @default(now())
+
+  @@index([templateId])
 }
