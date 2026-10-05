@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { recordAppointmentEarning } from './earnings';
 
 export type AppointmentAction =
   | 'CONFIRM'
@@ -143,6 +144,20 @@ export async function changeAppointmentStatus(params: ChangeParams) {
   });
 
   await logStatusChange(appointmentId, current, toStatus, userId, reason);
+
+  // Record earning if completed
+  if (toStatus === 'COMPLETED') {
+    try {
+      await recordAppointmentEarning({
+        appointmentId,
+        doctorId: apt.doctorId,
+        patientId: apt.patientId,
+        grossAmount: Number(apt.consultationFee || 0),
+      });
+    } catch (e) {
+      console.error('[EARNING_RECORD]', e);
+    }
+  }
 
   if (notifyUserId) {
     try {

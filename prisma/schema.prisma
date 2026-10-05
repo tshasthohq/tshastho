@@ -95,6 +95,8 @@ model User {
   verifiedDoctorDocs       DoctorDocument[]           @relation("VerifiedDoctorDocs")
   patientReviews           DoctorReview[]             @relation("PatientReviews")
   appointmentStatusChanges AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
+  patientEarnings          DoctorEarning[]            @relation("PatientEarnings")
+  approvedPayouts          DoctorPayout[]             @relation("ApprovedPayouts")
 }
 
 model Patient {
@@ -135,6 +137,8 @@ model Doctor {
   qualifications      DoctorQualification[]
   documents           DoctorDocument[]
   reviews             DoctorReview[]
+  earnings            DoctorEarning[]
+  payouts             DoctorPayout[]
   schedules           DoctorSchedule[]
   leaves              DoctorLeave[]
   slotOverrides       DoctorSlotOverride[]
@@ -366,6 +370,7 @@ model Appointment {
   doctor        Doctor                     @relation("DoctorAppointments", fields: [doctorId], references: [id])
   statusHistory AppointmentStatusHistory[]
   prescriptions Prescription[]
+  earning       DoctorEarning?
 
   @@index([patientId, status])
   @@index([doctorId, status])
@@ -1721,4 +1726,73 @@ model AppointmentStatusHistory {
 
   @@index([appointmentId, createdAt])
   @@index([changedById])
+}
+
+// ============================================
+// PHASE D5: EARNINGS, PAYOUT, REVIEWS
+// ============================================
+
+enum EarningStatus {
+  PENDING
+  AVAILABLE
+  PAID
+  CANCELLED
+}
+
+enum PayoutRequestStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+model DoctorEarning {
+  id            String        @id @default(cuid())
+  doctorId      String
+  doctor        Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  appointmentId String?       @unique
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
+  patientId     String
+  patient       User          @relation("PatientEarnings", fields: [patientId], references: [id])
+  grossAmount   Decimal
+  platformFee   Decimal       @default(0)
+  netAmount     Decimal
+  status        EarningStatus @default(PENDING)
+  availableAt   DateTime?
+  paidAt        DateTime?
+  payoutId      String?
+  payout        DoctorPayout? @relation(fields: [payoutId], references: [id])
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([doctorId, status])
+  @@index([doctorId, createdAt])
+  @@index([patientId])
+}
+
+model DoctorPayout {
+  id              String              @id @default(cuid())
+  payoutNumber    String              @unique
+  doctorId        String
+  doctor          Doctor              @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  amount          Decimal
+  status          PayoutRequestStatus @default(REQUESTED)
+  method          String?
+  accountInfo     Json?
+  requestedAt     DateTime            @default(now())
+  approvedAt      DateTime?
+  approvedById    String?
+  approvedBy      User?               @relation("ApprovedPayouts", fields: [approvedById], references: [id])
+  processedAt     DateTime?
+  completedAt     DateTime?
+  rejectionReason String?
+  notes           String?
+  earnings        DoctorEarning[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([doctorId, status])
+  @@index([status, createdAt])
 }
