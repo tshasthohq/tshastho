@@ -56,7 +56,7 @@ export async function recordReferralUsage(params: {
         customerId: params.customerId || null,
         orderAmount: params.orderAmount,
         commissionAmount,
-        status: 'PENDING',
+        status: "PENDING",
       },
     });
 

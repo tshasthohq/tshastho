@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         doctorId: data.doctorId,
         date: data.date,
         time: data.time,
-        status: 'REQUESTED',
+        status: "REQUESTED",
       },
     });
 

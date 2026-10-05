@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const prescription = await prisma.prescription.findUnique({ where: { id } });
     if (!prescription) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Prescription not found', 404);
 
-    if (prescription.status !== 'PENDING') {
+    if (prescription.status !== "PENDING") {
       return errorResponse(ErrorCodes.CONFLICT, 'Prescription already processed', 409);
     }
 

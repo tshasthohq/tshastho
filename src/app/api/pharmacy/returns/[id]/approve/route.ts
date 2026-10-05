@@ -11,7 +11,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const ret = await prisma.returnOrder.findUnique({ where: { id } });
   if (!ret) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Return not found', 404);
-  if (ret.status !== 'PENDING') return errorResponse(ErrorCodes.CONFLICT, 'Return already processed', 409);
+  if (ret.status !== "PENDING") return errorResponse(ErrorCodes.CONFLICT, 'Return already processed', 409);
 
   const updated = await prisma.returnOrder.update({
     where: { id },

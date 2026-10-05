@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         notes: data.notes || null,
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         imageUrl: data.imageUrl,
-        status: 'PENDING',
+        status: "PENDING",
         items: {
           create: data.items.map((i) => ({
             medicineName: i.medicineName,

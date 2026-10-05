@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         type: data.type,
         title: data.title || null,
         fileUrl: data.fileUrl,
-        status: 'PENDING',
+        status: "PENDING",
       },
     });
 

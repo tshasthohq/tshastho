@@ -15,7 +15,7 @@ export async function GET(req: Request) {
       status: status as any,
       OR: [
         { orders: { some: { pharmacyId: { not: undefined } } } },
-        { status: 'PENDING' },
+        { status: "PENDING" },
       ],
     },
     orderBy: { createdAt: 'desc' },

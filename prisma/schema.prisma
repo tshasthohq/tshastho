@@ -57,43 +57,44 @@ model User {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  patientProfile        Patient?
-  doctorProfile         Doctor?
-  pharmacyProfile       Pharmacy?
-  appointments          Appointment[]       @relation("PatientAppointments")
-  notifications         Notification[]
-  cartItems             CartItem[]
-  patientOrders         Order[]             @relation("PatientOrders")
-  attendances           Attendance[]
-  salaryPayments        SalaryPayment[]
-  staffAdvances         StaffAdvance[]
-  payments              Payment[]           @relation("UserPayments")
-  stockMovements        StockMovement[]     @relation("UserStockMovements")
-  posSales              PosSale[]           @relation("StaffPosSales")
-  posShifts             PosShift[]          @relation("StaffShifts")
-  expensesCreated       PharmacyExpense[]   @relation("UserExpenses")
-  expensesApproved      PharmacyExpense[]   @relation("ApprovedExpenses")
-  ledgerEntries         PharmacyLedger[]    @relation("UserLedgerEntries")
-  dailyClosings         DailyClosing[]      @relation("UserDailyClosings")
-  dailyClosingsVer      DailyClosing[]      @relation("VerifiedDailyClosings")
-  settlementsReq        SettlementRequest[] @relation("RequestedSettlements")
-  settlementsApp        SettlementRequest[] @relation("ApprovedSettlements")
-  patientPrescriptions  Prescription[]      @relation("PatientPrescriptions")
-  doctorPrescriptions   Prescription[]      @relation("DoctorPrescriptions")
-  verifiedPrescriptions Prescription[]      @relation("VerifiedPrescriptions")
-  processedReturns      ReturnOrder[]       @relation("ProcessedReturns")
-  approvedReturns       ReturnOrder[]       @relation("ApprovedReturns")
-  loyalty               LoyaltyAccount?     @relation("UserLoyalty")
-  doctorReferrals       DoctorReferral[]    @relation("DoctorReferrals")
-  managedBranches       PharmacyBranch[]    @relation("BranchManager")
-  requestedTransfers    BranchTransfer[]    @relation("RequestedTransfers")
-  approvedTransfers     BranchTransfer[]    @relation("ApprovedTransfers")
-  receivedTransfers     BranchTransfer[]    @relation("ReceivedTransfers")
-  branchAssignments     BranchStaff[]       @relation("BranchStaffAssign")
-  regulatoryLogs        RegulatoryLog[]     @relation("RegulatoryLogs")
-  dgdaReports           DGDAReport[]        @relation("DGDAReports")
-  verifiedDoctorDocs    DoctorDocument[]    @relation("VerifiedDoctorDocs")
-  patientReviews        DoctorReview[]      @relation("PatientReviews")
+  patientProfile           Patient?
+  doctorProfile            Doctor?
+  pharmacyProfile          Pharmacy?
+  appointments             Appointment[]              @relation("PatientAppointments")
+  notifications            Notification[]
+  cartItems                CartItem[]
+  patientOrders            Order[]                    @relation("PatientOrders")
+  attendances              Attendance[]
+  salaryPayments           SalaryPayment[]
+  staffAdvances            StaffAdvance[]
+  payments                 Payment[]                  @relation("UserPayments")
+  stockMovements           StockMovement[]            @relation("UserStockMovements")
+  posSales                 PosSale[]                  @relation("StaffPosSales")
+  posShifts                PosShift[]                 @relation("StaffShifts")
+  expensesCreated          PharmacyExpense[]          @relation("UserExpenses")
+  expensesApproved         PharmacyExpense[]          @relation("ApprovedExpenses")
+  ledgerEntries            PharmacyLedger[]           @relation("UserLedgerEntries")
+  dailyClosings            DailyClosing[]             @relation("UserDailyClosings")
+  dailyClosingsVer         DailyClosing[]             @relation("VerifiedDailyClosings")
+  settlementsReq           SettlementRequest[]        @relation("RequestedSettlements")
+  settlementsApp           SettlementRequest[]        @relation("ApprovedSettlements")
+  patientPrescriptions     Prescription[]             @relation("PatientPrescriptions")
+  doctorPrescriptions      Prescription[]             @relation("DoctorPrescriptions")
+  verifiedPrescriptions    Prescription[]             @relation("VerifiedPrescriptions")
+  processedReturns         ReturnOrder[]              @relation("ProcessedReturns")
+  approvedReturns          ReturnOrder[]              @relation("ApprovedReturns")
+  loyalty                  LoyaltyAccount?            @relation("UserLoyalty")
+  doctorReferrals          DoctorReferral[]           @relation("DoctorReferrals")
+  managedBranches          PharmacyBranch[]           @relation("BranchManager")
+  requestedTransfers       BranchTransfer[]           @relation("RequestedTransfers")
+  approvedTransfers        BranchTransfer[]           @relation("ApprovedTransfers")
+  receivedTransfers        BranchTransfer[]           @relation("ReceivedTransfers")
+  branchAssignments        BranchStaff[]              @relation("BranchStaffAssign")
+  regulatoryLogs           RegulatoryLog[]            @relation("RegulatoryLogs")
+  dgdaReports              DGDAReport[]               @relation("DGDAReports")
+  verifiedDoctorDocs       DoctorDocument[]           @relation("VerifiedDoctorDocs")
+  patientReviews           DoctorReview[]             @relation("PatientReviews")
+  appointmentStatusChanges AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
 }
 
 model Patient {
@@ -316,15 +317,59 @@ model SystemSetting {
 }
 
 model Appointment {
-  id        String   @id @default(cuid())
-  patientId String
-  doctorId  String
-  date      String
-  time      String
-  status    String   @default("PENDING")
+  id                String            @id @default(cuid())
+  patientId         String
+  doctorId          String
+  date              String
+  time              String
+  status            AppointmentStatus @default(REQUESTED)
+  slotType          String            @default("IN_PERSON")
+  consultationFee   Decimal           @default(0)
+  paymentStatus     String            @default("UNPAID")
+  paymentId         String?
+  symptoms          String?
+  patientNotes      String?
+  consultationNotes String?
+  prescriptionId    String?
+
+  // Confirmation tracking
+  doctorConfirmedAt  DateTime?
+  patientConfirmedAt DateTime?
+
+  // Cancel tracking
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelledBy   CancelledBy?
+  cancelReason  String?
+
+  // Reschedule tracking
+  rescheduledAt    DateTime?
+  rescheduledById  String?
+  previousDate     String?
+  previousTime     String?
+  rescheduleReason String?
+
+  // Completion
+  completedAt DateTime?
+  noShowAt    DateTime?
+
+  // Follow-up
+  followUpDate  String?
+  followUpNotes String?
+
+  // Timestamps
   createdAt DateTime @default(now())
-  patient   User     @relation("PatientAppointments", fields: [patientId], references: [id])
-  doctor    Doctor   @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  patient       User                       @relation("PatientAppointments", fields: [patientId], references: [id])
+  doctor        Doctor                     @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  statusHistory AppointmentStatusHistory[]
+
+  @@index([patientId, status])
+  @@index([doctorId, status])
+  @@index([doctorId, date])
+  @@index([date, status])
 }
 
 model Attendance {
@@ -1620,4 +1665,41 @@ model DoctorSlotOverride {
   createdAt       DateTime @default(now())
 
   @@index([doctorId, date])
+}
+
+// ============================================
+// PHASE D3: APPOINTMENT ENGINE
+// ============================================
+
+enum AppointmentStatus {
+  REQUESTED
+  CONFIRMED
+  PATIENT_CONFIRMED
+  RESCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum CancelledBy {
+  PATIENT
+  DOCTOR
+  ADMIN
+  SYSTEM
+}
+
+model AppointmentStatusHistory {
+  id            String      @id @default(cuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  fromStatus    String?
+  toStatus      String
+  changedById   String?
+  changedBy     User?       @relation("AppointmentStatusChangedBy", fields: [changedById], references: [id])
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+
+  @@index([appointmentId, createdAt])
+  @@index([changedById])
 }

@@ -85,7 +85,7 @@ export async function POST(req: Request) {
         pharmacyId,
         fromBranchId: data.fromBranchId,
         toBranchId: data.toBranchId,
-        status: 'PENDING',
+        status: "PENDING",
         reason: data.reason || null,
         notes: data.notes || null,
         requestedById: user.id,

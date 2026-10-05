@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         partnerType: data.partnerType,
         amount: data.amount,
         method: data.method,
-        status: 'PENDING',
+        status: "PENDING",
         metadata: { notes: data.notes, initiatedBy: auth.user!.id },
       },
     });

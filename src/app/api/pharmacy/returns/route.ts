@@ -109,7 +109,7 @@ export async function POST(req: Request) {
         returnNumber,
         pharmacyId,
         type: data.type,
-        status: 'PENDING',
+        status: "PENDING",
         supplierId: data.supplierId || null,
         originalSaleId: data.originalSaleId || null,
         customerName: data.customerName || null,
