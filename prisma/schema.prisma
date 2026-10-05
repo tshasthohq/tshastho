@@ -110,6 +110,7 @@ model User {
   referralCases            DoctorReferralCase[]       @relation("PatientReferralCases")
   medicalCertificates      MedicalCertificate[]       @relation("PatientCertificates")
   followUpReminders        FollowUpReminder[]         @relation("PatientFollowUps")
+  refillReminders          CustomerRefillReminder[]   @relation("CustomerRefills")
 }
 
 model Patient {
@@ -172,42 +173,44 @@ model Doctor {
 }
 
 model Pharmacy {
-  id              String              @id @default(cuid())
-  userId          String              @unique
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shopName        String
-  logo            String?
-  drugLicense     String              @unique
-  tradeLicense    String
-  address         String
-  area            String?
-  city            String
-  deliveryRadius  Int                 @default(5)
-  isOpen          Boolean             @default(true)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  medicines       Medicine[]
-  orders          Order[]
-  dues            Due[]
-  attendances     Attendance[]
-  salaryPayments  SalaryPayment[]
-  staffAdvances   StaffAdvance[]
-  batches         Batch[]
-  stockMovements  StockMovement[]
-  suppliers       Supplier[]
-  purchases       PurchaseOrder[]
-  posCustomers    PosCustomer[]
-  posSales        PosSale[]
-  posShifts       PosShift[]
-  expenses        PharmacyExpense[]
-  ledgerEntries   PharmacyLedger[]
-  dailyClosings   DailyClosing[]
-  settlements     SettlementRequest[]
-  returns         ReturnOrder[]
-  branches        PharmacyBranch[]
-  branchTransfers BranchTransfer[]
-  regulatoryLogs  RegulatoryLog[]
-  dgdaReports     DGDAReport[]
+  id                     String                   @id @default(cuid())
+  userId                 String                   @unique
+  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopName               String
+  logo                   String?
+  drugLicense            String                   @unique
+  tradeLicense           String
+  address                String
+  area                   String?
+  city                   String
+  deliveryRadius         Int                      @default(5)
+  isOpen                 Boolean                  @default(true)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  medicines              Medicine[]
+  orders                 Order[]
+  dues                   Due[]
+  attendances            Attendance[]
+  salaryPayments         SalaryPayment[]
+  staffAdvances          StaffAdvance[]
+  batches                Batch[]
+  stockMovements         StockMovement[]
+  suppliers              Supplier[]
+  purchases              PurchaseOrder[]
+  posCustomers           PosCustomer[]
+  posSales               PosSale[]
+  posShifts              PosShift[]
+  expenses               PharmacyExpense[]
+  ledgerEntries          PharmacyLedger[]
+  dailyClosings          DailyClosing[]
+  settlements            SettlementRequest[]
+  returns                ReturnOrder[]
+  branches               PharmacyBranch[]
+  branchTransfers        BranchTransfer[]
+  regulatoryLogs         RegulatoryLog[]
+  dgdaReports            DGDAReport[]
+  StockAlert             StockAlert[]
+  CustomerRefillReminder CustomerRefillReminder[]
 }
 
 model MasterMedicine {
@@ -225,11 +228,11 @@ model MasterMedicine {
 }
 
 model Medicine {
-  id               String               @id @default(cuid())
+  id               String                   @id @default(cuid())
   pharmacyId       String
-  pharmacy         Pharmacy             @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  pharmacy         Pharmacy                 @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
   masterMedicineId String?
-  masterMedicine   MasterMedicine?      @relation(fields: [masterMedicineId], references: [id])
+  masterMedicine   MasterMedicine?          @relation(fields: [masterMedicineId], references: [id])
   name             String
   brand            String?
   genericName      String?
@@ -237,18 +240,18 @@ model Medicine {
   description      String?
   purchasePrice    Decimal
   sellingPrice     Decimal
-  discountPercent  Decimal              @default(0)
-  stock            Int                  @default(0)
-  unit             String               @default("piece")
-  stripSize        Int                  @default(10)
-  boxSize          Int                  @default(100)
+  discountPercent  Decimal                  @default(0)
+  stock            Int                      @default(0)
+  unit             String                   @default("piece")
+  stripSize        Int                      @default(10)
+  boxSize          Int                      @default(100)
   manufacturer     String?
   images           Json?
   expiryDate       DateTime?
   batchNumber      String?
-  isActive         Boolean              @default(true)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  isActive         Boolean                  @default(true)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
   cartItems        CartItem[]
   batches          Batch[]
   stockMovements   StockMovement[]
@@ -258,6 +261,9 @@ model Medicine {
   branchStocks     BranchStock[]
   regulatoryLogs   RegulatoryLog[]
   transferItems    BranchTransferItem[]
+  barcodes         MedicineBarcode[]
+  stockAlerts      StockAlert[]
+  refillReminders  CustomerRefillReminder[]
 }
 
 model CartItem {
@@ -2409,4 +2415,67 @@ model FollowUpReminder {
   @@index([doctorId, reminderDate])
   @@index([patientId, reminderDate])
   @@index([reminderDate, isCompleted])
+}
+
+// ============================================
+// PHASE 2I: BARCODE + LOW-STOCK
+// ============================================
+
+enum ReorderStatus {
+  PENDING
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+model MedicineBarcode {
+  id         String   @id @default(cuid())
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  barcode    String   @unique
+  type       String   @default("EAN13")
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([medicineId])
+}
+
+model StockAlert {
+  id           String        @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy      @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  medicineId   String
+  medicine     Medicine      @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  currentStock Int
+  reorderLevel Int
+  suggestedQty Int
+  status       ReorderStatus @default(PENDING)
+  notifiedAt   DateTime?
+  orderedAt    DateTime?
+  resolvedAt   DateTime?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([pharmacyId, medicineId, status])
+  @@index([pharmacyId, status])
+}
+
+model CustomerRefillReminder {
+  id           String    @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     User      @relation("CustomerRefills", fields: [customerId], references: [id], onDelete: Cascade)
+  medicineId   String
+  medicine     Medicine  @relation(fields: [medicineId], references: [id])
+  reminderDate DateTime
+  reminderSent Boolean   @default(false)
+  sentAt       DateTime?
+  isDismissed  Boolean   @default(false)
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  @@index([pharmacyId, reminderDate])
+  @@index([customerId, reminderDate])
 }
