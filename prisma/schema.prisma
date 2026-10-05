@@ -114,6 +114,10 @@ model User {
   narcoticEntries          NarcoticRegister[]         @relation("NarcoticRegisterEntries")
   expiryWriteOffReviews    ExpiryWriteOffBatch[]      @relation("ExpiryWriteOffReviewer")
   creditEntries            CustomerCreditLedger[]     @relation("CustomerCreditEntries")
+  staffPayrolls            StaffPayroll[]             @relation("StaffPayrollUser")
+  approvedStaffPayrolls    StaffPayroll[]             @relation("StaffPayrollApprover")
+  staffPerformance         StaffPerformance[]         @relation("StaffPerformanceUser")
+  staffTargets             StaffTarget[]              @relation("StaffTargetUser")
 }
 
 model Patient {
@@ -217,6 +221,9 @@ model Pharmacy {
   NarcoticRegister       NarcoticRegister[]
   ExpiryWriteOffBatch    ExpiryWriteOffBatch[]
   CustomerCreditLedger   CustomerCreditLedger[]
+  StaffPayroll           StaffPayroll[]
+  StaffPerformance       StaffPerformance[]
+  StaffTarget            StaffTarget[]
 }
 
 model MasterMedicine {
@@ -273,6 +280,9 @@ model Medicine {
   narcoticEntries  NarcoticRegister[]
   expiryWriteOffs  ExpiryWriteOffBatch[]
   creditEntries    CustomerCreditLedger[]
+  staffPayrolls    StaffPayroll[]
+  staffPerformance StaffPerformance[]
+  staffTargets     StaffTarget[]
 }
 
 model CartItem {
@@ -2584,4 +2594,92 @@ model CustomerCreditLedger {
 
   @@index([pharmacyId, customerId])
   @@index([pharmacyId, createdAt])
+}
+
+// ============================================
+// PHASE 2N: STAFF PERFORMANCE & PAYROLL
+// ============================================
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+model StaffPayroll {
+  id               String        @id @default(cuid())
+  pharmacyId       String
+  pharmacy         Pharmacy      @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  staffId          String
+  staff            User          @relation("StaffPayrollUser", fields: [staffId], references: [id], onDelete: Cascade)
+  month            String
+  basicSalary      Decimal       @default(0)
+  presentDays      Int           @default(0)
+  absentDays       Int           @default(0)
+  leaveDays        Int           @default(0)
+  workingDays      Int           @default(30)
+  dailyRate        Decimal       @default(0)
+  earnedBasic      Decimal       @default(0)
+  commissionAmount Decimal       @default(0)
+  bonus            Decimal       @default(0)
+  overtime         Decimal       @default(0)
+  deductions       Decimal       @default(0)
+  advanceDeducted  Decimal       @default(0)
+  netPayable       Decimal       @default(0)
+  paidAmount       Decimal       @default(0)
+  status           PayrollStatus @default(DRAFT)
+  paidAt           DateTime?
+  notes            String?
+  approvedById     String?
+  approvedBy       User?         @relation("StaffPayrollApprover", fields: [approvedById], references: [id])
+  approvedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  Medicine         Medicine?     @relation(fields: [medicineId], references: [id])
+  medicineId       String?
+
+  @@unique([pharmacyId, staffId, month])
+  @@index([pharmacyId, month])
+  @@index([staffId, month])
+}
+
+model StaffPerformance {
+  id             String    @id @default(cuid())
+  pharmacyId     String
+  pharmacy       Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  staffId        String
+  staff          User      @relation("StaffPerformanceUser", fields: [staffId], references: [id], onDelete: Cascade)
+  month          String
+  totalSales     Decimal   @default(0)
+  totalOrders    Int       @default(0)
+  avgOrderValue  Decimal   @default(0)
+  totalCustomers Int       @default(0)
+  posSaleCount   Int       @default(0)
+  posSalesAmount Decimal   @default(0)
+  calculatedAt   DateTime  @default(now())
+  Medicine       Medicine? @relation(fields: [medicineId], references: [id])
+  medicineId     String?
+
+  @@unique([pharmacyId, staffId, month])
+  @@index([pharmacyId, month])
+}
+
+model StaffTarget {
+  id             String    @id @default(cuid())
+  pharmacyId     String
+  pharmacy       Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  staffId        String
+  staff          User      @relation("StaffTargetUser", fields: [staffId], references: [id], onDelete: Cascade)
+  month          String
+  salesTarget    Decimal   @default(0)
+  orderTarget    Int       @default(0)
+  bonusOnAchieve Decimal   @default(0)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  Medicine       Medicine? @relation(fields: [medicineId], references: [id])
+  medicineId     String?
+
+  @@unique([pharmacyId, staffId, month])
 }
