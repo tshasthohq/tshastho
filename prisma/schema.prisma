@@ -124,6 +124,7 @@ model User {
   rxRequestsResponded      RxPharmacyRequest[]            @relation("RxRequestResponder")
   interactionAcks          PrescriptionInteractionCheck[] @relation("InteractionAcknowledger")
   vatReports               VatReport[]                    @relation("VatReportGenerator")
+  pharmacyAuditLogs        PharmacyAuditLog[]             @relation("PharmacyAuditUser")
 }
 
 model Patient {
@@ -236,6 +237,7 @@ model Pharmacy {
   TaxConfiguration       TaxConfiguration?
   VatInvoice             VatInvoice[]
   VatReport              VatReport[]
+  PharmacyAuditLog       PharmacyAuditLog[]
 }
 
 model MasterMedicine {
@@ -3023,4 +3025,28 @@ model VatReport {
 
   @@unique([pharmacyId, month])
   @@index([pharmacyId, createdAt])
+}
+
+// ============================================
+// PHASE 2W: PHARMACY AUDIT LOG
+// ============================================
+
+model PharmacyAuditLog {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation("PharmacyAuditUser", fields: [userId], references: [id])
+  action     String
+  resource   String?
+  resourceId String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  severity   String   @default("INFO")
+  createdAt  DateTime @default(now())
+
+  @@index([pharmacyId, createdAt])
+  @@index([pharmacyId, action])
+  @@index([userId, createdAt])
 }
