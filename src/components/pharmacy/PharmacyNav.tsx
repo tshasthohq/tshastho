@@ -16,6 +16,7 @@ const NAV = [
   { href: "/pharmacy/rx-requests", icon: FileText, label: "Rx Requests" },
   { href: "/pharmacy/tax-config", icon: Receipt, label: "Tax/VAT" },
   { href: "/pharmacy/analytics", icon: BarChart3, label: "Analytics" },
+  { href: "/pharmacy/audit", icon: Shield, label: "Audit" },
   { href: "/pharmacy/batches", icon: Package, label: "Batches" },
   { href: "/pharmacy/stock-alerts", icon: AlertTriangle, label: "Low Stock" },
   { href: "/pharmacy/refill-reminders", icon: Repeat, label: "Refills" },

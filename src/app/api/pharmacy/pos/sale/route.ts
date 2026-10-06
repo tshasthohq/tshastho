@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth/guards';
 import { recordStockMovement } from '@/lib/pharmacy/stock';
 import { redeemPoints } from '@/lib/pharmacy/loyalty';
 import { createVatInvoice } from '@/lib/tax/vat';
+import { logAudit } from '@/lib/pharmacy/audit';
 import { errorResponse, ErrorCodes } from '@/lib/errors';
 import { z } from 'zod';
 import { recordPosSale } from "@/lib/pharmacy/ledger";
