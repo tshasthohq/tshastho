@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { sendSslWireless } from './providers/ssl-wireless';
 
 export type SmsProvider = 'SSL_WIRELESS' | 'TWILIO' | 'BANGLALINK' | 'MANUAL';
 
@@ -27,22 +28,15 @@ async function sendViaProvider(provider: SmsProvider, phone: string, message: st
     if (provider === 'SSL_WIRELESS') {
       const apiKey = process.env.SSL_WIRELESS_API_KEY;
       const senderId = process.env.SSL_WIRELESS_SENDER_ID;
-      if (!apiKey) return { error: 'SSL Wireless not configured' };
+      if (!apiKey || !senderId) return { error: 'SSL Wireless not configured' };
 
-      const res = await fetch('https://smsplus.sslwireless.com/api/v3/send-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          api_token: apiKey,
-          sid: senderId,
-          msisdn: normalized,
-          sms: message,
-          csms_id: `TSH-${Date.now()}`,
-        }),
-      });
-      const data = await res.json();
-      if (data.status === 'SUCCESS') return { refId: data.smsinfo?.csms_id };
-      return { error: data.error_message || 'SSL Wireless failed' };
+      const result = await sendSslWireless(
+        { apiKey, senderId },
+        phone,
+        message
+      );
+
+      return result.success ? { refId: result.refId } : { error: result.error };
     }
 
     if (provider === 'TWILIO') {
