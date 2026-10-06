@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Pill, Package, History, Truck, ShoppingCart,
-  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, Shield, AlertTriangle, Repeat, FileSpreadsheet, ShieldAlert, Trash2, BookOpen, Barcode, MessageSquare
+  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, Shield, AlertTriangle, Repeat, FileSpreadsheet, ShieldAlert, Trash2, BookOpen, Barcode, MessageSquare, Receipt,
 } from "lucide-react";
 
 const NAV = [
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/pharmacy/barcodes", icon: Barcode, label: "Barcodes" },
   { href: "/pharmacy/sms", icon: MessageSquare, label: "SMS" },
   { href: "/pharmacy/rx-requests", icon: FileText, label: "Rx Requests" },
+  { href: "/pharmacy/tax-config", icon: Receipt, label: "Tax/VAT" },
   { href: "/pharmacy/batches", icon: Package, label: "Batches" },
   { href: "/pharmacy/stock-alerts", icon: AlertTriangle, label: "Low Stock" },
   { href: "/pharmacy/refill-reminders", icon: Repeat, label: "Refills" },
