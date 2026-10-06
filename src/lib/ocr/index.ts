@@ -1,4 +1,7 @@
-export type OcrProvider = 'MANUAL' | 'OPENAI';
+import { extractWithOpenAi } from './providers/openai';
+import { extractWithGoogleVision } from './providers/google-vision';
+
+export type OcrProvider = 'MANUAL' | 'OPENAI' | 'GOOGLE_VISION';
 
 export interface OcrResult {
   text: string;
@@ -11,55 +14,42 @@ export interface OcrResult {
 export async function extractPrescription(imageUrl: string): Promise<OcrResult> {
   const provider = (process.env.OCR_PROVIDER as OcrProvider) || 'MANUAL';
 
+  // OpenAI
   if (provider === 'OPENAI' && process.env.OPENAI_API_KEY) {
-    return extractWithOpenAI(imageUrl);
-  }
-
-  return { text: '', items: [], confidence: 0, provider: 'MANUAL' };
-}
-
-async function extractWithOpenAI(imageUrl: string): Promise<OcrResult> {
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'Extract medicine names from prescription images. Return JSON only.' },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Extract medicine details. Return JSON: [{"medicineName":"name","strength":"500mg"}]. Only JSON array.' },
-              { type: 'image_url', image_url: { url: imageUrl } },
-            ],
-          },
-        ],
-        max_tokens: 800,
-        temperature: 0.1,
-      }),
-    });
-
-    if (!res.ok) return { text: '', items: [], confidence: 0, provider: 'OPENAI', error: 'API failed' };
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    let items: any[] = [];
-    try {
-      const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
-      items = JSON.parse(cleaned);
-    } catch { items = []; }
-
+    const r = await extractWithOpenAi(process.env.OPENAI_API_KEY, imageUrl);
     return {
-      text: content,
-      items: items.map((i: any) => ({ medicineName: i.medicineName || i.name || '', strength: i.strength })),
-      confidence: items.length > 0 ? 0.8 : 0,
+      text: r.text,
+      items: r.items,
+      confidence: r.confidence,
       provider: 'OPENAI',
+      error: r.error,
     };
-  } catch (e: any) {
-    return { text: '', items: [], confidence: 0, provider: 'OPENAI', error: e.message };
   }
+
+  // Google Vision
+  if (provider === 'GOOGLE_VISION' && process.env.GOOGLE_VISION_API_KEY) {
+    const r = await extractWithGoogleVision(process.env.GOOGLE_VISION_API_KEY, imageUrl);
+    return {
+      text: r.text,
+      items: r.items,
+      confidence: r.confidence,
+      provider: 'GOOGLE_VISION',
+      error: r.error,
+    };
+  }
+
+  // Auto-fallback: try OpenAI if key exists
+  if (process.env.OPENAI_API_KEY) {
+    const r = await extractWithOpenAi(process.env.OPENAI_API_KEY, imageUrl);
+    return {
+      text: r.text,
+      items: r.items,
+      confidence: r.confidence,
+      provider: 'OPENAI',
+      error: r.error,
+    };
+  }
+
+  // Manual fallback
+  return { text: '', items: [], confidence: 0, provider: 'MANUAL' };
 }
