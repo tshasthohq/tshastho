@@ -1,0 +1,42 @@
+name: Daily Database Backup
+
+on:
+  schedule:
+    # 2:00 AM Bangladesh time = 20:00 UTC previous day
+    - cron: '0 20 * * *'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create backup
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npx supabase db dump --db-url "$DIRECT_URL" -f "backup.sql"
+
+      - name: Encrypt backup
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --passphrase "$BACKUP_PASSPHRASE" --symmetric --cipher-algo AES256 backup.sql
+          mv backup.sql.gpg backup-$(date +%Y%m%d).sql.gpg
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: backup-*.sql.gpg
+          retention-days: 30
