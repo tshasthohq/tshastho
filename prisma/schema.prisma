@@ -126,6 +126,7 @@ model User {
   vatReports               VatReport[]                    @relation("VatReportGenerator")
   pharmacyAuditLogs        PharmacyAuditLog[]             @relation("PharmacyAuditUser")
   supplierCreditsIssued    SupplierCreditNote[]           @relation("SupplierCreditIssuer")
+  ocrJobs                  PrescriptionOcrJob[]           @relation("UserOcrJobs")
 }
 
 model Patient {
@@ -3094,4 +3095,35 @@ model SupplierCreditNote {
   @@index([pharmacyId, supplierId])
   @@index([pharmacyId, status])
   @@index([supplierId, status])
+}
+
+// ============================================
+// PHASE 2Z: PRESCRIPTION OCR
+// ============================================
+
+enum OcrStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  MANUAL_REVIEW
+}
+
+model PrescriptionOcrJob {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation("UserOcrJobs", fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl       String
+  extractedText  String?   @db.Text
+  extractedItems Json?
+  status         OcrStatus @default(PENDING)
+  provider       String    @default("MANUAL")
+  confidence     Decimal   @default(0)
+  errorMessage   String?
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
 }
