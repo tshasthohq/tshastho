@@ -60,68 +60,69 @@ model User {
   patientProfile           Patient?
   doctorProfile            Doctor?
   pharmacyProfile          Pharmacy?
-  appointments             Appointment[]              @relation("PatientAppointments")
+  appointments             Appointment[]                  @relation("PatientAppointments")
   notifications            Notification[]
   cartItems                CartItem[]
-  patientOrders            Order[]                    @relation("PatientOrders")
+  patientOrders            Order[]                        @relation("PatientOrders")
   attendances              Attendance[]
   salaryPayments           SalaryPayment[]
   staffAdvances            StaffAdvance[]
-  payments                 Payment[]                  @relation("UserPayments")
-  stockMovements           StockMovement[]            @relation("UserStockMovements")
-  posSales                 PosSale[]                  @relation("StaffPosSales")
-  posShifts                PosShift[]                 @relation("StaffShifts")
-  expensesCreated          PharmacyExpense[]          @relation("UserExpenses")
-  expensesApproved         PharmacyExpense[]          @relation("ApprovedExpenses")
-  ledgerEntries            PharmacyLedger[]           @relation("UserLedgerEntries")
-  dailyClosings            DailyClosing[]             @relation("UserDailyClosings")
-  dailyClosingsVer         DailyClosing[]             @relation("VerifiedDailyClosings")
-  settlementsReq           SettlementRequest[]        @relation("RequestedSettlements")
-  settlementsApp           SettlementRequest[]        @relation("ApprovedSettlements")
-  patientPrescriptions     Prescription[]             @relation("PatientPrescriptions")
-  doctorPrescriptions      Prescription[]             @relation("DoctorPrescriptions")
-  verifiedPrescriptions    Prescription[]             @relation("VerifiedPrescriptions")
-  processedReturns         ReturnOrder[]              @relation("ProcessedReturns")
-  approvedReturns          ReturnOrder[]              @relation("ApprovedReturns")
-  loyalty                  LoyaltyAccount?            @relation("UserLoyalty")
-  doctorReferrals          DoctorReferral[]           @relation("DoctorReferrals")
-  managedBranches          PharmacyBranch[]           @relation("BranchManager")
-  requestedTransfers       BranchTransfer[]           @relation("RequestedTransfers")
-  approvedTransfers        BranchTransfer[]           @relation("ApprovedTransfers")
-  receivedTransfers        BranchTransfer[]           @relation("ReceivedTransfers")
-  branchAssignments        BranchStaff[]              @relation("BranchStaffAssign")
-  regulatoryLogs           RegulatoryLog[]            @relation("RegulatoryLogs")
-  dgdaReports              DGDAReport[]               @relation("DGDAReports")
-  verifiedDoctorDocs       DoctorDocument[]           @relation("VerifiedDoctorDocs")
-  patientReviews           DoctorReview[]             @relation("PatientReviews")
-  appointmentStatusChanges AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
-  patientEarnings          DoctorEarning[]            @relation("PatientEarnings")
-  approvedPayouts          DoctorPayout[]             @relation("ApprovedPayouts")
-  linkedLocalPatients      LocalPatient[]             @relation("LinkedLocalPatients")
-  doctorStaffProfile       DoctorStaff?               @relation("DoctorStaffUser")
-  allergies                PatientAllergy[]           @relation("PatientAllergies")
-  conditions               PatientCondition[]         @relation("PatientConditions")
-  medications              PatientMedication[]        @relation("PatientMedications")
-  familyHistory            PatientFamilyHistory[]     @relation("PatientFamilyHistory")
-  consentsGiven            DoctorPatientConsent[]     @relation("PatientConsentsGiven")
-  medicalAccessLogs        MedicalHistoryAccessLog[]  @relation("MedicalAccessLog")
-  chatThreads              ChatThread[]               @relation("PatientChatThreads")
-  telemedicineSessions     TelemedicineSession[]      @relation("PatientTelemedicine")
-  referralCases            DoctorReferralCase[]       @relation("PatientReferralCases")
-  medicalCertificates      MedicalCertificate[]       @relation("PatientCertificates")
-  followUpReminders        FollowUpReminder[]         @relation("PatientFollowUps")
-  refillReminders          CustomerRefillReminder[]   @relation("CustomerRefills")
-  narcoticEntries          NarcoticRegister[]         @relation("NarcoticRegisterEntries")
-  expiryWriteOffReviews    ExpiryWriteOffBatch[]      @relation("ExpiryWriteOffReviewer")
-  creditEntries            CustomerCreditLedger[]     @relation("CustomerCreditEntries")
-  smsLogs                  SmsLog[]                   @relation("CustomerSmsLogs")
-  smsLogsCreated           SmsLog[]                   @relation("SmsLogCreator")
-  staffPayrolls            StaffPayroll[]             @relation("StaffPayrollUser")
-  approvedStaffPayrolls    StaffPayroll[]             @relation("StaffPayrollApprover")
-  staffPerformance         StaffPerformance[]         @relation("StaffPerformanceUser")
-  staffTargets             StaffTarget[]              @relation("StaffTargetUser")
-  rxRequests               RxPharmacyRequest[]        @relation("PatientRxRequests")
-  rxRequestsResponded      RxPharmacyRequest[]        @relation("RxRequestResponder")
+  payments                 Payment[]                      @relation("UserPayments")
+  stockMovements           StockMovement[]                @relation("UserStockMovements")
+  posSales                 PosSale[]                      @relation("StaffPosSales")
+  posShifts                PosShift[]                     @relation("StaffShifts")
+  expensesCreated          PharmacyExpense[]              @relation("UserExpenses")
+  expensesApproved         PharmacyExpense[]              @relation("ApprovedExpenses")
+  ledgerEntries            PharmacyLedger[]               @relation("UserLedgerEntries")
+  dailyClosings            DailyClosing[]                 @relation("UserDailyClosings")
+  dailyClosingsVer         DailyClosing[]                 @relation("VerifiedDailyClosings")
+  settlementsReq           SettlementRequest[]            @relation("RequestedSettlements")
+  settlementsApp           SettlementRequest[]            @relation("ApprovedSettlements")
+  patientPrescriptions     Prescription[]                 @relation("PatientPrescriptions")
+  doctorPrescriptions      Prescription[]                 @relation("DoctorPrescriptions")
+  verifiedPrescriptions    Prescription[]                 @relation("VerifiedPrescriptions")
+  processedReturns         ReturnOrder[]                  @relation("ProcessedReturns")
+  approvedReturns          ReturnOrder[]                  @relation("ApprovedReturns")
+  loyalty                  LoyaltyAccount?                @relation("UserLoyalty")
+  doctorReferrals          DoctorReferral[]               @relation("DoctorReferrals")
+  managedBranches          PharmacyBranch[]               @relation("BranchManager")
+  requestedTransfers       BranchTransfer[]               @relation("RequestedTransfers")
+  approvedTransfers        BranchTransfer[]               @relation("ApprovedTransfers")
+  receivedTransfers        BranchTransfer[]               @relation("ReceivedTransfers")
+  branchAssignments        BranchStaff[]                  @relation("BranchStaffAssign")
+  regulatoryLogs           RegulatoryLog[]                @relation("RegulatoryLogs")
+  dgdaReports              DGDAReport[]                   @relation("DGDAReports")
+  verifiedDoctorDocs       DoctorDocument[]               @relation("VerifiedDoctorDocs")
+  patientReviews           DoctorReview[]                 @relation("PatientReviews")
+  appointmentStatusChanges AppointmentStatusHistory[]     @relation("AppointmentStatusChangedBy")
+  patientEarnings          DoctorEarning[]                @relation("PatientEarnings")
+  approvedPayouts          DoctorPayout[]                 @relation("ApprovedPayouts")
+  linkedLocalPatients      LocalPatient[]                 @relation("LinkedLocalPatients")
+  doctorStaffProfile       DoctorStaff?                   @relation("DoctorStaffUser")
+  allergies                PatientAllergy[]               @relation("PatientAllergies")
+  conditions               PatientCondition[]             @relation("PatientConditions")
+  medications              PatientMedication[]            @relation("PatientMedications")
+  familyHistory            PatientFamilyHistory[]         @relation("PatientFamilyHistory")
+  consentsGiven            DoctorPatientConsent[]         @relation("PatientConsentsGiven")
+  medicalAccessLogs        MedicalHistoryAccessLog[]      @relation("MedicalAccessLog")
+  chatThreads              ChatThread[]                   @relation("PatientChatThreads")
+  telemedicineSessions     TelemedicineSession[]          @relation("PatientTelemedicine")
+  referralCases            DoctorReferralCase[]           @relation("PatientReferralCases")
+  medicalCertificates      MedicalCertificate[]           @relation("PatientCertificates")
+  followUpReminders        FollowUpReminder[]             @relation("PatientFollowUps")
+  refillReminders          CustomerRefillReminder[]       @relation("CustomerRefills")
+  narcoticEntries          NarcoticRegister[]             @relation("NarcoticRegisterEntries")
+  expiryWriteOffReviews    ExpiryWriteOffBatch[]          @relation("ExpiryWriteOffReviewer")
+  creditEntries            CustomerCreditLedger[]         @relation("CustomerCreditEntries")
+  smsLogs                  SmsLog[]                       @relation("CustomerSmsLogs")
+  smsLogsCreated           SmsLog[]                       @relation("SmsLogCreator")
+  staffPayrolls            StaffPayroll[]                 @relation("StaffPayrollUser")
+  approvedStaffPayrolls    StaffPayroll[]                 @relation("StaffPayrollApprover")
+  staffPerformance         StaffPerformance[]             @relation("StaffPerformanceUser")
+  staffTargets             StaffTarget[]                  @relation("StaffTargetUser")
+  rxRequests               RxPharmacyRequest[]            @relation("PatientRxRequests")
+  rxRequestsResponded      RxPharmacyRequest[]            @relation("RxRequestResponder")
+  interactionAcks          PrescriptionInteractionCheck[] @relation("InteractionAcknowledger")
 }
 
 model Patient {
@@ -1211,10 +1212,11 @@ model Prescription {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
-  items             PrescriptionItem[]
-  orders            Order[]
-  appointment       Appointment?        @relation(fields: [appointmentId], references: [id])
-  RxPharmacyRequest RxPharmacyRequest[]
+  items                        PrescriptionItem[]
+  orders                       Order[]
+  appointment                  Appointment?                   @relation(fields: [appointmentId], references: [id])
+  RxPharmacyRequest            RxPharmacyRequest[]
+  PrescriptionInteractionCheck PrescriptionInteractionCheck[]
 
   @@index([patientId, status])
   @@index([status, createdAt])
@@ -2883,4 +2885,54 @@ model RxPharmacyRequest {
   @@index([pharmacyId, status])
   @@index([patientId, status])
   @@index([prescriptionId])
+}
+
+// ============================================
+// PHASE 2T: DRUG INTERACTION CHECKER
+// ============================================
+
+enum InteractionSeverity {
+  MINOR
+  MODERATE
+  MAJOR
+  CONTRAINDICATED
+}
+
+model DrugInteraction {
+  id             String              @id @default(cuid())
+  drug1Name      String
+  drug1Generic   String?
+  drug2Name      String
+  drug2Generic   String?
+  severity       InteractionSeverity @default(MODERATE)
+  description    String              @db.Text
+  recommendation String?             @db.Text
+  source         String?
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+
+  @@index([drug1Name])
+  @@index([drug2Name])
+  @@index([drug1Generic])
+  @@index([drug2Generic])
+}
+
+model PrescriptionInteractionCheck {
+  id               String              @id @default(cuid())
+  prescriptionId   String
+  prescription     Prescription        @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  interactionId    String?
+  drug1Name        String
+  drug2Name        String
+  severity         InteractionSeverity
+  description      String?             @db.Text
+  wasAcknowledged  Boolean             @default(false)
+  acknowledgedById String?
+  acknowledgedBy   User?               @relation("InteractionAcknowledger", fields: [acknowledgedById], references: [id])
+  acknowledgedAt   DateTime?
+  notes            String?
+  createdAt        DateTime            @default(now())
+
+  @@index([prescriptionId])
+  @@index([severity])
 }
