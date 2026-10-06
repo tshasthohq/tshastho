@@ -1,4 +1,5 @@
 "use client";
+import InteractionWarning from "@/components/InteractionWarning";
 import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 
 import { useEffect, useState, useRef } from "react";
@@ -37,6 +38,9 @@ export default function POSPage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [showSplitModal, setShowSplitModal] = useState(false);
+  const [interactionWarnings, setInteractionWarnings] = useState<any[]>([]);
+  const [showInteractionWarning, setShowInteractionWarning] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState(false);
   const [loyaltyInfo, setLoyaltyInfo] = useState<any>(null);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [loyaltyChecked, setLoyaltyChecked] = useState(false);
@@ -175,6 +179,21 @@ export default function POSPage() {
     } else {
       alert(data.message || "Sale failed");
     }
+  };
+
+  const checkInteractions = async () => {
+    const names = cart.map(c => c.name);
+    if (names.length < 2) return [];
+    try {
+      const res = await fetch("/api/pharmacy/interactions/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ medicineNames: names }),
+      });
+      const data = await res.json();
+      return data.warnings || [];
+    } catch { return []; }
   };
 
   const completeSale = async () => {
@@ -586,6 +605,14 @@ export default function POSPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {showInteractionWarning && (
+        <InteractionWarning
+          warnings={interactionWarnings}
+          onClose={() => { setShowInteractionWarning(false); setInteractionWarnings([]); }}
+          onAcknowledge={() => { setShowInteractionWarning(false); setInteractionWarnings([]); }}
+        />
       )}
 
       {showSplitModal && (

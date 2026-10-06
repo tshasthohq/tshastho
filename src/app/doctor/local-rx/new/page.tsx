@@ -1,4 +1,5 @@
 "use client";
+import InteractionWarning from "@/components/InteractionWarning";
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,6 +21,8 @@ function NewLocalRxForm() {
   const [showNewPatientForm, setShowNewPatientForm] = useState(false);
   const [newPatient, setNewPatient] = useState({ name: "", phone: "", age: "", gender: "" });
   const [saving, setSaving] = useState(false);
+  const [interactionWarnings, setInteractionWarnings] = useState<any[]>([]);
+  const [showWarning, setShowWarning] = useState(false);
   const [message, setMessage] = useState("");
 
   const [form, setForm] = useState({
@@ -109,8 +112,31 @@ function NewLocalRxForm() {
     if (c) setForm(f => ({ ...f, fee: Number(c.defaultFee) || 0 }));
   };
 
+  const checkDrugInteractions = async () => {
+    const names = items.filter(i => i.medicineName.trim()).map(i => i.medicineName.trim());
+    if (names.length < 2) return [];
+    try {
+      const res = await fetch("/api/pharmacy/interactions/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ medicineNames: names }),
+      });
+      const data = await res.json();
+      return data.warnings || [];
+    } catch { return []; }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check interactions first
+    const warnings = await checkDrugInteractions();
+    if (warnings.length > 0 && !showWarning) {
+      setInteractionWarnings(warnings);
+      setShowWarning(true);
+      return;
+    }
     if (!selectedPatient) { setMessage("Please select a patient"); return; }
     if (items.some(i => !i.medicineName.trim())) { setMessage("All medicine names required"); return; }
     setSaving(true);
