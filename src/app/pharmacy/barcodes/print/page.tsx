@@ -158,17 +158,11 @@ function PrintContent() {
                       ৳ {Number(item.medicine?.sellingPrice || 0).toFixed(2)}
                     </div>
                     <div className="mt-1 flex justify-center">
-                      <svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none">
-                        {/* Simple barcode-like bars */}
-                        {Array.from({ length: 40 }).map((_, idx) => (
-                          <rect key={idx}
-                            x={idx * 2.5}
-                            y={0}
-                            width={idx % 3 === 0 ? 1.5 : 0.8}
-                            height={24}
-                            fill="black" />
-                        ))}
-                      </svg>
+                      <img
+                        src={`/api/barcode/${encodeURIComponent(item.barcode)}?format=code128&height=32&text=false`}
+                        alt="Barcode"
+                        className="w-full h-8 object-contain"
+                      />
                     </div>
                     <div className="text-[7px] text-center font-mono text-slate-700 truncate">
                       {item.barcode}
