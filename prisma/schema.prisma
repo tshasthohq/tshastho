@@ -3050,3 +3050,43 @@ model PharmacyAuditLog {
   @@index([pharmacyId, action])
   @@index([userId, createdAt])
 }
+
+// ============================================
+// PHASE 2X: SUPPLIER CREDIT NOTES
+// ============================================
+
+enum SupplierCreditStatus {
+  ISSUED
+  PARTIALLY_APPLIED
+  APPLIED
+  VOIDED
+}
+
+model SupplierCreditNote {
+  id              String                @id @default(cuid())
+  creditNumber    String                @unique
+  pharmacyId      String
+  pharmacy        Pharmacy              @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  supplierId      String
+  supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  returnOrderId   String?               @unique
+  returnOrder     ReturnOrder?          @relation(fields: [returnOrderId], references: [id])
+  originalPurchaseId String?
+  originalPurchase PurchaseOrder?       @relation(fields: [originalPurchaseId], references: [id])
+  amount          Decimal
+  appliedAmount   Decimal               @default(0)
+  balance         Decimal               @default(0)
+  status          SupplierCreditStatus  @default(ISSUED)
+  notes           String?
+  issuedById      String?
+  issuedBy        User?                 @relation("SupplierCreditIssuer", fields: [issuedById], references: [id])
+  issuedAt        DateTime              @default(now())
+  voidedAt        DateTime?
+  voidedReason    String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([pharmacyId, supplierId])
+  @@index([pharmacyId, status])
+  @@index([supplierId, status])
+}

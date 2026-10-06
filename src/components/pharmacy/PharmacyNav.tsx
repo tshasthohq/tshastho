@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Pill, Package, History, Truck, ShoppingCart,
-  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, Shield, AlertTriangle, Repeat, FileSpreadsheet, ShieldAlert, Trash2, BookOpen, Barcode, MessageSquare, Receipt, BarChart3,
+  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, AlertTriangle, Repeat, FileSpreadsheet, ShieldAlert, Trash2, BookOpen, Barcode, MessageSquare, Receipt, BarChart3, Shield,
 } from "lucide-react";
 
 const NAV = [
