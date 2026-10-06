@@ -123,6 +123,7 @@ model User {
   rxRequests               RxPharmacyRequest[]            @relation("PatientRxRequests")
   rxRequestsResponded      RxPharmacyRequest[]            @relation("RxRequestResponder")
   interactionAcks          PrescriptionInteractionCheck[] @relation("InteractionAcknowledger")
+  vatReports               VatReport[]                    @relation("VatReportGenerator")
 }
 
 model Patient {
@@ -232,6 +233,9 @@ model Pharmacy {
   StaffPerformance       StaffPerformance[]
   StaffTarget            StaffTarget[]
   RxPharmacyRequest      RxPharmacyRequest[]
+  TaxConfiguration       TaxConfiguration?
+  VatInvoice             VatInvoice[]
+  VatReport              VatReport[]
 }
 
 model MasterMedicine {
@@ -344,6 +348,7 @@ model Order {
   prescriptionId     String?
   prescription       Prescription?      @relation(fields: [prescriptionId], references: [id])
   RxPharmacyRequest  RxPharmacyRequest?
+  VatInvoice         VatInvoice?
 }
 
 model OrderItem {
@@ -948,6 +953,7 @@ model PosSale {
 
   items        PosSaleItem[]
   returnOrders ReturnOrder[]
+  VatInvoice   VatInvoice?
 
   @@unique([pharmacyId, saleNumber])
   @@index([pharmacyId, createdAt])
@@ -2935,4 +2941,86 @@ model PrescriptionInteractionCheck {
 
   @@index([prescriptionId])
   @@index([severity])
+}
+
+// ============================================
+// PHASE 2U: TAX / VAT REPORT
+// ============================================
+
+enum VatReportStatus {
+  DRAFT
+  FINALIZED
+  SUBMITTED
+  REVISED
+}
+
+model TaxConfiguration {
+  id                String   @id @default(cuid())
+  pharmacyId        String   @unique
+  pharmacy          Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  isVatRegistered   Boolean  @default(false)
+  vatNumber         String?
+  tinNumber         String?
+  businessName      String?
+  businessAddress   String?
+  vatRate           Decimal  @default(15)
+  enableVatOnPos    Boolean  @default(false)
+  enableVatOnOnline Boolean  @default(false)
+  invoicePrefix     String   @default("INV")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model VatInvoice {
+  id                String    @id @default(cuid())
+  invoiceNumber     String    @unique
+  pharmacyId        String
+  pharmacy          Pharmacy  @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  orderId           String?   @unique
+  order             Order?    @relation(fields: [orderId], references: [id])
+  posSaleId         String?   @unique
+  posSale           PosSale?  @relation(fields: [posSaleId], references: [id])
+  customerName      String?
+  customerPhone     String?
+  customerVatNumber String?
+  subtotal          Decimal   @default(0)
+  discount          Decimal   @default(0)
+  vatRate           Decimal   @default(0)
+  vatAmount         Decimal   @default(0)
+  totalAmount       Decimal   @default(0)
+  invoiceDate       DateTime  @default(now())
+  isCancelled       Boolean   @default(false)
+  cancelledAt       DateTime?
+  notes             String?
+  createdAt         DateTime  @default(now())
+
+  @@index([pharmacyId, invoiceDate])
+  @@index([pharmacyId, isCancelled])
+}
+
+model VatReport {
+  id             String          @id @default(cuid())
+  reportNumber   String          @unique
+  pharmacyId     String
+  pharmacy       Pharmacy        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  month          String
+  periodStart    DateTime
+  periodEnd      DateTime
+  totalSales     Decimal         @default(0)
+  totalDiscount  Decimal         @default(0)
+  totalVat       Decimal         @default(0)
+  totalInvoices  Int             @default(0)
+  cancelledCount Int             @default(0)
+  vatNumber      String?
+  status         VatReportStatus @default(DRAFT)
+  generatedById  String?
+  generatedBy    User?           @relation("VatReportGenerator", fields: [generatedById], references: [id])
+  submittedAt    DateTime?
+  notes          String?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([pharmacyId, month])
+  @@index([pharmacyId, createdAt])
 }
