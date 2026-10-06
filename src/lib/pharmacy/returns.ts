@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { recordStockMovement } from './stock';
 import { recordLedgerEntry } from './ledger';
+import { issueSupplierCredit } from './supplier-credit';
 
 export type ReturnType = 'CUSTOMER_RETURN' | 'SUPPLIER_RETURN' | 'DAMAGE_WRITE_OFF' | 'EXPIRED_WRITE_OFF';
 
@@ -96,6 +97,18 @@ export async function processReturn(params: ProcessReturnParams) {
         referenceType: 'ReturnOrder',
         createdById: userId,
       });
+    }
+
+    // Issue supplier credit note
+    if (ret.type === 'SUPPLIER_RETURN' && ret.supplierId && Number(ret.totalAmount) > 0) {
+      await issueSupplierCredit({
+        pharmacyId: ret.pharmacyId,
+        supplierId: ret.supplierId,
+        returnOrderId: ret.id,
+        amount: Number(ret.totalAmount),
+        notes: `Auto-issued from return ${ret.returnNumber}`,
+        userId,
+      }).catch((e) => console.error('[SUPPLIER_CREDIT]', e));
     }
 
     // Update return status
