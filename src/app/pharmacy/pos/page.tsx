@@ -6,6 +6,7 @@ import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import BarcodeScannerListener from '@/components/pharmacy/BarcodeScannerListener';
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, X, Printer,
   Wallet, CheckCircle, Barcode
@@ -61,6 +62,20 @@ export default function POSPage() {
 
   useEffect(() => { if (user) loadShift(); }, [user]);
 
+
+  // Item 21: hardware barcode scanner (keyboard-wedge) listener
+  useEffect(() => {
+    const onScan = (e: Event) => {
+      const code = (e as CustomEvent).detail?.code;
+      if (!code) return;
+      fetch('/api/pharmacy/pos/scan?barcode=' + encodeURIComponent(code), { credentials: 'include' })
+        .then((r) => r.json())
+        .then((d) => { if (d?.success && d.medicine) addToCart(d.medicine); })
+        .catch((err) => console.error('[SCAN]', err));
+    };
+    window.addEventListener('tshastho:barcode-scanned', onScan);
+    return () => window.removeEventListener('tshastho:barcode-scanned', onScan);
+  }, []);
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (search.length < 2) { setResults([]); return; }
@@ -347,6 +362,7 @@ export default function POSPage() {
               className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
               <Barcode size={16} />
             </button>
+      <BarcodeScannerListener />
             <VoiceInputButton onParsed={handleVoiceResult} />
           </div>
 
