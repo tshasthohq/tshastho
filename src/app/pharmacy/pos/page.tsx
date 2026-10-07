@@ -1,4 +1,5 @@
 "use client";
+import SubstituteModal from "@/components/pharmacy/SubstituteModal";
 import InteractionWarning from "@/components/InteractionWarning";
 import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 
@@ -38,6 +39,7 @@ export default function POSPage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [showSplitModal, setShowSplitModal] = useState(false);
+  const [showSubstitutes, setShowSubstitutes] = useState<{id: string; name: string} | null>(null);
   const [interactionWarnings, setInteractionWarnings] = useState<any[]>([]);
   const [showInteractionWarning, setShowInteractionWarning] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState(false);
@@ -137,6 +139,18 @@ export default function POSPage() {
       }
     } catch {}
     setLoyaltyChecked(true);
+  };
+
+  const handleSubstituteSelect = (sub: any) => {
+    addToCart({
+      id: sub.id,
+      name: sub.name,
+      brand: sub.brand,
+      sellingPrice: sub.sellingPrice,
+      purchasePrice: 0,
+      stock: sub.stock,
+    });
+    setShowSubstitutes(null);
   };
 
   const handleSplitConfirm = async (splits: any[], notes: string) => {
@@ -612,6 +626,15 @@ export default function POSPage() {
           warnings={interactionWarnings}
           onClose={() => { setShowInteractionWarning(false); setInteractionWarnings([]); }}
           onAcknowledge={() => { setShowInteractionWarning(false); setInteractionWarnings([]); }}
+        />
+      )}
+
+      {showSubstitutes && (
+        <SubstituteModal
+          medicineId={showSubstitutes.id}
+          medicineName={showSubstitutes.name}
+          onSelect={handleSubstituteSelect}
+          onClose={() => setShowSubstitutes(null)}
         />
       )}
 
