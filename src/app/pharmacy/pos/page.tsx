@@ -96,7 +96,11 @@ export default function POSPage() {
   const addToCart = (med: any) => {
     const existing = cart.find(c => c.medicineId === med.id);
     if (existing) {
-      if (existing.quantity >= med.stock) return;
+            // Item 35: stock shortage — offer substitutes
+      if (existing.quantity >= med.stock) {
+        setShowSubstitutes({ id: med.id, name: med.name });
+        return;
+      }
       setCart(cart.map(c => c.medicineId === med.id ? { ...c, quantity: c.quantity + 1 } : c));
     } else {
       setCart([...cart, {

@@ -29,7 +29,16 @@ export default function SubstituteModal({ medicineId, medicineName, onSelect, on
   useEffect(() => {
     fetch(`/api/pharmacy/medicines/${medicineId}/substitutes-v2`, { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setSubs(d.substitutes || []))
+      .then((d) => {
+        // Item 35: rank by in-stock + savings
+        const ranked = (d.substitutes || []).slice().sort((a: Substitute, b: Substitute) => {
+          const aStock = a.stock > 0 ? 1 : 0;
+          const bStock = b.stock > 0 ? 1 : 0;
+          if (aStock !== bStock) return bStock - aStock;
+          return Number(b.savings ?? 0) - Number(a.savings ?? 0);
+        });
+        setSubs(ranked);
+      })
       .finally(() => setLoading(false));
   }, [medicineId]);
 
@@ -52,7 +61,7 @@ export default function SubstituteModal({ medicineId, medicineName, onSelect, on
           <button onClick={onClose}><X size={20} /></button>
         </div>
 
-        <div className="p-4">
+        <div className="relative p-4">
           {loading ? (
             <div className="text-center text-slate-500 py-6">Finding substitutes...</div>
           ) : subs.length === 0 ? (
@@ -62,7 +71,12 @@ export default function SubstituteModal({ medicineId, medicineName, onSelect, on
             </div>
           ) : (
             <div className="space-y-2">
-              {subs.map((s) => (
+              {subs.map((s, idx) => (
+                <>
+                /* Item 35: Best value highlight */
+                {idx === 0 && s.stock > 0 && (
+                  <span className="absolute -top-1 -right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">BEST</span>
+                )}
                 <button
                   key={s.id}
                   onClick={() => onSelect(s)}
@@ -111,6 +125,7 @@ export default function SubstituteModal({ medicineId, medicineName, onSelect, on
                     </div>
                   )}
                 </button>
+                </>
               ))}
             </div>
           )}
