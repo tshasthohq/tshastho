@@ -244,6 +244,7 @@ model Pharmacy {
   VatReport              VatReport[]
   PharmacyAuditLog       PharmacyAuditLog[]
   SupplierCreditNote     SupplierCreditNote[]
+  MedicineSubstitute     MedicineSubstitute[]
 }
 
 model MasterMedicine {
@@ -3176,4 +3177,29 @@ model WhatsAppLog {
   @@index([customerId, createdAt])
   @@index([status])
   @@index([phone])
+}
+
+// ============================================
+// ITEM 8: MEDICINE SUBSTITUTION
+// ============================================
+
+model MedicineSubstitute {
+  id                String    @id @default(cuid())
+  pharmacyId        String?
+  pharmacy          Pharmacy? @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  originalName      String
+  originalGeneric   String?
+  substituteName    String
+  substituteGeneric String?
+  reason            String?
+  priceDifference   Decimal   @default(0)
+  isGlobal          Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([pharmacyId, originalName])
+  @@index([originalName])
+  @@index([substituteName])
+  @@index([isGlobal, isActive])
 }
