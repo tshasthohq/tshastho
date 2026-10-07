@@ -130,6 +130,7 @@ model User {
   whatsappLogs             WhatsAppLog[]                  @relation("CustomerWhatsAppLogs")
   whatsappLogsCreated      WhatsAppLog[]                  @relation("WhatsAppLogCreator")
   tierHistory              LoyaltyTierHistory[]           @relation("UserTierHistory")
+  printLogs                PrintLog[]
 }
 
 model Patient {
@@ -246,6 +247,7 @@ model Pharmacy {
   PharmacyAuditLog       PharmacyAuditLog[]
   SupplierCreditNote     SupplierCreditNote[]
   MedicineSubstitute     MedicineSubstitute[]
+  printLogs              PrintLog[]
 }
 
 model MasterMedicine {
@@ -359,6 +361,7 @@ model Order {
   prescription       Prescription?      @relation(fields: [prescriptionId], references: [id])
   RxPharmacyRequest  RxPharmacyRequest?
   VatInvoice         VatInvoice?
+  printLogs          PrintLog[]
 }
 
 model OrderItem {
@@ -3251,4 +3254,34 @@ model ExchangeRate {
 
   @@index([fromCurrencyId, toCurrencyId, isActive])
   @@index([effectiveFrom])
+}
+
+// ============================================================
+// Item 12 — Thermal Printer Print Log (audit trail)
+// ============================================================
+model PrintLog {
+  id         String    @id @default(cuid())
+  orderId    String?
+  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  pharmacyId String?
+  pharmacy   Pharmacy? @relation(fields: [pharmacyId], references: [id], onDelete: SetNull)
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  connectionType String  @default("browser")
+  paperWidth     Int     @default(58)
+  deviceName     String?
+  bytesSent      Int     @default(0)
+  success        Boolean @default(true)
+  errorMessage   String?
+  receiptData    Json?
+  ipAddress      String?
+  userAgent      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([pharmacyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("print_logs")
 }

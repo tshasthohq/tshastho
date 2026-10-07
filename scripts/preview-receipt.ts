@@ -1,8 +1,8 @@
 // Quick ASCII preview of a sample receipt — for testing Item 12
 // Run: npx tsx scripts/preview-receipt.ts
-import { renderAsciiPreview } from '../lib/printer/preview';
-import { buildReceipt } from '../lib/printer/receipt-builder';
-import type { ReceiptData } from '../lib/printer/types';
+import { renderAsciiPreview } from '../src/lib/pharmacy/printer/preview';
+import { buildReceipt } from '../src/lib/pharmacy/printer/receipt-builder';
+import type { ReceiptData } from '../src/lib/pharmacy/printer/types';
 
 const sample: ReceiptData = {
   pharmacyName: 'Tshastho Pharmacy',
