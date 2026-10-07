@@ -7,6 +7,7 @@ import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { submitPosSale } from '@/lib/offline/sale-submit';
+import { useInventorySync } from "@/hooks/useInventorySync";
 import OfflineIndicator from '@/components/pharmacy/OfflineIndicator';
 import BarcodeScannerListener from '@/components/pharmacy/BarcodeScannerListener';
 import {
@@ -27,6 +28,7 @@ interface CartItem {
 
 export default function POSPage() {
   const { user } = useAuth();
+  const { tick: stockSyncTick } = useInventorySync();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);

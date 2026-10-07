@@ -256,6 +256,7 @@ model Pharmacy {
   reviews                PharmacyReview[]
   recallMatches          RecallMatch[]
   cashDrawerLogs         CashDrawerLog[]
+  posTerminals           PosTerminal[]
 }
 
 model MasterMedicine {
@@ -3418,4 +3419,25 @@ model CashDrawerLog {
   @@index([pharmacyId, createdAt])
   @@index([userId, createdAt])
   @@map("cash_drawer_logs")
+}
+
+// ============================================================
+// Item 20 — POS Terminal (multi-device)
+// ============================================================
+model PosTerminal {
+  id           String   @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  deviceId     String   @unique
+  name         String
+  model        String?
+  os           String?
+  isActive     Boolean  @default(true)
+  lastSeenAt   DateTime @default(now())
+  registeredAt DateTime @default(now())
+  registeredBy String?
+  notes        String?
+
+  @@index([pharmacyId, isActive])
+  @@map("pos_terminals")
 }
