@@ -132,6 +132,7 @@ model User {
   tierHistory              LoyaltyTierHistory[]           @relation("UserTierHistory")
   printLogs                PrintLog[]
   pharmacyReviews          PharmacyReview[]               @relation("CustomerPharmacyReviews")
+  cashDrawerLogs           CashDrawerLog[]
 }
 
 model Patient {
@@ -254,6 +255,7 @@ model Pharmacy {
   ratingBreakdown        Json?
   reviews                PharmacyReview[]
   recallMatches          RecallMatch[]
+  cashDrawerLogs         CashDrawerLog[]
 }
 
 model MasterMedicine {
@@ -3391,4 +3393,28 @@ model RecallMatch {
   @@index([pharmacyId, status])
   @@index([recallId])
   @@map("recall_matches")
+}
+
+// ============================================================
+// Item 22 — Cash Drawer Audit Log
+// ============================================================
+model CashDrawerLog {
+  id           String   @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  shiftId      String?
+  reason       String   @default("MANUAL") // MANUAL | SALE | CHANGE | REFUND | OPEN_SHIFT
+  amount       Decimal? @default(0)
+  posSaleId    String?
+  notes        String?
+  deviceName   String?
+  success      Boolean  @default(true)
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([pharmacyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("cash_drawer_logs")
 }

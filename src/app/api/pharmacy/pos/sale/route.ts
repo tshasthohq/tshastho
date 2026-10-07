@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/pharmacy/audit';
 import { errorResponse, ErrorCodes } from '@/lib/errors';
 import { z } from 'zod';
 import { recordPosSale } from "@/lib/pharmacy/ledger";
+import { logCashDrawer } from '@/lib/pharmacy/cash-drawer';
 import { earnPoints } from "@/lib/pharmacy/loyalty";
 import { calcStaffCommission } from '@/lib/pharmacy/staff-commission';
 
@@ -225,6 +226,18 @@ export async function POST(req: Request) {
     calcStaffCommission(sale.id).catch((e) =>
       console.error('[AUTO_COMMISSION_TRIGGER]', e),
     );
+  }
+
+  // Item 22: auto-open drawer on cash payment (fire-and-forget)
+  if (data.paymentMethod === 'CASH') {
+    logCashDrawer({
+      pharmacyId,
+      userId: user.id,
+      reason: 'SALE',
+      amount: totalAmount,
+      posSaleId: sale.id,
+      shiftId: openShift?.id ?? undefined,
+    }).catch((e) => console.error('[DRAWER_LOG]', e));
   }
 
     return NextResponse.json({
