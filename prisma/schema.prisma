@@ -374,6 +374,11 @@ model Order {
   VatInvoice         VatInvoice?
   printLogs          PrintLog[]
   PharmacyReview     PharmacyReview?
+  // Item 29 — Report tracking
+  referralDoctorId   String?
+  referralDoctorName String?
+  deliveryArea       String?
+  deliveryZone       String?
 }
 
 model OrderItem {
