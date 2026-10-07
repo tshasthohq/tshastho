@@ -257,6 +257,7 @@ model Pharmacy {
   recallMatches          RecallMatch[]
   cashDrawerLogs         CashDrawerLog[]
   posTerminals           PosTerminal[]
+  expiryAlerts           ExpiryAlert[]
 }
 
 model MasterMedicine {
@@ -319,6 +320,7 @@ model Medicine {
   staffPayrolls    StaffPayroll[]
   staffPerformance StaffPerformance[]
   staffTargets     StaffTarget[]
+  expiryAlerts     ExpiryAlert[]
 }
 
 model CartItem {
@@ -815,6 +817,7 @@ model Batch {
   returnItems    ReturnItem[]
   expiryWriteOff ExpiryWriteOffBatch?
   recallMatches  RecallMatch[]
+  expiryAlerts   ExpiryAlert[]
 
   @@index([pharmacyId, medicineId])
   @@index([expiryDate])
@@ -3440,4 +3443,37 @@ model PosTerminal {
 
   @@index([pharmacyId, isActive])
   @@map("pos_terminals")
+}
+
+// ============================================================
+// Item 28 — Expiry Alert (90-day advance notification)
+// ============================================================
+model ExpiryAlert {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  batchId    String
+  batch      Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  expiryDate    DateTime
+  daysRemaining Int
+  tier          String // T30 | T60 | T90
+  quantity      Int      @default(0)
+
+  status         String    @default("OPEN") // OPEN | ACKNOWLEDGED | WRITTEN_OFF | DISMISSED
+  notifiedAt     DateTime?
+  notifiedVia    String? // EMAIL | SMS | WHATSAPP (comma-separated)
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([batchId, tier])
+  @@index([pharmacyId, status, daysRemaining])
+  @@index([expiryDate])
+  @@map("expiry_alerts")
 }
