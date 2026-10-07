@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/guards';
 import { recordStockMovement } from "@/lib/pharmacy/stock";
 import { recordOrderSale } from "@/lib/pharmacy/ledger";
+import { sendEmail, emailTemplates } from "@/lib/email";
 import { earnPoints } from "@/lib/pharmacy/loyalty";
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -182,6 +183,32 @@ export async function POST(req: Request) {
     }
 
     await prisma.cartItem.deleteMany({ where: { userId: user.id } });
+
+    // Send order confirmation email to patient
+    try {
+      if (orders && orders.length > 0) {
+        const firstOrder = orders[0];
+        const patient = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { email: true, name: true },
+        });
+        if (patient?.email && firstOrder) {
+          const tpl = emailTemplates.orderConfirmed({
+            orderNumber: firstOrder.orderNumber,
+            customerName: patient.name || "Customer",
+            total: Number(firstOrder.finalAmount),
+            pharmacyName: "Tshastho Pharmacy",
+          });
+          await sendEmail({
+            to: patient.email,
+            subject: tpl.subject,
+            html: tpl.html,
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.error("[ORDER_EMAIL]", emailErr);
+    }
 
     return NextResponse.json({ message: "Order placed! ✅", orders }, { status: 201 });
   } catch (error) {
