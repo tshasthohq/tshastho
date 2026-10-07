@@ -129,6 +129,7 @@ model User {
   ocrJobs                  PrescriptionOcrJob[]           @relation("UserOcrJobs")
   whatsappLogs             WhatsAppLog[]                  @relation("CustomerWhatsAppLogs")
   whatsappLogsCreated      WhatsAppLog[]                  @relation("WhatsAppLogCreator")
+  tierHistory              LoyaltyTierHistory[]           @relation("UserTierHistory")
 }
 
 model Patient {
@@ -3202,4 +3203,17 @@ model MedicineSubstitute {
   @@index([originalName])
   @@index([substituteName])
   @@index([isGlobal, isActive])
+}
+
+model LoyaltyTierHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserTierHistory", fields: [userId], references: [id], onDelete: Cascade)
+  oldTier   String
+  newTier   String
+  reason    String   @default("THRESHOLD_REACHED")
+  notified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
