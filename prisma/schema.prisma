@@ -253,6 +253,7 @@ model Pharmacy {
   totalReviews           Int                      @default(0)
   ratingBreakdown        Json?
   reviews                PharmacyReview[]
+  recallMatches          RecallMatch[]
 }
 
 model MasterMedicine {
@@ -810,6 +811,7 @@ model Batch {
   purchaseItems  PurchaseItem[]
   returnItems    ReturnItem[]
   expiryWriteOff ExpiryWriteOffBatch?
+  recallMatches  RecallMatch[]
 
   @@index([pharmacyId, medicineId])
   @@index([expiryDate])
@@ -3330,4 +3332,56 @@ model PharmacyReview {
   @@index([customerId])
   @@index([rating])
   @@map("pharmacy_reviews")
+}
+
+// ============================================================
+// Item 17 — AI Drug Recall Alert
+// ============================================================
+model DrugRecall {
+  id           String    @id @default(cuid())
+  externalId   String?   @unique
+  source       String // FDA | WHO | DGDA | MANUAL
+  sourceUrl    String?
+  drugName     String
+  genericName  String?
+  batchNumbers String[]
+  manufacturer String?
+  reason       String?
+  severity     String    @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  recallDate   DateTime?
+  publishedAt  DateTime?
+  rawPayload   Json?
+  aiExtracted  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  matches RecallMatch[]
+
+  @@index([source, recallDate])
+  @@index([severity])
+  @@map("drug_recalls")
+}
+
+model RecallMatch {
+  id         String     @id @default(cuid())
+  recallId   String
+  recall     DrugRecall @relation(fields: [recallId], references: [id], onDelete: Cascade)
+  pharmacyId String
+  pharmacy   Pharmacy   @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  batchId    String?
+  batch      Batch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  medicineId String?
+  matchType  String     @default("BATCH") // BATCH | NAME | MANUAL
+  quantity   Int        @default(0)
+  status     String     @default("OPEN") // OPEN | ACKNOWLEDGED | RESOLVED
+  notes      String?
+  notifiedAt DateTime?
+  resolvedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([recallId, pharmacyId, batchId])
+  @@index([pharmacyId, status])
+  @@index([recallId])
+  @@map("recall_matches")
 }
