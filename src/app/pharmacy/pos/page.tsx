@@ -6,6 +6,8 @@ import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { submitPosSale } from '@/lib/offline/sale-submit';
+import OfflineIndicator from '@/components/pharmacy/OfflineIndicator';
 import BarcodeScannerListener from '@/components/pharmacy/BarcodeScannerListener';
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, X, Printer,
@@ -56,7 +58,7 @@ export default function POSPage() {
 
   const loadShift = async () => {
     const res = await fetch("/api/pharmacy/pos/shift/current", { credentials: "include" });
-    const data = await res.json();
+    const data: any = await res.json();
     setShift(data.shift || null);
   };
 
@@ -82,7 +84,7 @@ export default function POSPage() {
     setSearching(true);
     searchTimer.current = setTimeout(async () => {
       const res = await fetch(`/api/pharmacy/pos/medicine-search?q=${encodeURIComponent(search)}`, { credentials: "include" });
-      const data = await res.json();
+      const data: any = await res.json();
       setResults(data.medicines || []);
       setSearching(false);
     }, 300);
@@ -115,7 +117,7 @@ export default function POSPage() {
     if (!barcodeInput.trim()) return;
     const res = await fetch(`/api/pharmacy/pos/scan?barcode=${encodeURIComponent(barcodeInput.trim())}`, { credentials: "include" });
     if (res.ok) {
-      const data = await res.json();
+      const data: any = await res.json();
       addToCart(data.medicine);
       setBarcodeInput("");
     } else {
@@ -149,7 +151,7 @@ export default function POSPage() {
     if (!phone || phone.length < 6) return;
     try {
       const res = await fetch(`/api/pharmacy/pos/customer-loyalty?phone=${encodeURIComponent(phone)}`, { credentials: "include" });
-      const data = await res.json();
+      const data: any = await res.json();
       if (data.loyalty) {
         setLoyaltyInfo(data.loyalty);
       }
@@ -190,7 +192,7 @@ export default function POSPage() {
   const handleSplitConfirm = async (splits: any[], notes: string) => {
     if (cart.length === 0) return;
     setSaving(true);
-    const res = await fetch("/api/pharmacy/pos/sale", {
+    const res = await submitPosSale({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -211,7 +213,7 @@ export default function POSPage() {
         splits,
       }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     setSaving(false);
     if (res.ok) {
       setShowReceipt(data.receipt);
@@ -239,7 +241,7 @@ export default function POSPage() {
         credentials: "include",
         body: JSON.stringify({ medicineNames: names }),
       });
-      const data = await res.json();
+      const data: any = await res.json();
       return data.warnings || [];
     } catch { return []; }
   };
@@ -247,7 +249,7 @@ export default function POSPage() {
   const completeSale = async () => {
     if (cart.length === 0) return;
     setSaving(true);
-    const res = await fetch("/api/pharmacy/pos/sale", {
+    const res = await submitPosSale({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -267,7 +269,7 @@ export default function POSPage() {
         loyaltyPointsToRedeem: loyaltyPoints,
       }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     setSaving(false);
     if (res.ok) {
       setShowReceipt(data.receipt);
@@ -294,7 +296,7 @@ export default function POSPage() {
       credentials: "include",
       body: JSON.stringify({ openingCash }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     if (res.ok) {
       setShift(data.shift);
       setShowShiftModal(false);
@@ -309,7 +311,7 @@ export default function POSPage() {
       credentials: "include",
       body: JSON.stringify({ closingCash }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     if (res.ok) {
       alert(`Shift closed.\nExpected: ৳${data.shift.expectedCash}\nCounted: ৳${data.shift.closingCash}\nDifference: ৳${data.shift.difference}`);
       setShift(null);
@@ -363,6 +365,7 @@ export default function POSPage() {
               <Barcode size={16} />
             </button>
       <BarcodeScannerListener />
+      <OfflineIndicator />
             <VoiceInputButton onParsed={handleVoiceResult} />
           </div>
 

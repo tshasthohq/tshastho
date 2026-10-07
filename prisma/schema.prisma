@@ -979,6 +979,7 @@ model PosSale {
   items        PosSaleItem[]
   returnOrders ReturnOrder[]
   VatInvoice   VatInvoice?
+  clientSaleId String?       @unique // Item 19 offline idempotency
 
   @@unique([pharmacyId, saleNumber])
   @@index([pharmacyId, createdAt])

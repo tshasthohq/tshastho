@@ -45,6 +45,18 @@ export async function POST(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
   const user = auth.user!;
+  const clientSaleId = req.headers.get('x-client-sale-id') ?? undefined;
+
+  // Item 19: idempotency — return existing sale if already synced
+  if (clientSaleId) {
+    const existingSale = await prisma.posSale.findUnique({
+      where: { clientSaleId },
+      select: { id: true, saleNumber: true, totalAmount: true },
+    });
+    if (existingSale) {
+      return NextResponse.json({ success: true, idempotent: true, sale: existingSale });
+    }
+  }
 
   try {
     const body = await req.json();
@@ -166,6 +178,7 @@ export async function POST(req: Request) {
           customerName: data.customerName || null,
           customerPhone: data.customerPhone || null,
           staffId: user.id,
+          clientSaleId: clientSaleId ?? null,
           shiftId: openShift?.id || null,
           subtotal,
           discountAmount: data.discountAmount,
