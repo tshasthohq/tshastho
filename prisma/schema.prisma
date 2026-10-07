@@ -3217,3 +3217,38 @@ model LoyaltyTierHistory {
 
   @@index([userId, createdAt])
 }
+
+// ============================================
+// ITEM 10: MULTI-CURRENCY
+// ============================================
+
+model Currency {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  symbol    String
+  isActive  Boolean  @default(true)
+  isBase    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ratesFrom ExchangeRate[] @relation("FromCurrency")
+  ratesTo   ExchangeRate[] @relation("ToCurrency")
+}
+
+model ExchangeRate {
+  id             String    @id @default(cuid())
+  fromCurrencyId String
+  fromCurrency   Currency  @relation("FromCurrency", fields: [fromCurrencyId], references: [id], onDelete: Cascade)
+  toCurrencyId   String
+  toCurrency     Currency  @relation("ToCurrency", fields: [toCurrencyId], references: [id], onDelete: Cascade)
+  rate           Decimal
+  source         String    @default("MANUAL")
+  effectiveFrom  DateTime  @default(now())
+  effectiveTo    DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  @@index([fromCurrencyId, toCurrencyId, isActive])
+  @@index([effectiveFrom])
+}
