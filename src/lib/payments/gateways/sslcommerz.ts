@@ -1,4 +1,5 @@
 import { PaymentGateway, PaymentInitPayload, PaymentInitResult, PaymentVerifyResult } from '../types';
+import { fetchWithRetry } from '@/lib/payments/fetch-with-retry';
 
 const SSL_BASE = process.env.SSLCOMMERZ_SANDBOX === 'true'
   ? 'https://sandbox.sslcommerz.com'
@@ -43,7 +44,7 @@ export const sslcommerzGateway: PaymentGateway = {
       product_profile: 'general',
     });
 
-    const res = await fetch(`${SSL_BASE}/gwprocess/v4/api.php`, {
+    const res = await fetchWithRetry(`${SSL_BASE}/gwprocess/v4/api.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
@@ -65,7 +66,7 @@ export const sslcommerzGateway: PaymentGateway = {
     const valId = extra?.val_id;
     if (!valId) return { success: false, gatewayTxnId, raw: {}, failureReason: 'Missing val_id' };
 
-    const res = await fetch(
+    const res = await fetchWithRetry(
       `${SSL_BASE}/validator/api/validationserverAPI.php?val_id=${valId}&store_id=${process.env.SSLCOMMERZ_STORE_ID}&store_passwd=${process.env.SSLCOMMERZ_STORE_PASS}&format=json`
     );
     const data = await res.json();
@@ -94,7 +95,7 @@ export const sslcommerzGateway: PaymentGateway = {
     url.searchParams.set("store_id", storeId);
     url.searchParams.set("store_passwd", storePass);
     url.searchParams.set("format", "json");
-    const res = await fetch(url.toString());
+    const res = await fetchWithRetry(url.toString());
     const data: any = await res.json();
     const status = String(data?.status ?? data?.APIConnect ?? "").toUpperCase();
     const ok = status === "SUCCESS" || status === "DONE";
