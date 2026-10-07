@@ -1,0 +1,16 @@
+name: Retention Purge
+on:
+  schedule:
+    - cron: '0 3 * * *'   # Daily 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call purge endpoint
+        run: |
+          curl -fsSL -X POST "${{ secrets.APP_URL }}/api/internal/retention/purge" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 120

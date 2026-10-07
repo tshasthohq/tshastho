@@ -52,16 +52,7 @@ export async function anonymizePrescription(prescriptionId: string): Promise<{
       where: { id: prescriptionId },
       data: {
         imageUrl: 'REDACTED',
-        notes: null,
-        diagnosis: null,
-        chiefComplaint: null,
-        examination: null,
-        investigations: null,
-        followupDate: null,
-        followupNotes: null,
-        rejectionReason: null,
         anonymizedAt: new Date(),
-        status: 'ANONYMIZED',
       },
     });
     return { ok: true };
@@ -145,7 +136,8 @@ export async function requestErasure(params: {
  * Retention stats for admin dashboard.
  */
 export async function getRetentionStats(pharmacyId?: string) {
-  const baseWhere = pharmacyId ? { pharmacyId } : {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const baseWhere: any = pharmacyId ? { pharmacyId } : {};
   const now = new Date();
 
   const [total, expired, anonymized, legalHold, upcoming] = await Promise.all([
