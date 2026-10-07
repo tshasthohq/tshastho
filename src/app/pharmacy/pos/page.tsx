@@ -1,4 +1,5 @@
 "use client";
+import VoiceInputButton from "@/components/pharmacy/VoiceInputButton";
 import SubstituteModal from "@/components/pharmacy/SubstituteModal";
 import InteractionWarning from "@/components/InteractionWarning";
 import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
@@ -139,6 +140,24 @@ export default function POSPage() {
       }
     } catch {}
     setLoyaltyChecked(true);
+  };
+
+  const handleVoiceResult = (result: { medicineName: string; quantity: number; unit?: string }) => {
+    // Add to search to trigger add
+    setSearch(result.medicineName);
+    // After search results come in, we add first match
+    setTimeout(() => {
+      if (results.length > 0) {
+        const med = results[0];
+        addToCart(med);
+        // If quantity > 1, add more
+        for (let i = 1; i < result.quantity; i++) {
+          setTimeout(() => addToCart(med), 50 * i);
+        }
+      } else {
+        alert("No medicine found for: " + result.medicineName);
+      }
+    }, 500);
   };
 
   const handleSubstituteSelect = (sub: any) => {
@@ -328,6 +347,7 @@ export default function POSPage() {
               className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
               <Barcode size={16} />
             </button>
+            <VoiceInputButton onParsed={handleVoiceResult} />
           </div>
 
           {/* Search Results */}
