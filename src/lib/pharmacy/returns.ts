@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { recordStockMovement } from './stock';
 import { recordLedgerEntry } from './ledger';
 import { issueSupplierCredit } from './supplier-credit';
+import { processReturnRefund } from './refund-service';
 
 export type ReturnType = 'CUSTOMER_RETURN' | 'SUPPLIER_RETURN' | 'DAMAGE_WRITE_OFF' | 'EXPIRED_WRITE_OFF';
 
@@ -34,7 +35,7 @@ interface ProcessReturnParams {
 export async function processReturn(params: ProcessReturnParams) {
   const { returnId, userId } = params;
 
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const ret = await tx.returnOrder.findUnique({
       where: { id: returnId },
       include: { items: true },
@@ -123,4 +124,12 @@ export async function processReturn(params: ProcessReturnParams) {
 
     return updated;
   });
+
+  if (result.type === 'CUSTOMER_RETURN') {
+    processReturnRefund({ returnId: result.id, userId }).catch((e) =>
+      console.error('[AUTO_REFUND_TRIGGER]', e),
+    );
+  }
+
+  return result;
 }
