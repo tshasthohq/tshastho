@@ -9,6 +9,7 @@ import { errorResponse, ErrorCodes } from '@/lib/errors';
 import { z } from 'zod';
 import { recordPosSale } from "@/lib/pharmacy/ledger";
 import { earnPoints } from "@/lib/pharmacy/loyalty";
+import { calcStaffCommission } from '@/lib/pharmacy/staff-commission';
 
 function generateSaleNumber(seq: number) {
   const d = new Date();
@@ -218,6 +219,13 @@ export async function POST(req: Request) {
 
       return createdSale;
     });
+
+  // Item 15: auto-trigger staff commission (fire-and-forget)
+  if (sale.staffId) {
+    calcStaffCommission(sale.id).catch((e) =>
+      console.error('[AUTO_COMMISSION_TRIGGER]', e),
+    );
+  }
 
     return NextResponse.json({
       success: true,
