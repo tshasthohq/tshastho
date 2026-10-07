@@ -1,4 +1,5 @@
 "use client";
+import { getTierBenefit, getNextTier, TIERS } from "@/lib/pharmacy/tier-benefits";
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
