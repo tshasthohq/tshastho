@@ -10,6 +10,7 @@
     "postinstall": "prisma skills sync || exit 0"
   },
   "dependencies": {
+    "@sentry/nextjs": "^11.5.0",
     "@supabase/supabase-js": "^2.117.1",
     "bcryptjs": "^3.0.3",
     "bwip-js": "^4.11.4",
