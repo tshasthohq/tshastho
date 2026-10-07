@@ -80,4 +80,31 @@ export const sslcommerzGateway: PaymentGateway = {
       failureReason: success ? undefined : data?.status,
     };
   },
+  async refund(gatewayTxnId: string, amount: number, reason?: string): Promise<{ refundRefId?: string; raw?: unknown }> {
+    const storeId = process.env.SSLCOMMERZ_STORE_ID;
+    const storePass = process.env.SSLCOMMERZ_STORE_PASS;
+    if (!storeId || !storePass) {
+      console.warn("[SSLCOMMERZ] Missing refund credentials - using mock mode");
+      return { refundRefId: `MOCK-REFUND-${Date.now()}`, raw: { mock: true, amount, reason } };
+    }
+    const url = new URL(`${SSL_BASE}/validator/api/merchantTransIDvalidationAPI.php`);
+    url.searchParams.set("bank_tran_id", gatewayTxnId);
+    url.searchParams.set("refund_amount", String(amount));
+    url.searchParams.set("refund_remarks", reason ?? "Customer return refund");
+    url.searchParams.set("store_id", storeId);
+    url.searchParams.set("store_passwd", storePass);
+    url.searchParams.set("format", "json");
+    const res = await fetch(url.toString());
+    const data: any = await res.json();
+    const status = String(data?.status ?? data?.APIConnect ?? "").toUpperCase();
+    const ok = status === "SUCCESS" || status === "DONE";
+    if (!ok) {
+      throw new Error(data?.errorReason || data?.failedreason || "SSLCommerz refund failed");
+    }
+    return {
+      refundRefId: data?.refund_ref_id ?? data?.refund_ref_number ?? data?.bank_tran_id ?? gatewayTxnId,
+      raw: data,
+    };
+  },
+
 };

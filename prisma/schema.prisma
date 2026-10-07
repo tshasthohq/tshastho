@@ -1319,6 +1319,12 @@ model ReturnOrder {
 
   items              ReturnItem[]
   SupplierCreditNote SupplierCreditNote?
+  // Item 13 — auto-refund tracking
+  refundStatus       String              @default("PENDING")
+  refundTxnId        String?
+  refundedAt         DateTime?
+  refundError        String?
+  refundAttempts     Int                 @default(0)
 
   @@unique([pharmacyId, returnNumber])
   @@index([pharmacyId, status])
