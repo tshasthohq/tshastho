@@ -1246,6 +1246,13 @@ model Prescription {
   appointment                  Appointment?                   @relation(fields: [appointmentId], references: [id])
   RxPharmacyRequest            RxPharmacyRequest[]
   PrescriptionInteractionCheck PrescriptionInteractionCheck[]
+  // Item 18 — Retention Policy
+  retentionUntil               DateTime?
+  anonymizedAt                 DateTime?
+  archivedAt                   DateTime?
+  purgeAfter                   DateTime?
+  retentionPolicy              String                         @default("DGDA_5Y") // DGDA_5Y | GDPR_2Y | MANUAL
+  legalHold                    Boolean                        @default(false)
 
   @@index([patientId, status])
   @@index([status, createdAt])
