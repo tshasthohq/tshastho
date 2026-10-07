@@ -131,6 +131,7 @@ model User {
   whatsappLogsCreated      WhatsAppLog[]                  @relation("WhatsAppLogCreator")
   tierHistory              LoyaltyTierHistory[]           @relation("UserTierHistory")
   printLogs                PrintLog[]
+  pharmacyReviews          PharmacyReview[]               @relation("CustomerPharmacyReviews")
 }
 
 model Patient {
@@ -248,6 +249,10 @@ model Pharmacy {
   SupplierCreditNote     SupplierCreditNote[]
   MedicineSubstitute     MedicineSubstitute[]
   printLogs              PrintLog[]
+  avgRating              Decimal                  @default(0)
+  totalReviews           Int                      @default(0)
+  ratingBreakdown        Json?
+  reviews                PharmacyReview[]
 }
 
 model MasterMedicine {
@@ -362,6 +367,7 @@ model Order {
   RxPharmacyRequest  RxPharmacyRequest?
   VatInvoice         VatInvoice?
   printLogs          PrintLog[]
+  PharmacyReview     PharmacyReview?
 }
 
 model OrderItem {
@@ -3290,4 +3296,38 @@ model PrintLog {
   @@index([pharmacyId, createdAt])
   @@index([userId, createdAt])
   @@map("print_logs")
+}
+
+// ============================================================
+// Item 14 — Pharmacy Rating/Review
+// ============================================================
+model PharmacyReview {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  orderId    String?  @unique
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customerId String
+  customer   User     @relation("CustomerPharmacyReviews", fields: [customerId], references: [id])
+
+  rating     Int // 1-5
+  title      String?
+  comment    String?
+  isVerified Boolean @default(true)
+
+  status     String  @default("PUBLISHED") // PUBLISHED | HIDDEN | DELETED
+  flaggedBy  String?
+  flagReason String?
+
+  replyText String?
+  repliedAt DateTime?
+  repliedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pharmacyId, status, createdAt])
+  @@index([customerId])
+  @@index([rating])
+  @@map("pharmacy_reviews")
 }
