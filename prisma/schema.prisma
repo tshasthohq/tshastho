@@ -127,6 +127,8 @@ model User {
   pharmacyAuditLogs        PharmacyAuditLog[]             @relation("PharmacyAuditUser")
   supplierCreditsIssued    SupplierCreditNote[]           @relation("SupplierCreditIssuer")
   ocrJobs                  PrescriptionOcrJob[]           @relation("UserOcrJobs")
+  whatsappLogs             WhatsAppLog[]                  @relation("CustomerWhatsAppLogs")
+  whatsappLogsCreated      WhatsAppLog[]                  @relation("WhatsAppLogCreator")
 }
 
 model Patient {
@@ -232,6 +234,7 @@ model Pharmacy {
   CustomerCreditLedger   CustomerCreditLedger[]
   smsLogs                SmsLog[]
   smsTemplates           SmsTemplate[]
+  whatsappLogs           WhatsAppLog[]
   StaffPayroll           StaffPayroll[]
   StaffPerformance       StaffPerformance[]
   StaffTarget            StaffTarget[]
@@ -3126,4 +3129,51 @@ model PrescriptionOcrJob {
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+// ============================================
+// ITEM 6: WHATSAPP LOG
+// ============================================
+
+enum WhatsAppStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppProvider {
+  META
+  TWILIO
+  MANUAL
+}
+
+model WhatsAppLog {
+  id            String           @id @default(cuid())
+  pharmacyId    String?
+  pharmacy      Pharmacy?        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      User?            @relation("CustomerWhatsAppLogs", fields: [customerId], references: [id])
+  recipientName String?
+  phone         String
+  message       String?          @db.Text
+  templateName  String?
+  templateData  Json?
+  provider      WhatsAppProvider @default(MANUAL)
+  status        WhatsAppStatus   @default(QUEUED)
+  providerRefId String?
+  failureReason String?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  metadata      Json?
+  createdById   String?
+  createdBy     User?            @relation("WhatsAppLogCreator", fields: [createdById], references: [id])
+  createdAt     DateTime         @default(now())
+
+  @@index([pharmacyId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([status])
+  @@index([phone])
 }
