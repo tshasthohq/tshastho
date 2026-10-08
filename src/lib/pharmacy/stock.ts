@@ -44,20 +44,27 @@ export async function recordStockMovement(params: RecordMovementParams) {
     });
 
     if (!medicine) throw new Error('Medicine not found');
-    if (medicine.pharmacyId !== pharmacyId) throw new Error('Medicine not in this pharmacy');
-
+    // Item 20 log vars (may be stale under race, used only for audit)
     const previousStock = medicine.stock;
     const newStock = previousStock + signedQty;
+    if (medicine.pharmacyId !== pharmacyId) throw new Error('Medicine not in this pharmacy');
 
-    if (newStock < 0) {
-      throw new Error(`Insufficient stock. Available: ${previousStock}, required: ${quantity}`);
+    // Item 20: atomic stock update with race-safe check
+    if (signedQty < 0) {
+      const result = await tx.medicine.updateMany({
+        where: { id: medicineId, stock: { gte: quantity } },
+        data: { stock: { decrement: quantity } },
+      });
+      if (result.count === 0) {
+        const fresh = await tx.medicine.findUnique({ where: { id: medicineId }, select: { stock: true } });
+        throw new Error(`Insufficient stock. Available: ${fresh?.stock ?? 0}, required: ${quantity}`);
+      }
+    } else if (signedQty > 0) {
+      await tx.medicine.update({
+        where: { id: medicineId },
+        data: { stock: { increment: signedQty } },
+      });
     }
-
-    // Update medicine stock
-    await tx.medicine.update({
-      where: { id: medicineId },
-      data: { stock: newStock },
-    });
 
     // Update batch quantity if batchId provided
     if (batchId) {

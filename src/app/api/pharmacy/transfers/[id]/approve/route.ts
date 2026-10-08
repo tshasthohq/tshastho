@@ -11,7 +11,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const transfer = await prisma.branchTransfer.findUnique({ where: { id } });
   if (!transfer) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Transfer not found', 404);
-  if (transfer.status !== 'PENDING') return errorResponse(ErrorCodes.CONFLICT, 'Transfer already processed', 409);
+  if (transfer.status !== "PENDING") return errorResponse(ErrorCodes.CONFLICT, 'Transfer already processed', 409);
 
   const updated = await prisma.branchTransfer.update({
     where: { id },

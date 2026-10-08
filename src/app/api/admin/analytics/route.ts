@@ -74,7 +74,7 @@ export async function GET() {
 
     // Appointments
     const totalAppointments = await prisma.appointment.count();
-    const pendingAppointments = await prisma.appointment.count({ where: { status: "PENDING" } });
+    const pendingAppointments = await prisma.appointment.count({ where: { status: "REQUESTED" } });
 
     // Medicine stats
     const totalMedicines = await prisma.medicine.count();

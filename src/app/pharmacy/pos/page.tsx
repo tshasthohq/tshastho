@@ -1,10 +1,18 @@
 "use client";
+import VoiceInputButton from "@/components/pharmacy/VoiceInputButton";
+import SubstituteModal from "@/components/pharmacy/SubstituteModal";
+import InteractionWarning from "@/components/InteractionWarning";
+import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { submitPosSale } from '@/lib/offline/sale-submit';
+import { useInventorySync } from "@/hooks/useInventorySync";
+import OfflineIndicator from '@/components/pharmacy/OfflineIndicator';
+import BarcodeScannerListener from '@/components/pharmacy/BarcodeScannerListener';
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, X, Printer,
-  Wallet, CheckCircle
+  Wallet, CheckCircle, Barcode
 } from "lucide-react";
 
 interface CartItem {
@@ -20,6 +28,7 @@ interface CartItem {
 
 export default function POSPage() {
   const { user } = useAuth();
+  const { tick: stockSyncTick } = useInventorySync();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -31,29 +40,53 @@ export default function POSPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "BKASH" | "NAGAD" | "DUE">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "BKASH" | "NAGAD" | "DUE" | "WALLET">("CASH");
   const [paidAmount, setPaidAmount] = useState(0);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [showSubstitutes, setShowSubstitutes] = useState<{id: string; name: string} | null>(null);
+  const [interactionWarnings, setInteractionWarnings] = useState<any[]>([]);
+  const [showInteractionWarning, setShowInteractionWarning] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState(false);
+  const [loyaltyInfo, setLoyaltyInfo] = useState<any>(null);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyaltyChecked, setLoyaltyChecked] = useState(false);
   const [openingCash, setOpeningCash] = useState(0);
   const [closingCash, setClosingCash] = useState(0);
   const searchTimer = useRef<any>(null);
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [showBarcode, setShowBarcode] = useState(false);
 
   const loadShift = async () => {
     const res = await fetch("/api/pharmacy/pos/shift/current", { credentials: "include" });
-    const data = await res.json();
+    const data: any = await res.json();
     setShift(data.shift || null);
   };
 
   useEffect(() => { if (user) loadShift(); }, [user]);
 
+
+  // Item 21: hardware barcode scanner (keyboard-wedge) listener
+  useEffect(() => {
+    const onScan = (e: Event) => {
+      const code = (e as CustomEvent).detail?.code;
+      if (!code) return;
+      fetch('/api/pharmacy/pos/scan?barcode=' + encodeURIComponent(code), { credentials: 'include' })
+        .then((r) => r.json())
+        .then((d) => { if (d?.success && d.medicine) addToCart(d.medicine); })
+        .catch((err) => console.error('[SCAN]', err));
+    };
+    window.addEventListener('tshastho:barcode-scanned', onScan);
+    return () => window.removeEventListener('tshastho:barcode-scanned', onScan);
+  }, []);
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (search.length < 2) { setResults([]); return; }
     setSearching(true);
     searchTimer.current = setTimeout(async () => {
       const res = await fetch(`/api/pharmacy/pos/medicine-search?q=${encodeURIComponent(search)}`, { credentials: "include" });
-      const data = await res.json();
+      const data: any = await res.json();
       setResults(data.medicines || []);
       setSearching(false);
     }, 300);
@@ -63,7 +96,11 @@ export default function POSPage() {
   const addToCart = (med: any) => {
     const existing = cart.find(c => c.medicineId === med.id);
     if (existing) {
-      if (existing.quantity >= med.stock) return;
+            // Item 35: stock shortage — offer substitutes
+      if (existing.quantity >= med.stock) {
+        setShowSubstitutes({ id: med.id, name: med.name });
+        return;
+      }
       setCart(cart.map(c => c.medicineId === med.id ? { ...c, quantity: c.quantity + 1 } : c));
     } else {
       setCart([...cart, {
@@ -81,6 +118,20 @@ export default function POSPage() {
     setResults([]);
   };
 
+  const handleBarcodeScan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barcodeInput.trim()) return;
+    const res = await fetch(`/api/pharmacy/pos/scan?barcode=${encodeURIComponent(barcodeInput.trim())}`, { credentials: "include" });
+    if (res.ok) {
+      const data: any = await res.json();
+      addToCart(data.medicine);
+      setBarcodeInput("");
+    } else {
+      alert("Barcode not found");
+      setBarcodeInput("");
+    }
+  };
+
   const updateQty = (id: string, delta: number) => {
     setCart(cart.map(c => {
       if (c.medicineId !== id) return c;
@@ -94,14 +145,117 @@ export default function POSPage() {
   const removeItem = (id: string) => setCart(cart.filter(c => c.medicineId !== id));
 
   const subtotal = cart.reduce((s, i) => s + (i.unitPrice * i.quantity - i.discount), 0);
-  const total = Math.max(0, subtotal - discountAmount);
+  const loyaltyDiscountAmount = Math.min(loyaltyPoints, loyaltyInfo?.points || 0);
+  const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount);
   const change = Math.max(0, paidAmount - total);
   const due = Math.max(0, total - paidAmount);
+
+  const checkLoyalty = async (phone: string) => {
+    setLoyaltyChecked(false);
+    setLoyaltyInfo(null);
+    setLoyaltyPoints(0);
+    if (!phone || phone.length < 6) return;
+    try {
+      const res = await fetch(`/api/pharmacy/pos/customer-loyalty?phone=${encodeURIComponent(phone)}`, { credentials: "include" });
+      const data: any = await res.json();
+      if (data.loyalty) {
+        setLoyaltyInfo(data.loyalty);
+      }
+    } catch {}
+    setLoyaltyChecked(true);
+  };
+
+  const handleVoiceResult = (result: { medicineName: string; quantity: number; unit?: string }) => {
+    // Add to search to trigger add
+    setSearch(result.medicineName);
+    // After search results come in, we add first match
+    setTimeout(() => {
+      if (results.length > 0) {
+        const med = results[0];
+        addToCart(med);
+        // If quantity > 1, add more
+        for (let i = 1; i < result.quantity; i++) {
+          setTimeout(() => addToCart(med), 50 * i);
+        }
+      } else {
+        alert("No medicine found for: " + result.medicineName);
+      }
+    }, 500);
+  };
+
+  const handleSubstituteSelect = (sub: any) => {
+    addToCart({
+      id: sub.id,
+      name: sub.name,
+      brand: sub.brand,
+      sellingPrice: sub.sellingPrice,
+      purchasePrice: 0,
+      stock: sub.stock,
+    });
+    setShowSubstitutes(null);
+  };
+
+  const handleSplitConfirm = async (splits: any[], notes: string) => {
+    if (cart.length === 0) return;
+    setSaving(true);
+    const res = await submitPosSale({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        items: cart.map(c => ({
+          medicineId: c.medicineId,
+          quantity: c.quantity,
+          unitPrice: c.unitPrice,
+          discount: c.discount,
+        })),
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+        discountAmount,
+        paymentMethod: "MIXED",
+        paidAmount: splits.filter(s => s.method !== "CREDIT" && s.method !== "DUE").reduce((a, b) => a + b.amount, 0),
+        notes: notes || undefined,
+        loyaltyPointsToRedeem: loyaltyPoints,
+        splits,
+      }),
+    });
+    const data: any = await res.json();
+    setSaving(false);
+    if (res.ok) {
+      setShowReceipt(data.receipt);
+      setCart([]);
+      setCustomerName("");
+      setCustomerPhone("");
+      setDiscountAmount(0);
+      setPaidAmount(0);
+      setNotes("");
+      setShowSplitModal(false);
+      setShowPayment(false);
+      loadShift();
+    } else {
+      alert(data.message || "Sale failed");
+    }
+  };
+
+  const checkInteractions = async () => {
+    const names = cart.map(c => c.name);
+    if (names.length < 2) return [];
+    try {
+      const res = await fetch("/api/pharmacy/interactions/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ medicineNames: names }),
+      });
+      const data: any = await res.json();
+      return data.warnings || [];
+    } catch { return []; }
+  };
 
   const completeSale = async () => {
     if (cart.length === 0) return;
     setSaving(true);
-    const res = await fetch("/api/pharmacy/pos/sale", {
+    const res = await submitPosSale({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -118,9 +272,10 @@ export default function POSPage() {
         paymentMethod,
         paidAmount: paymentMethod === "DUE" ? 0 : (paidAmount || total),
         notes: notes || undefined,
+        loyaltyPointsToRedeem: loyaltyPoints,
       }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     setSaving(false);
     if (res.ok) {
       setShowReceipt(data.receipt);
@@ -131,6 +286,8 @@ export default function POSPage() {
       setPaidAmount(0);
       setNotes("");
       setPaymentMethod("CASH");
+      setLoyaltyInfo(null);
+      setLoyaltyPoints(0);
       setShowPayment(false);
       loadShift();
     } else {
@@ -145,7 +302,7 @@ export default function POSPage() {
       credentials: "include",
       body: JSON.stringify({ openingCash }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     if (res.ok) {
       setShift(data.shift);
       setShowShiftModal(false);
@@ -160,7 +317,7 @@ export default function POSPage() {
       credentials: "include",
       body: JSON.stringify({ closingCash }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     if (res.ok) {
       alert(`Shift closed.\nExpected: ৳${data.shift.expectedCash}\nCounted: ৳${data.shift.closingCash}\nDifference: ৳${data.shift.difference}`);
       setShift(null);
@@ -209,6 +366,13 @@ export default function POSPage() {
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search medicine by name, brand, generic..."
               className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            <button type="button" onClick={() => setShowBarcode(true)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+              <Barcode size={16} />
+            </button>
+      <BarcodeScannerListener />
+      <OfflineIndicator />
+            <VoiceInputButton onParsed={handleVoiceResult} />
           </div>
 
           {/* Search Results */}
@@ -375,9 +539,38 @@ export default function POSPage() {
               </div>
 
               <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Phone (for loyalty)</label>
+                <input value={customerPhone}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomerPhone(val);
+                    if (val.length >= 11) checkLoyalty(val);
+                  }}
+                  placeholder="01XXXXXXXXX"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono" />
+                {loyaltyChecked && loyaltyInfo && loyaltyInfo.points > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-2 mt-2 text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-green-700 font-medium">🎁 {loyaltyInfo.name}</span>
+                      <span className="text-green-700 font-bold">{loyaltyInfo.points} pts</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] text-slate-600">Redeem:</label>
+                      <input type="number" min={0} max={Math.min(loyaltyInfo.points, Math.floor(subtotal))}
+                        value={loyaltyPoints}
+                        onChange={(e) => setLoyaltyPoints(Math.min(Number(e.target.value), loyaltyInfo.points))}
+                        className="w-20 px-2 py-1 border border-slate-200 rounded text-xs text-right" />
+                      <button type="button" onClick={() => setLoyaltyPoints(Math.min(loyaltyInfo.points, Math.floor(subtotal)))}
+                        className="text-[10px] text-blue-600 underline">Use Max</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Payment Method</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["CASH", "CARD", "BKASH", "NAGAD", "DUE"] as const).map((m) => (
+                  {(["CASH", "CARD", "BKASH", "NAGAD", "DUE", "WALLET"] as const).map((m) => (
                     <button key={m} type="button" onClick={() => setPaymentMethod(m)}
                       className={`py-2 rounded-xl text-xs font-medium border ${
                         paymentMethod === m ? "bg-blue-600 text-white border-blue-600" : "bg-white border-slate-200"
@@ -398,6 +591,12 @@ export default function POSPage() {
               )}
 
               <div className="bg-slate-50 p-3 rounded-xl text-sm space-y-1">
+                {loyaltyDiscountAmount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Loyalty Discount</span>
+                    <span className="font-bold">-৳ {loyaltyDiscountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between"><span className="text-slate-500">Total</span><span className="font-bold">৳ {total.toFixed(2)}</span></div>
                 {paymentMethod !== "DUE" && (
                   <>
@@ -413,6 +612,10 @@ export default function POSPage() {
                 placeholder="Notes (optional)" rows={2}
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm" />
 
+              <button onClick={() => { setShowPayment(false); setShowSplitModal(true); }} type="button"
+                className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-medium flex items-center justify-center gap-2">
+                Split Payment
+              </button>
               <button onClick={completeSale} disabled={saving}
                 className="w-full bg-green-600 text-white py-3 rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2">
                 <CheckCircle size={16} /> {saving ? "Processing..." : "Complete Sale"}
@@ -435,7 +638,61 @@ export default function POSPage() {
               {showReceipt.items.map((i: any, idx: number) => (
                 <div key={idx} className="flex justify-between">
                   <span>{i.qty} × {i.name}</span>
-                  <span>৳ {Number(i.subtotal).toFixed(2)}</span>
+                  <span>৳ {Number(i.subtotal).toFixed(2)}
+
+      {/* Barcode scanning modal */}
+      {showBarcode && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Barcode className="text-blue-600" size={24} />
+              </div>
+              <h2 className="font-bold text-lg">Scan Barcode</h2>
+              <p className="text-xs text-slate-500">Use scanner or type barcode number</p>
+            </div>
+            <form onSubmit={(e) => { handleBarcodeScan(e); if (true) setTimeout(() => setShowBarcode(false), 100); }}>
+              <input autoFocus value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)}
+                placeholder="Scan or type barcode..."
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-center font-mono text-lg mb-3" />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setShowBarcode(false); setBarcodeInput(""); }}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-medium">Cancel</button>
+                <button type="submit"
+                  className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showInteractionWarning && (
+        <InteractionWarning
+          warnings={interactionWarnings}
+          onClose={() => { setShowInteractionWarning(false); setInteractionWarnings([]); }}
+          onAcknowledge={() => { setShowInteractionWarning(false); setInteractionWarnings([]); }}
+        />
+      )}
+
+      {showSubstitutes && (
+        <SubstituteModal
+          medicineId={showSubstitutes.id}
+          medicineName={showSubstitutes.name}
+          onSelect={handleSubstituteSelect}
+          onClose={() => setShowSubstitutes(null)}
+        />
+      )}
+
+      {showSplitModal && (
+        <SplitPaymentModal
+          total={total}
+          customerName={customerName || undefined}
+          customerPhone={customerPhone || undefined}
+          onConfirm={handleSplitConfirm}
+          onClose={() => setShowSplitModal(false)}
+          processing={saving}
+        />
+      )}</span>
                 </div>
               ))}
             </div>

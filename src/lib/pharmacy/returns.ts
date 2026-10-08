@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { recordStockMovement } from './stock';
 import { recordLedgerEntry } from './ledger';
+import { issueSupplierCredit } from './supplier-credit';
+import { processReturnRefund } from './refund-service';
 
 export type ReturnType = 'CUSTOMER_RETURN' | 'SUPPLIER_RETURN' | 'DAMAGE_WRITE_OFF' | 'EXPIRED_WRITE_OFF';
 
@@ -33,7 +35,7 @@ interface ProcessReturnParams {
 export async function processReturn(params: ProcessReturnParams) {
   const { returnId, userId } = params;
 
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const ret = await tx.returnOrder.findUnique({
       where: { id: returnId },
       include: { items: true },
@@ -98,6 +100,18 @@ export async function processReturn(params: ProcessReturnParams) {
       });
     }
 
+    // Issue supplier credit note
+    if (ret.type === 'SUPPLIER_RETURN' && ret.supplierId && Number(ret.totalAmount) > 0) {
+      await issueSupplierCredit({
+        pharmacyId: ret.pharmacyId,
+        supplierId: ret.supplierId,
+        returnOrderId: ret.id,
+        amount: Number(ret.totalAmount),
+        notes: `Auto-issued from return ${ret.returnNumber}`,
+        userId,
+      }).catch((e) => console.error('[SUPPLIER_CREDIT]', e));
+    }
+
     // Update return status
     const updated = await tx.returnOrder.update({
       where: { id: ret.id },
@@ -110,4 +124,12 @@ export async function processReturn(params: ProcessReturnParams) {
 
     return updated;
   });
+
+  if (result.type === 'CUSTOMER_RETURN') {
+    processReturnRefund({ returnId: result.id, userId }).catch((e) =>
+      console.error('[AUTO_REFUND_TRIGGER]', e),
+    );
+  }
+
+  return result;
 }

@@ -84,7 +84,7 @@ export async function POST(req: Request) {
       data: {
         requestNumber,
         pharmacyId,
-        status: 'REQUESTED',
+        status: "REQUESTED",
         periodStart,
         periodEnd,
         grossSales,

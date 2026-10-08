@@ -1,0 +1,15 @@
+name: Expiry Scan
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger expiry scan
+        run: |
+          curl -fsSL -X POST "${{ secrets.APP_URL }}/api/internal/expiry/scan" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            --max-time 180

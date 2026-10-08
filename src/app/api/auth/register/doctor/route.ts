@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         password: hashedPassword,
         phone: data.phone || null,
         role: 'DOCTOR',
-        status: 'PENDING',
+        status: "PENDING",
         doctorProfile: {
           create: {
             specialty: data.specialty,

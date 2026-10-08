@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         password: hashedPassword,
         phone: data.phone || null,
         role: 'PHARMACY_OWNER',
-        status: 'PENDING',
+        status: "PENDING",
       },
     });
 

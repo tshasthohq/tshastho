@@ -4,13 +4,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Pill, Package, History, Truck, ShoppingCart,
-  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, Shield
+  Users, UserCog, ClipboardList, DollarSign, Bell, Wallet, FileText, RotateCcw, Building2, ArrowLeftRight, Shield, AlertTriangle, Repeat, FileSpreadsheet, ShieldAlert, Trash2, BookOpen, Barcode, Lightbulb, ScanLine, MessageSquare, BarChart3, Receipt,
 } from "lucide-react";
 
 const NAV = [
   { href: "/pharmacy", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/pharmacy/medicines", icon: Pill, label: "Medicines" },
+  { href: "/pharmacy/medicines/bulk", icon: FileSpreadsheet, label: "Bulk" },
+  { href: "/pharmacy/barcodes", icon: Barcode, label: "Barcodes" },
+  { href: "/pharmacy/sms", icon: MessageSquare, label: "SMS" },
+  { href: "/pharmacy/rx-requests", icon: FileText, label: "Rx Requests" },
+  { href: "/pharmacy/tax-config", icon: Receipt, label: "Tax/VAT" },
+  { href: "/pharmacy/analytics", icon: BarChart3, label: "Analytics" },
+  { href: "/pharmacy/audit", icon: Shield, label: "Audit" },
   { href: "/pharmacy/batches", icon: Package, label: "Batches" },
+  { href: "/pharmacy/stock-alerts", icon: AlertTriangle, label: "Low Stock" },
+  { href: "/pharmacy/refill-reminders", icon: Repeat, label: "Refills" },
+  { href: "/pharmacy/narcotic-register", icon: ShieldAlert, Trash2, label: "Narcotic" },
+  { href: "/pharmacy/expiry-write-off", icon: Trash2, label: "Expiry" },
+  { href: "/pharmacy/credit-ledger", icon: BookOpen, label: "Credit" },
+  { href: "/pharmacy/payroll", icon: Wallet, label: "Payroll" },
   { href: "/pharmacy/stock-movements", icon: History, label: "Stock" },
   { href: "/pharmacy/suppliers", icon: Truck, label: "Suppliers" },
   { href: "/pharmacy/purchases", icon: ShoppingCart, label: "Purchases" },

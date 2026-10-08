@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
+import { getTierBenefit } from './tier-benefits';
 
-const POINTS_PER_TAKA = 1; // 1 point per ৳100 (adjust as needed)
-const TAKA_PER_POINT = 1;  // 1 point = ৳1 discount
+const POINTS_PER_TAKA = 1;
+const TAKA_PER_POINT = 1;
 const TIER_THRESHOLDS = {
   BRONZE: 0,
   SILVER: 1000,
@@ -44,18 +45,40 @@ export async function earnPoints(params: {
       });
     }
 
+    const oldTier = account.tier;
     const newBalance = account.points + pointsToEarn;
     const newLifetime = account.lifetimePoints + pointsToEarn;
     const newTier = calculateTier(newLifetime);
 
     await tx.loyaltyAccount.update({
       where: { id: account.id },
-      data: {
-        points: newBalance,
-        lifetimePoints: newLifetime,
-        tier: newTier,
-      },
+      data: { points: newBalance, lifetimePoints: newLifetime, tier: newTier },
     });
+
+    // Log tier change if upgraded
+    if (oldTier !== newTier) {
+      await tx.loyaltyTierHistory.create({
+        data: {
+          userId: params.userId,
+          oldTier,
+          newTier,
+          reason: 'THRESHOLD_REACHED',
+        },
+      }).catch(() => {});
+
+      // Notify user
+      const tierInfo = getTierBenefit(newTier);
+      await tx.notification.create({
+        data: {
+          userId: params.userId,
+          title: `🎉 Welcome to ${tierInfo.label}!`,
+          message: `You've reached ${tierInfo.label} tier. Enjoy: ${tierInfo.benefits.join(', ')}`,
+          type: 'success',
+          category: 'LOYALTY',
+          link: '/dashboard/loyalty',
+        },
+      }).catch(() => {});
+    }
 
     return await tx.loyaltyTransaction.create({
       data: {
