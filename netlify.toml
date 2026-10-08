@@ -1,0 +1,7 @@
+[build.environment]
+  # OCR_PROVIDER is a provider selector ("MANUAL" | "OPENAI" | "GOOGLE_VISION"),
+  # not a credential. Those literals appear in the compiled source, so the
+  # secrets scanner flags them as leaked values.
+  SECRETS_SCAN_OMIT_KEYS = "OCR_PROVIDER"
+  # The Next.js/Turbopack build cache is restored between builds but never deployed.
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**"
