@@ -1309,6 +1309,7 @@ enum ReturnType {
   SUPPLIER_RETURN
   DAMAGE_WRITE_OFF
   EXPIRED_WRITE_OFF
+  EXCHANGE
 }
 
 enum ReturnStatus {
@@ -1356,14 +1357,19 @@ model ReturnOrder {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  items              ReturnItem[]
-  SupplierCreditNote SupplierCreditNote?
+  items                    ReturnItem[]
+  SupplierCreditNote       SupplierCreditNote?
   // Item 13 — auto-refund tracking
-  refundStatus       String              @default("PENDING")
-  refundTxnId        String?
-  refundedAt         DateTime?
-  refundError        String?
-  refundAttempts     Int                 @default(0)
+  refundStatus             String              @default("PENDING")
+  refundTxnId              String?
+  refundedAt               DateTime?
+  refundError              String?
+  refundAttempts           Int                 @default(0)
+  // Item 38 — Exchange tracking
+  exchangeOutItems         Json?
+  exchangeOutAmount        Decimal             @default(0)
+  exchangeDifference       Decimal             @default(0)
+  exchangeDifferenceMethod String? // CASH | WALLET | GATEWAY | REFUND
 
   @@unique([pharmacyId, returnNumber])
   @@index([pharmacyId, status])
