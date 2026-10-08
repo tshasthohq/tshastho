@@ -135,6 +135,8 @@ model User {
   cashDrawerLogs           CashDrawerLog[]
   posCustomers             PosCustomer[]                  @relation("UserPosCustomers")
   walletAccount            WalletAccount?                 @relation("UserWallet")
+  sampleBatchesReceived    SampleBatch[]                  @relation("SampleBatchReceiver")
+  sampleDistributionsGiven SampleDistribution[]           @relation("SampleDistributionGiver")
 }
 
 model Patient {
@@ -194,6 +196,7 @@ model Doctor {
   referralsReceived    DoctorReferralCase[]     @relation("ConsultingCases")
   certificates         MedicalCertificate[]     @relation("DoctorCertificates")
   followUps            FollowUpReminder[]       @relation("DoctorFollowUps")
+  sampleDistributions  SampleDistribution[]
 }
 
 model Pharmacy {
@@ -260,6 +263,8 @@ model Pharmacy {
   cashDrawerLogs         CashDrawerLog[]
   posTerminals           PosTerminal[]
   expiryAlerts           ExpiryAlert[]
+  sampleBatches          SampleBatch[]
+  sampleDistributions    SampleDistribution[]
 }
 
 model MasterMedicine {
@@ -323,6 +328,7 @@ model Medicine {
   staffPerformance StaffPerformance[]
   staffTargets     StaffTarget[]
   expiryAlerts     ExpiryAlert[]
+  sampleBatches    SampleBatch[]
 }
 
 model CartItem {
@@ -874,6 +880,7 @@ model Supplier {
   purchases          PurchaseOrder[]
   returns            ReturnOrder[]
   SupplierCreditNote SupplierCreditNote[]
+  sampleBatches      SampleBatch[]
 
   @@index([pharmacyId, isActive])
 }
@@ -3559,4 +3566,71 @@ model WalletTransaction {
   @@index([referenceType, referenceId])
   @@index([status])
   @@map("wallet_transactions")
+}
+
+// ============================================================
+// Item 37 — Sample Medicine Tracker
+// ============================================================
+model SampleBatch {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  batchNumber String?
+  expiryDate  DateTime?
+  quantity    Int       @default(0)
+  remaining   Int       @default(0)
+
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  repName    String?
+  repPhone   String?
+
+  receivedAt DateTime @default(now())
+  receivedBy String?
+  receiver   User?    @relation("SampleBatchReceiver", fields: [receivedBy], references: [id], onDelete: SetNull)
+  notes      String?
+  isActive   Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  distributions SampleDistribution[]
+
+  @@index([pharmacyId, isActive])
+  @@index([medicineId])
+  @@index([expiryDate])
+  @@map("sample_batches")
+}
+
+model SampleDistribution {
+  id            String      @id @default(cuid())
+  pharmacyId    String
+  pharmacy      Pharmacy    @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  sampleBatchId String
+  sampleBatch   SampleBatch @relation(fields: [sampleBatchId], references: [id], onDelete: Cascade)
+
+  doctorId     String?
+  doctor       Doctor? @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  doctorName   String
+  doctorPhone  String?
+  doctorClinic String?
+
+  quantity Int      @default(1)
+  givenAt  DateTime @default(now())
+  givenBy  String?
+  giver    User?    @relation("SampleDistributionGiver", fields: [givenBy], references: [id], onDelete: SetNull)
+
+  feedback   String?
+  feedbackAt DateTime?
+  notes      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([pharmacyId, givenAt])
+  @@index([sampleBatchId])
+  @@index([doctorId])
+  @@map("sample_distributions")
 }
