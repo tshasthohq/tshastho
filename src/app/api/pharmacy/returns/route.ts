@@ -28,7 +28,7 @@ const createSchema = z.object({
   originalSaleId: z.string().optional(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
-  refundMethod: z.enum(['CASH', 'ORIGINAL', 'STORE_CREDIT', 'NO_REFUND']).default('CASH'),
+  refundMethod: z.enum(['CASH', 'ORIGINAL', 'STORE_CREDIT', 'NO_REFUND', 'WALLET']).default('CASH'),
   reason: z.string().optional(),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1),

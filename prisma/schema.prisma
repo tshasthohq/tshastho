@@ -133,8 +133,8 @@ model User {
   printLogs                PrintLog[]
   pharmacyReviews          PharmacyReview[]               @relation("CustomerPharmacyReviews")
   cashDrawerLogs           CashDrawerLog[]
-  posCustomers PosCustomer[] @relation("UserPosCustomers")
-  walletAccount WalletAccount? @relation("UserWallet")
+  posCustomers             PosCustomer[]                  @relation("UserPosCustomers")
+  walletAccount            WalletAccount?                 @relation("UserWallet")
 }
 
 model Patient {
@@ -956,11 +956,11 @@ model PosCustomer {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  sales PosSale[]
+  sales  PosSale[]
+  userId String?
+  user   User?     @relation("UserPosCustomers", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([pharmacyId, phone])
-  userId String?
-  user User? @relation("UserPosCustomers", fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model PosSale {
@@ -1316,6 +1316,7 @@ enum RefundMethod {
   ORIGINAL
   STORE_CREDIT
   NO_REFUND
+  WALLET
 }
 
 model ReturnOrder {
@@ -3491,67 +3492,67 @@ model ExpiryAlert {
 // Item 36 — Platform-Wide Wallet (User-based)
 // ============================================================
 model WalletAccount {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation("UserWallet", fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation("UserWallet", fields: [userId], references: [id], onDelete: Cascade)
 
-  balance           Decimal  @default(0)
-  holdBalance       Decimal  @default(0)
-  availableBalance  Decimal  @default(0)
+  balance          Decimal @default(0)
+  holdBalance      Decimal @default(0)
+  availableBalance Decimal @default(0)
 
-  totalTopUp        Decimal  @default(0)
-  totalSpent        Decimal  @default(0)
-  totalEarnings     Decimal  @default(0)
-  totalRefunds      Decimal  @default(0)
+  totalTopUp    Decimal @default(0)
+  totalSpent    Decimal @default(0)
+  totalEarnings Decimal @default(0)
+  totalRefunds  Decimal @default(0)
 
-  primaryVertical   String?
-  currency          String   @default("BDT")
+  primaryVertical String?
+  currency        String  @default("BDT")
 
-  isActive          Boolean  @default(true)
-  isFrozen          Boolean  @default(false)
-  frozenReason      String?
-  kycVerified       Boolean  @default(false)
-  kycLevel          String   @default("BASIC")
+  isActive     Boolean @default(true)
+  isFrozen     Boolean @default(false)
+  frozenReason String?
+  kycVerified  Boolean @default(false)
+  kycLevel     String  @default("BASIC")
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  transactions      WalletTransaction[]
+  transactions WalletTransaction[]
 
   @@index([isActive, isFrozen])
   @@map("wallet_accounts")
 }
 
 model WalletTransaction {
-  id              String   @id @default(cuid())
-  walletId        String
-  wallet          WalletAccount @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  id       String        @id @default(cuid())
+  walletId String
+  wallet   WalletAccount @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
-  type            String
-  direction       String
+  type      String
+  direction String
 
-  amount          Decimal
-  balanceBefore   Decimal
-  balanceAfter    Decimal
+  amount        Decimal
+  balanceBefore Decimal
+  balanceAfter  Decimal
 
-  vertical        String   @default("PLATFORM")
+  vertical        String  @default("PLATFORM")
   contextId       String?
   referenceType   String?
   referenceId     String?
   referenceNumber String?
 
-  idempotencyKey  String?  @unique
+  idempotencyKey String? @unique
 
-  description     String?
-  notes           String?
-  metadata        Json?
-  createdBy       String?
-  createdByRole   String?
+  description   String?
+  notes         String?
+  metadata      Json?
+  createdBy     String?
+  createdByRole String?
 
-  status          String   @default("COMPLETED")
-  reversedByTxId  String?
+  status         String  @default("COMPLETED")
+  reversedByTxId String?
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([walletId, createdAt])
   @@index([vertical, createdAt])

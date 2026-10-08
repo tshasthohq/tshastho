@@ -69,6 +69,84 @@ export async function processReturnRefund(
     data: { refundAttempts: { increment: 1 }, refundStatus: 'PROCESSING' },
   });
 
+  // Item 36: WALLET refund — credit customer wallet
+  if (method === 'WALLET') {
+    let customerId: string | null = null;
+    if (ret.referenceType === 'Order' && ret.referenceId) {
+      const order = await prisma.order.findUnique({
+        where: { id: ret.referenceId },
+        select: { patientId: true },
+      });
+      customerId = order?.patientId ?? null;
+    }
+    if (!customerId) {
+      await prisma.returnOrder.update({
+        where: { id: returnId },
+        data: { refundStatus: 'FAILED', refundError: 'Cannot resolve customer for wallet refund' },
+      });
+      return { ok: false, error: 'Cannot resolve customer for wallet refund', method };
+    }
+
+    const { walletRefund } = await import('@/lib/wallet');
+    const wr = await walletRefund({
+      userId: customerId,
+      amount,
+      ctx: {
+        vertical: 'PHARMACY',
+        contextId: ret.pharmacyId,
+        referenceType: 'RETURN',
+        referenceId: returnId,
+        referenceNumber: ret.returnNumber,
+        description: 'Wallet refund for return ' + ret.returnNumber,
+        idempotencyKey: 'refund-' + returnId,
+        createdBy: userId,
+        createdByRole: 'SYSTEM',
+      },
+    });
+
+    if (!wr.ok) {
+      await prisma.returnOrder.update({
+        where: { id: returnId },
+        data: { refundStatus: 'FAILED', refundError: (wr.error ?? '').slice(0, 400) },
+      });
+      return { ok: false, error: wr.error, method };
+    }
+
+    const wrefund = await prisma.refund.create({
+      data: {
+        refundNumber: 'RET-' + returnId.slice(-8) + '-' + Date.now(),
+        paymentId: payment?.id ?? '',
+        amount,
+        reason: 'Wallet refund for return',
+        status: 'COMPLETED',
+        processedAt: new Date(),
+        gatewayRefId: wr.txnId,
+        metadata: { returnId, walletTxnId: wr.txnId, method: 'WALLET' } as object,
+      },
+    }).catch(() => null);
+
+    await prisma.returnOrder.update({
+      where: { id: returnId },
+      data: {
+        refundStatus: 'COMPLETED',
+        refundTxnId: wr.txnId ?? null,
+        refundedAt: new Date(),
+        refundError: null,
+      },
+    });
+
+    await recordLedgerEntry({
+      paymentId: payment?.id ?? returnId,
+      debitAccount: 'PLATFORM',
+      creditAccount: 'CUSTOMER',
+      amount,
+      description: 'Return refund (wallet) ' + ret.returnNumber,
+      referenceId: wr.txnId ?? returnId,
+    }).catch(() => undefined);
+
+    return { ok: true, refundId: wrefund?.id, gatewayRefId: wr.txnId, method };
+  }
+
   // Manual path — no gateway
   if (isManual || !payment || !payment.gatewayTxnId) {
     const refund = await prisma.refund.create({
