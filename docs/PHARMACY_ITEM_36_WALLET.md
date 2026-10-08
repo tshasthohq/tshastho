@@ -137,3 +137,35 @@ Two small follow-ups:
 2. Auto-credit wallet on refund (Item 13) if original payment was wallet
 
 ## Next Item: 37 — Sample Medicine Tracker
+
+---
+
+## B1-B3: POS + Refund Wiring (session 2)
+
+### POS Integration
+- Payment selector: WALLET option added
+- Server (POS sale route): pre-check + post-debit via walletSpend()
+- Insufficient balance → 400 with available/required
+- Frozen wallet → 400
+- Idempotency key: pos-{saleId}
+
+### Refund Integration (Item 13)
+- refund-service.ts branch for refundMethod=WALLET
+- Resolves customer from original order (patientId)
+- walletRefund() with idempotencyKey refund-{returnId}
+- Prisma enum RefundMethod + zod extended with WALLET
+- Refund + ledger + ReturnOrder.refundStatus=COMPLETED
+
+### Files Modified
+- prisma/schema.prisma — RefundMethod enum
+- src/app/pharmacy/pos/page.tsx
+- src/app/api/pharmacy/pos/sale/route.ts
+- src/lib/pharmacy/refund-service.ts
+- src/app/api/pharmacy/returns/route.ts
+
+### End-to-End Flows
+1. Wallet pay at POS → balance debited
+2. Wallet refund on return → balance credited
+3. Idempotent retry-safe
+
+## Status: Item 36 FULLY COMPLETE
