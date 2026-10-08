@@ -40,7 +40,7 @@ export default function POSPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "BKASH" | "NAGAD" | "DUE">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "BKASH" | "NAGAD" | "DUE" | "WALLET">("CASH");
   const [paidAmount, setPaidAmount] = useState(0);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -570,7 +570,7 @@ export default function POSPage() {
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Payment Method</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["CASH", "CARD", "BKASH", "NAGAD", "DUE"] as const).map((m) => (
+                  {(["CASH", "CARD", "BKASH", "NAGAD", "DUE", "WALLET"] as const).map((m) => (
                     <button key={m} type="button" onClick={() => setPaymentMethod(m)}
                       className={`py-2 rounded-xl text-xs font-medium border ${
                         paymentMethod === m ? "bg-blue-600 text-white border-blue-600" : "bg-white border-slate-200"

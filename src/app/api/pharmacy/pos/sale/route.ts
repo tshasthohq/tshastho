@@ -9,6 +9,7 @@ import { errorResponse, ErrorCodes } from '@/lib/errors';
 import { z } from 'zod';
 import { recordPosSale } from "@/lib/pharmacy/ledger";
 import { logCashDrawer } from '@/lib/pharmacy/cash-drawer';
+import { walletSpend } from '@/lib/wallet';
 import { earnPoints } from "@/lib/pharmacy/loyalty";
 import { calcStaffCommission } from '@/lib/pharmacy/staff-commission';
 
@@ -30,7 +31,7 @@ const schema = z.object({
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   discountAmount: z.coerce.number().min(0).default(0),
-  paymentMethod: z.enum(['CASH', 'CARD', 'BKASH', 'NAGAD', 'MIXED', 'DUE']).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'CARD', 'BKASH', 'NAGAD', 'MIXED', 'DUE', "WALLET"]).default('CASH'),
   splits: z.array(z.object({
     method: z.enum(['CASH', 'BKASH', 'NAGAD', 'CARD', 'CREDIT', 'DUE']),
     amount: z.coerce.number().min(0),
@@ -133,7 +134,29 @@ export async function POST(req: Request) {
     // Get next sale number
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    const todayCount = await prisma.posSale.count({
+    // Item 36: WALLET payment — resolve customer + check balance first
+  let walletCustomerId: string | null = null;
+  if (data.paymentMethod === 'WALLET') {
+    if (!data.customerPhone) {
+      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Customer phone required for wallet payment', 400);
+    }
+    const cust = await prisma.user.findFirst({
+      where: { phone: data.customerPhone },
+      select: { id: true, walletAccount: { select: { balance: true, isFrozen: true } } },
+    });
+    if (!cust) {
+      return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'No wallet account for this phone', 404);
+    }
+    if (cust.walletAccount?.isFrozen) {
+      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Wallet frozen', 400);
+    }
+    const bal = Number(cust.walletAccount?.balance ?? 0);
+    if (bal < Number(totalAmount)) {
+      return errorResponse(ErrorCodes.VALIDATION_ERROR, `Insufficient wallet balance. Available: ${bal.toFixed(2)}, required: ${Number(totalAmount).toFixed(2)}`, 400);
+    }
+    walletCustomerId = cust.id;
+  }
+  const todayCount = await prisma.posSale.count({
       where: { pharmacyId, createdAt: { gte: todayStart } },
     });
     const saleNumber = generateSaleNumber(todayCount + 1);
@@ -241,6 +264,32 @@ export async function POST(req: Request) {
     );
   }
 
+  // Item 36: wallet payment — debit wallet (idempotent)
+  if (data.paymentMethod === 'WALLET' && walletCustomerId) {
+    const spend = await walletSpend({
+      userId: walletCustomerId,
+      amount: Number(totalAmount),
+      ctx: {
+        vertical: 'PHARMACY',
+        contextId: pharmacyId,
+        referenceType: 'POS_SALE',
+        referenceId: sale.id,
+        referenceNumber: saleNumber,
+        description: 'POS sale ' + saleNumber,
+        idempotencyKey: 'pos-' + sale.id,
+        createdBy: user.id,
+        createdByRole: user.role,
+      },
+    });
+    if (!spend.ok) {
+      console.error('[POS_WALLET_SPEND_FAILED]', sale.id, spend.error);
+      return NextResponse.json({
+        success: false,
+        error: 'Sale created but wallet debit failed: ' + spend.error,
+        saleId: sale.id,
+      }, { status: 500 });
+    }
+  }
   // Item 22: auto-open drawer on cash payment (fire-and-forget)
   if (data.paymentMethod === 'CASH') {
     logCashDrawer({
