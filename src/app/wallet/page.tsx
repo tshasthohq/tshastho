@@ -1,0 +1,167 @@
+'use client';
+
+// Customer wallet dashboard — Item 36
+import { useCallback, useEffect, useState } from 'react';
+
+interface WalletData {
+  balance: number;
+  availableBalance: number;
+  currency: string;
+  totalTopUp: number;
+  totalSpent: number;
+  totalEarnings: number;
+  totalRefunds: number;
+  isFrozen: boolean;
+  kycLevel: string;
+}
+
+interface Txn {
+  id: string;
+  type: string;
+  direction: string;
+  amount: number | string;
+  balanceAfter: number | string;
+  vertical: string;
+  description: string | null;
+  referenceNumber: string | null;
+  createdAt: string;
+}
+
+export default function WalletPage() {
+  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [txns, setTxns] = useState<Txn[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const limit = 20;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [w, t] = await Promise.all([
+        fetch('/api/wallet/me').then((r) => r.json()),
+        fetch(`/api/wallet/me/transactions?limit=${limit}&offset=${offset}`).then((r) => r.json()),
+      ]);
+      if (w?.success) setWallet(w.wallet);
+      if (t?.success) {
+        setTxns(t.items ?? []);
+        setTotal(t.total ?? 0);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [offset]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const money = (n: number | string) => 'Tk ' + Number(n ?? 0).toFixed(2);
+
+  if (loading && !wallet) {
+    return <div className="p-6 text-sm text-gray-500">Loading wallet…</div>;
+  }
+
+  const totalPages = Math.ceil(total / limit);
+  const currentPage = Math.floor(offset / limit) + 1;
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-4 p-4">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
+        <p className="text-sm text-gray-500">Prepaid balance for Tshastho services</p>
+      </div>
+
+      {wallet && (
+        <>
+          <div className={`rounded-xl border p-6 ${wallet.isFrozen ? 'border-red-300 bg-red-50' : 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-white'}`}>
+            <div className="text-sm font-medium text-gray-600">Available Balance</div>
+            <div className="mt-1 text-4xl font-bold text-gray-900">{money(wallet.balance)}</div>
+            {wallet.isFrozen && <div className="mt-2 text-sm font-medium text-red-700">Wallet Frozen — contact support</div>}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <p className="text-xs text-gray-500">Total Top-up</p>
+                <p className="font-semibold text-gray-800">{money(wallet.totalTopUp)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Total Spent</p>
+                <p className="font-semibold text-gray-800">{money(wallet.totalSpent)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Total Earnings</p>
+                <p className="font-semibold text-gray-800">{money(wallet.totalEarnings)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Refunds</p>
+                <p className="font-semibold text-gray-800">{money(wallet.totalRefunds)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">Recent Transactions</h2>
+            {txns.length === 0 ? (
+              <p className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+                No transactions yet
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Date</th>
+                      <th className="px-3 py-2 text-left">Type</th>
+                      <th className="px-3 py-2 text-left">Description</th>
+                      <th className="px-3 py-2 text-right">Amount</th>
+                      <th className="px-3 py-2 text-right">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {txns.map((t) => {
+                      const credit = t.direction === 'CREDIT';
+                      return (
+                        <tr key={t.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 text-gray-600">
+                            {new Date(t.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700">{t.type}</span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">{t.description ?? '-'}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${credit ? 'text-green-700' : 'text-red-700'}`}>
+                            {credit ? '+' : '−'} {money(t.amount)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-500">{money(t.balanceAfter)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="mt-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  disabled={offset === 0}
+                  onClick={() => setOffset(Math.max(0, offset - limit))}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50"
+                >
+                  ← Prev
+                </button>
+                <span className="text-xs text-gray-500">Page {currentPage} of {totalPages}</span>
+                <button
+                  type="button"
+                  disabled={offset + limit >= total}
+                  onClick={() => setOffset(offset + limit)}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
