@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   CheckCircle, XCircle, User, Stethoscope, Pill, LogOut,
-  Settings, BarChart3, TrendingUp, Users, CreditCard, Clock, Activity, ShieldCheck
+  Settings, BarChart3, TrendingUp, Users, CreditCard, Clock, Activity, ShieldCheck, PhoneCall
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -60,6 +60,7 @@ export default function AdminDashboard() {
     { href: "/admin/analytics", title: "Analytics", icon: TrendingUp, color: "from-emerald-500 to-green-700", desc: "Revenue & stats" },
     { href: "/admin/customers", title: "Customers", icon: Users, color: "from-orange-500 to-red-600", desc: "View all users" },
     { href: "/admin/settings", title: "Settings", icon: Settings, color: "from-blue-500 to-indigo-600", desc: "Platform config" },
+    { href: "/admin/settings/hotline", title: "Hotline", icon: PhoneCall, color: "from-emerald-500 to-teal-600", desc: "Support number" },
   ];
 
   if (loading) return <div className="p-6 text-center text-slate-500">Loading dashboard...</div>;

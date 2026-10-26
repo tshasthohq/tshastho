@@ -41,9 +41,12 @@ export async function GET(req: Request) {
     orderBy,
     take: limit,
     include: {
-      user: { select: { id: true, name: true, email: true, phone: true } },
+      user: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
       specialties: true,
       qualifications: { orderBy: { year: 'desc' }, take: 3 },
+      experiences: { orderBy: { startYear: 'desc' } },
+      awards: { orderBy: { year: 'desc' } },
+      memberships: true,
     },
   });
 
