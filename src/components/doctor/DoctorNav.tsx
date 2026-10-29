@@ -100,7 +100,6 @@ export default function DoctorNav() {
 
   return (
     <>
-      {/* Top Navigation Bar */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6 overflow-x-auto scrollbar-hide h-full">
@@ -145,7 +144,6 @@ export default function DoctorNav() {
         </div>
       </nav>
 
-      {/* Slide-out Premium Menu */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
@@ -165,7 +163,6 @@ export default function DoctorNav() {
             </div>
 
             <div className="p-4 space-y-6 pb-20">
-              {/* Profile Header */}
               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-inner overflow-hidden shrink-0">
                   {user?.avatarUrl ? (
