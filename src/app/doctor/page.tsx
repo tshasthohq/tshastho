@@ -76,7 +76,7 @@ export default function DoctorDashboard() {
     );
   }
 
-  const pending = appointments.filter(a => a.status === "PENDING");
+  const pending = appointments.filter(a => a.status === "REQUESTED");
   const confirmed = appointments.filter(a => a.status === "CONFIRMED");
   const completed = appointments.filter(a => a.status === "COMPLETED");
   const initial = doctor.user?.name?.charAt(0).toUpperCase() || "D";
@@ -102,7 +102,7 @@ export default function DoctorDashboard() {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
             <p className="text-2xl font-bold">{pending.length}</p>
-            <p className="text-[10px] text-blue-100 uppercase font-semibold">Pending</p>
+            <p className="text-[10px] text-blue-100 uppercase font-semibold">Requested</p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
             <p className="text-2xl font-bold">{confirmed.length}</p>
@@ -147,7 +147,7 @@ export default function DoctorDashboard() {
                   </div>
                 </div>
                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                  apt.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                  apt.status === 'REQUESTED' ? 'bg-yellow-100 text-yellow-700' :
                   apt.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
                   'bg-green-100 text-green-700'
                 }`}>
@@ -160,7 +160,7 @@ export default function DoctorDashboard() {
                 <div className="flex items-center gap-1"><Clock size={14} /> {apt.time}</div>
               </div>
 
-              {apt.status === "PENDING" && (
+              {apt.status === "REQUESTED" && (
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => updateStatus(apt.id, "CONFIRMED")} className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-2 rounded-lg text-xs font-semibold hover:bg-green-700 transition">
                     <Check size={14} /> Accept

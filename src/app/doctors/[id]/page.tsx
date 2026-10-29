@@ -20,6 +20,9 @@ export default function DoctorDetailPage() {
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
   const [booking, setBooking] = useState(false);
   const [message, setMessage] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"WALLET" | "CASH">("WALLET");
+  const [slotFilter, setSlotFilter] = useState<"ALL" | "ONLINE" | "IN_PERSON">("ALL");
+  const [consultMode, setConsultMode] = useState<"ONLINE" | "IN_PERSON">("IN_PERSON");
   const [reviews, setReviews] = useState<any[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -361,6 +364,35 @@ export default function DoctorDetailPage() {
         )}
       </div>
 
+      {/* Practice Locations (Chambers) */}
+      {doctor.chambers && doctor.chambers.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm mt-4">
+          <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2">
+            <Building2 className="text-blue-600" size={18} />
+            <h3 className="font-bold text-slate-800">Practice Locations</h3>
+          </div>
+          <div className="grid gap-3">
+            {doctor.chambers.map((chamber: any) => (
+              <div key={chamber.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-start gap-3">
+                <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+                  <Building2 size={20} />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    {chamber.name}
+                    {chamber.isPrimary && <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Primary</span>}
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-1">{chamber.address}, {chamber.area} {chamber.city}</p>
+                  {chamber.operatingHours && (
+                    <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1"><Clock size={12}/> {chamber.operatingHours}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Experience Section */}
       {doctor.experiences && doctor.experiences.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm mt-4">
@@ -451,6 +483,15 @@ export default function DoctorDetailPage() {
           <div className="flex items-center gap-2 mb-3">
             <Clock className="text-blue-600" size={18} />
             <h3 className="font-bold text-slate-800">Available Slots</h3>
+            
+            <div className="flex bg-slate-100 p-1 rounded-lg ml-auto">
+              {(["ALL", "ONLINE", "IN_PERSON"] as const).map(f => (
+                <button key={f} onClick={() => setSlotFilter(f)} className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${slotFilter === f ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+                  {f === "ALL" ? "All" : f === "ONLINE" ? "Online" : "Offline"}
+                </button>
+              ))}
+            </div>
+  
           </div>
 
           {slotsLoading ? (
@@ -472,7 +513,16 @@ export default function DoctorDetailPage() {
                       "bg-slate-100 border-slate-200 text-slate-400 line-through cursor-not-allowed"
                     }`}>
                     <span>{s.startTime}</span>
-                    <span className="text-[9px] opacity-75">{s.slotType}</span>
+                  <div className="flex flex-col items-center gap-0.5 w-full truncate px-1">
+                <span className={`text-[9px] font-extrabold ${selected ? "text-blue-100" : (s.slotType === 'ONLINE' ? "text-purple-600" : "text-emerald-600")}`}>
+                  {s.slotType === 'ONLINE' ? '🎥 Online' : (s.slotType === 'BOTH' ? 'Online/Offline' : '🏥 In-Person')}
+                </span>
+                {s.slotType === 'IN_PERSON' && s.chamberName && (
+                  <span className={`text-[8px] font-medium truncate w-full text-center ${selected ? "text-blue-200" : "text-slate-500"}`}>
+                    {s.chamberName}
+                  </span>
+                )}
+              </div>
                   </button>
                 );
               })}
@@ -577,9 +627,17 @@ export default function DoctorDetailPage() {
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg z-40">
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
             <div>
+              <div className="flex flex-col">
               <p className="text-xs text-slate-500">
                 {new Date(selectedDate).toLocaleDateString()} • {selectedSlot.startTime}
               </p>
+              {selectedSlot.slotType !== 'ONLINE' && consultMode !== 'ONLINE' && (
+                <div className="flex gap-2 mt-2">
+                  <button type="button" onClick={() => setPaymentMethod('WALLET')} className={`text-[10px] px-3 py-1.5 rounded-lg border-2 font-bold transition ${paymentMethod === 'WALLET' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500'}`}>Wallet</button>
+                  <button type="button" onClick={() => setPaymentMethod('CASH')} className={`text-[10px] px-3 py-1.5 rounded-lg border-2 font-bold transition ${paymentMethod === 'CASH' ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>Cash at Chamber</button>
+                </div>
+              )}
+            </div>
               <p className="text-lg font-bold text-slate-800">
                 ৳ {Number(selectedSlot.consultationFee || doctor.consultationFee || 0).toFixed(0)}
               </p>

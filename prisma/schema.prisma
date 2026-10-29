@@ -153,6 +153,7 @@ model Patient {
 }
 
 model Doctor {
+  payoutMethods PayoutMethod[]
   id                   String                   @id @default(cuid())
   userId               String                   @unique
   user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1935,6 +1936,8 @@ model DoctorPayout {
   status          PayoutRequestStatus @default(REQUESTED)
   method          String?
   accountInfo     Json?
+  payoutMethodId  String?
+  payoutMethod    PayoutMethod?       @relation(fields: [payoutMethodId], references: [id])
   requestedAt     DateTime            @default(now())
   approvedAt      DateTime?
   approvedById    String?
@@ -3709,4 +3712,22 @@ model DoctorMembership {
   organization String
   role         String?
   createdAt    DateTime @default(now())
+}
+
+
+model PayoutMethod {
+  id            String         @id @default(cuid())
+  doctorId      String
+  doctor        Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  methodType    String         // BKASH, NAGAD, ROCKET, BANK
+  accountName   String
+  accountNumber String
+  bankName      String?
+  isDefault     Boolean        @default(false)
+  status        String         @default("PENDING") // PENDING, VERIFIED, REJECTED
+  payouts       DoctorPayout[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([doctorId])
 }

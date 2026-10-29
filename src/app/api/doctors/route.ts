@@ -45,6 +45,7 @@ export async function GET(req: Request) {
       specialties: true,
       qualifications: { orderBy: { year: 'desc' }, take: 3 },
       experiences: { orderBy: { startYear: 'desc' } },
+      chambers: { where: { isActive: true }, orderBy: { isPrimary: 'desc' } },
       awards: { orderBy: { year: 'desc' } },
       memberships: true,
     },

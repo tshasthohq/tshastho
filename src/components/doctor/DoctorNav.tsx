@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { 
-  LayoutDashboard, Calendar, Video, MessageSquare, MapPin, Users, 
-  FilePlus, FileText, Award, UserPlus, Clock, Building, 
-  UserCheck, ShieldAlert, Footprints, DollarSign, CreditCard, QrCode, User, Menu, X, LogOut
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { LayoutDashboard, Calendar, Video, MessageSquare, MapPin, Users, FilePlus, FileText, Award, UserPlus, Clock, Building, UserCheck, ShieldAlert, Footprints, DollarSign, CreditCard, QrCode, User, Menu, X, LogOut, CheckCircle, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function DoctorNav() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user } = useAuth();
+  const [kycStatus, setKycStatus] = useState<string>("PENDING");
 
   const mainLinks = [
     { name: "Dashboard", href: "/doctor", icon: LayoutDashboard },
@@ -53,7 +50,7 @@ export default function DoctorNav() {
         { name: "Certificates", href: "/doctor/certificates", icon: Award },
         { name: "Follow-ups", href: "/doctor/follow-ups", icon: Clock },
         { name: "My Code", href: "/doctor/referral", icon: QrCode },
-        { name: "Profile", href: "/doctor/profile", icon: User },
+        { name: "Profile & KYC", href: "/doctor/profile", icon: User },
       ]
     }
   ];
@@ -61,6 +58,20 @@ export default function DoctorNav() {
   const displayName = user?.name?.toLowerCase().includes('doctor') 
     ? user.name 
     : `Dr. ${user?.name || 'Doctor'}`;
+
+  
+  useEffect(() => {
+    if (user) {
+      fetch('/api/doctor/update-profile', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.doctor && data.doctor.verificationStatus) {
+            setKycStatus(data.doctor.verificationStatus);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [user]);
 
   return (
     <>
@@ -141,7 +152,20 @@ export default function DoctorNav() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-lg">{displayName}</h3>
-                  <p className="text-xs text-slate-500 font-medium">Medicine Specialist</p>
+                  <p className="text-xs text-slate-500 font-medium mb-1.5">Medicine Specialist</p>
+                {kycStatus === 'VERIFIED' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
+                    <CheckCircle size={10} /> KYC Verified
+                  </span>
+                ) : kycStatus === 'REJECTED' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">
+                    <XCircle size={10} /> KYC Rejected
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
+                    <Clock size={10} /> KYC Pending
+                  </span>
+                )}
                 </div>
               </div>
 
