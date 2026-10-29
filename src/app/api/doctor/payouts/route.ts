@@ -6,6 +6,8 @@ import { getDoctorContext } from '@/lib/auth/doctor-context';
 
 export const dynamic = 'force-dynamic';
 
+export const dynamic = 'force-dynamic';
+
 async function getDoctor(user: any) {
   return await getDoctorContext(user);
 }

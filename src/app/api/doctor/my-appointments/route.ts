@@ -12,11 +12,18 @@ export async function GET() {
   }
 
   if (!['DOCTOR', 'DOCTOR_STAFF', 'SUPER_ADMIN'].includes(user.role)) {
+  if (user.role !== 'DOCTOR') {
     return NextResponse.json({ error: `You are logged in as ${user.role}, not a DOCTOR.` }, { status: 403 });
   }
 
   try {
     // 1. Fetch Doctor Profile (including User data)
+    const doctor: any = await getDoctorContext(user);
+
+    if (!doctor) {
+      return NextResponse.json({ error: 'Doctor record missing in database for this user.' }, { status: 404 });
+    }
+
     const doctor: any = await getDoctorContext(user);
 
     if (!doctor) {

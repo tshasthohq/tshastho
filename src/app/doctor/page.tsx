@@ -84,6 +84,7 @@ export default function DoctorDashboard() {
   const doctorName = doctor.user?.name?.toLowerCase().startsWith('dr') || doctor.user?.name?.toLowerCase() === 'doctor' 
     ? doctor.user?.name 
     : (user?.role === 'DOCTOR_STAFF' ? (user?.name || 'Staff Member') : `Dr. ${doctor?.user?.name || 'Doctor'}`);
+    : (user?.role === 'DOCTOR_STAFF' ? (user?.name || 'Staff Member') : `Dr. ${doctor?.user?.name || 'Doctor'}`);
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
