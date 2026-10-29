@@ -1,12 +1,13 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/guards';
 import { z } from 'zod';
 import { getDoctorContext } from '@/lib/auth/doctor-context';
 
-export const dynamic = 'force-dynamic';
 
-export const dynamic = 'force-dynamic';
+
+
 
 async function getDoctor(user: any) {
   return await getDoctorContext(user);
