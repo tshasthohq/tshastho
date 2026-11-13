@@ -1,51 +1,46 @@
 import { NextResponse } from "next/server";
-import { requireRole } from '@/lib/auth/guards';
-import { prisma } from '@/lib/prisma';
+import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth/guards";
 
 export async function POST(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
 
   try {
-        const user = await prisma.user.findFirst({ where: { email: auth.user.email }});
+    const body = await req.json();
+    const { email } = body;
+
+    if (!email) return NextResponse.json({ message: "Email required" }, { status: 400 });
+
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    let pharmacy = null;
-    if (user.parentPharmacyId) {
-      pharmacy = await prisma.pharmacy.findFirst({ where: { id: user.parentPharmacyId } });
+    let pharmacyId = user.parentPharmacyId;
+    if (!pharmacyId) {
+      const pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
+      pharmacyId = pharmacy?.id || null;
     }
-    if (!pharmacy) {
-      pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
-    }
-    if (!pharmacy) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
+    if (!pharmacyId) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
 
     const staff = await prisma.user.findMany({
       where: {
-        parentPharmacyId: pharmacy.id,
-        role: "PHARMACY_STAFF",
+        parentPharmacyId: pharmacyId,
+        role: 'PHARMACY_STAFF'
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        staffRole: true,
-        permissions: true,
-        basicSalary: true,
-        dailyRate: true,
-        commissionPercent: true,
-        salaryType: true,
-        workingDaysPerMonth: true,
-        hoursPerDay: true,
-        isActive: true,
-        isVerified: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        branchAssignments: {
+          where: { isActive: true },
+          include: {
+            branch: { select: { name: true } }
+          }
+        }
+      }
     });
 
-    return NextResponse.json({ staff, pharmacy }, { status: 200 });
+    return NextResponse.json({ success: true, staff });
   } catch (error) {
-    return NextResponse.json({ message: "Error", error: String(error) }, { status: 500 });
+    console.error("Staff list error:", error);
+    return NextResponse.json({ message: "Error fetching staff" }, { status: 500 });
   }
 }

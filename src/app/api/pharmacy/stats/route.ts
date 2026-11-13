@@ -1,89 +1,121 @@
 import { NextResponse } from "next/server";
-import { requireRole } from '@/lib/auth/guards';
-import { prisma } from '@/lib/prisma';
+import { requireRole } from "@/lib/auth/guards";
+import { prisma } from "@/lib/prisma";
+import { getDhakaDateRanges } from "@/lib/date-utils";
 
 export async function GET(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
 
   try {
-        const user = await prisma.user.findFirst({ where: { email: auth.user.email }});
+    const url = new URL(req.url);
+    const branchId = url.searchParams.get('branchId');
+    const startDateStr = url.searchParams.get('startDate');
+    const endDateStr = url.searchParams.get('endDate');
+
+    const user = await prisma.user.findFirst({ where: { id: auth.user.id } });
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    // Find pharmacy: own OR parent
     let pharmacy = null;
-    if (user.parentPharmacyId) {
-      pharmacy = await prisma.pharmacy.findFirst({ where: { id: user.parentPharmacyId } });
-    }
-    if (!pharmacy) {
-      pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
-    }
+    if (user.parentPharmacyId) pharmacy = await prisma.pharmacy.findFirst({ where: { id: user.parentPharmacyId } });
+    if (!pharmacy) pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
     if (!pharmacy) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
 
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterdayStart = new Date(todayStart);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-    const yesterdayEnd = new Date(todayStart);
+    const { todayStart, yesterdayStart, yesterdayEnd, weekStart, monthStart, yearStart, customStart, customEnd } = getDhakaDateRanges('custom', startDateStr, endDateStr);
+    const branchFilter = (branchId && branchId !== 'ALL') ? { branchId } : {};
 
-    const weekStart = new Date(todayStart);
-    const dayOfWeek = todayStart.getDay();
-    const diffToSat = dayOfWeek >= 6 ? 0 : dayOfWeek + 1;
-    weekStart.setDate(weekStart.getDate() - diffToSat);
+    const getPeriodStats = async (start: Date, end?: Date) => {
+      const whereClause = {
+        pharmacyId: pharmacy!.id,
+        ...branchFilter,
+        createdAt: { gte: start, ...(end ? { lt: end } : {}) }
+      };
 
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const allOrders = await prisma.order.findMany({
-      where: { pharmacyId: pharmacy.id, status: "DELIVERED" },
-      include: { items: true },
-    });
-
-    const calculateStats = (start: Date, end?: Date) => {
-      const filtered = allOrders.filter(o => {
-        const t = new Date(o.createdAt).getTime();
-        if (t < start.getTime()) return false;
-        if (end && t >= end.getTime()) return false;
-        return true;
+      // 🔥 POS Sales
+      const posSales = await prisma.posSale.findMany({
+        where: whereClause,
+        select: { totalAmount: true, profit: true, dueAmount: true, customerId: true }
       });
 
-      let revenue = 0, cost = 0, platformFee = 0, deliveryFee = 0, dueAmount = 0;
-      for (const order of filtered) {
-        revenue += parseFloat(order.totalAmount.toString());
-        platformFee += parseFloat(order.platformFee.toString());
-        deliveryFee += parseFloat(order.deliveryFee.toString());
-        if (order.isDue) dueAmount += parseFloat(order.dueAmount.toString());
-        for (const item of order.items) {
-          cost += parseFloat(item.costPrice.toString());
+      // 🔥 Online Orders
+      const onlineOrders = await prisma.order.findMany({
+        where: { ...whereClause, status: { not: 'CANCELLED' } },
+        select: { finalAmount: true, netProfit: true, dueAmount: true, patientId: true }
+      });
+
+      // 🔥 Returns with items and cost to calculate accurate deduction
+      const returns = await prisma.returnOrder.findMany({
+        where: { ...whereClause, status: 'PROCESSED' },
+        include: { items: { include: { medicine: { select: { purchasePrice: true } } } } }
+      });
+
+      let revenue = 0, profit = 0, dueAmount = 0;
+      const uniqueCustomers = new Set<string>();
+
+      for (const s of posSales) {
+        revenue += Number(s.totalAmount || 0);
+        profit += Number(s.profit || 0);
+        dueAmount += Number(s.dueAmount || 0);
+        if (s.customerId) uniqueCustomers.add(s.customerId);
+      }
+
+      for (const o of onlineOrders) {
+        revenue += Number(o.finalAmount || 0);
+        profit += Number(o.netProfit || 0);
+        dueAmount += Number(o.dueAmount || 0);
+        if (o.patientId) uniqueCustomers.add(o.patientId);
+      }
+
+      // 🔥 Accurate Return Deduction
+      let returnRevenue = 0;
+      let returnCost = 0;
+      
+      for (const r of returns) {
+        if (r.refundMethod !== 'NO_REFUND') { 
+          returnRevenue += Number(r.refundAmount || 0);
+          for (const item of r.items) {
+            returnCost += (Number(item.medicine.purchasePrice) * item.quantity);
+          }
         }
       }
-      const netProfit = revenue - cost - platformFee;
-      return { revenue, cost, platformFee, deliveryFee, netProfit, dueAmount, orderCount: filtered.length };
+
+      revenue -= returnRevenue;
+      // নতুন প্রফিট = পুরনো প্রফিট - (রিফান্ডের টাকা - ফেরত আসা মালের ক্রয়মূল্য)
+      profit -= (returnRevenue - returnCost);
+
+      return { 
+        revenue, cost: revenue - profit, netProfit: profit, dueAmount, 
+        orderCount: posSales.length + onlineOrders.length, 
+        customerCount: uniqueCustomers.size, platformFee: 0 
+      };
     };
 
-    const today = calculateStats(todayStart);
-    const yesterday = calculateStats(yesterdayStart, yesterdayEnd);
-    const week = calculateStats(weekStart);
-    const month = calculateStats(monthStart);
-    const total = calculateStats(new Date(0));
+    let custom = undefined;
+    if (customStart && customEnd) custom = await getPeriodStats(customStart, customEnd);
 
-    const dues = await prisma.due.findMany({ where: { pharmacyId: pharmacy.id, status: { not: "PAID" } } });
-    const pendingOrders = await prisma.order.count({ where: { pharmacyId: pharmacy.id, status: "PENDING" } });
-    const medicines = await prisma.medicine.findMany({
-      where: { pharmacyId: pharmacy.id },
-      select: { sellingPrice: true, purchasePrice: true, stock: true, expiryDate: true },
-    });
+    const [today, yesterday, week, month, year, total] = await Promise.all([
+      getPeriodStats(todayStart), getPeriodStats(yesterdayStart, yesterdayEnd),
+      getPeriodStats(weekStart), getPeriodStats(monthStart),
+      getPeriodStats(yearStart), getPeriodStats(new Date(0))
+    ]);
 
-    let totalDue = 0;
-    for (const d of dues) {
-      totalDue += parseFloat(d.amount.toString()) - parseFloat(d.paidAmount.toString());
+    const pendingOrders = await prisma.order.count({ where: { pharmacyId: pharmacy.id, status: "PENDING", ...branchFilter } });
+
+    let medicines;
+    if (branchId && branchId !== 'ALL') {
+      const branchStocks = await prisma.branchStock.findMany({ where: { branchId }, include: { medicine: true } });
+      medicines = branchStocks.map(bs => ({ sellingPrice: bs.medicine.sellingPrice, purchasePrice: bs.medicine.purchasePrice, stock: bs.quantity, expiryDate: bs.medicine.expiryDate }));
+    } else {
+      medicines = await prisma.medicine.findMany({ where: { pharmacyId: pharmacy.id }, select: { sellingPrice: true, purchasePrice: true, stock: true, expiryDate: true } });
     }
 
     let stockValue = 0, stockCost = 0;
     for (const m of medicines) {
-      stockValue += parseFloat(m.sellingPrice.toString()) * m.stock;
-      stockCost += parseFloat(m.purchasePrice.toString()) * m.stock;
+      stockValue += Number(m.sellingPrice || 0) * m.stock;
+      stockCost += Number(m.purchasePrice || 0) * m.stock;
     }
 
+    const now = new Date();
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     let expired = 0, expiringSoon = 0;
     for (const m of medicines) {
@@ -94,22 +126,12 @@ export async function GET(req: Request) {
       }
     }
 
-    const allOrdersList = await prisma.order.findMany({
-      where: { pharmacyId: pharmacy.id },
-      select: { patientId: true },
-    });
-    const customerCount = new Set(allOrdersList.map(o => o.patientId)).size;
-
     return NextResponse.json({
-      today, yesterday, week, month, total,
-      totalDue, pendingOrders,
-      medicineCount: medicines.length,
-      stockValue, stockCost,
-      expired, expiringSoon,
-      customerCount,
+      today, yesterday, week, month, year, total, custom,
+      totalDue: total.dueAmount, pendingOrders, medicineCount: medicines.length,
+      stockValue, stockCost, expired, expiringSoon, customerCount: total.customerCount,
     }, { status: 200 });
   } catch (error) {
-    console.error("Stats error:", error);
     return NextResponse.json({ message: "Error", error: String(error) }, { status: 500 });
   }
 }

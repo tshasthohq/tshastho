@@ -17,28 +17,31 @@ export default function PatientOrderDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return; // 🔥 authLoading শেষ হওয়া পর্যন্ত অপেক্ষা করবে
+    if (!user) { router.push("/login"); return; }
     if (!orderId) return;
-    const email = user?.email;
-    if (!email) { router.push("/login"); return; }
+
+    const email = user.email;
+    setLoading(true);
 
     fetch("/api/orders/my-detail", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId, email }),
     })
-    .then(res => res.json())
-    .then(data => {
-      if (data.order) setOrder(data.order);
-      setLoading(false);
-    })
-    .catch(() => setLoading(false));
-  }, [orderId]);
+      .then(res => res.json())
+      .then(data => {
+        if (data.order) setOrder(data.order);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [orderId, user, authLoading, router]); // 🔥 ডিপেন্ডেন্সি অ্যারে আপডেট করা হলো
 
   const formatDate = (d: string) => new Date(d).toLocaleString("en-GB", {
     day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
   });
 
-  if (loading) return <div className="p-6 text-center text-slate-500">Loading...</div>;
+  if (loading || authLoading) return <div className="p-6 text-center text-slate-500 font-medium animate-pulse">Loading order details...</div>;
   if (!order) return <div className="p-6 text-center text-slate-500">Order not found</div>;
 
   const finalAmount = parseFloat(order.finalAmount);

@@ -1,111 +1,104 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/guards';
-import { getPharmacyId } from '@/lib/pharmacy/branch';
-import { getNextTransferNumber } from '@/lib/pharmacy/transfer';
-import { errorResponse, ErrorCodes } from '@/lib/errors';
-import { z } from 'zod';
-
-const schema = z.object({
-  fromBranchId: z.string().min(1),
-  toBranchId: z.string().min(1),
-  reason: z.string().optional(),
-  notes: z.string().optional(),
-  items: z.array(z.object({
-    medicineId: z.string().min(1),
-    quantity: z.coerce.number().int().positive(),
-  })).min(1),
-});
 
 export async function GET(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
-  const user = auth.user!;
 
-  const pharmacyId = await getPharmacyId(user);
-  if (!pharmacyId) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Pharmacy not found', 404);
+  try {
+    const url = new URL(req.url);
+    const statusFilter = url.searchParams.get('status');
+    const branchId = url.searchParams.get('branchId');
 
-  const url = new URL(req.url);
-  const status = url.searchParams.get('status');
+    const user = await prisma.user.findUnique({ where: { id: auth.user.id } });
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-  const where: any = { pharmacyId };
-  if (status) where.status = status;
+    let pharmacy = null;
+    if (user.parentPharmacyId) pharmacy = await prisma.pharmacy.findFirst({ where: { id: user.parentPharmacyId } });
+    if (!pharmacy) pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
+    if (!pharmacy) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
 
-  const transfers = await prisma.branchTransfer.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-    include: {
-      fromBranch: { select: { id: true, name: true, code: true } },
-      toBranch: { select: { id: true, name: true, code: true } },
-      items: { include: { medicine: { select: { id: true, name: true } } } },
-    },
-  });
+    let whereClause: any = { pharmacyId: pharmacy.id };
+    if (statusFilter && statusFilter !== 'ALL') whereClause.status = statusFilter;
+    if (branchId && branchId !== 'ALL') {
+      whereClause.OR = [{ fromBranchId: branchId }, { toBranchId: branchId }];
+    }
 
-  return NextResponse.json({ success: true, transfers });
+    const transfers = await prisma.branchTransfer.findMany({
+      where: whereClause,
+      include: {
+        fromBranch: { select: { name: true } },
+        toBranch: { select: { name: true } },
+        items: { include: { medicine: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return NextResponse.json({ success: true, transfers });
+  } catch (error) {
+    return NextResponse.json({ message: "Failed to fetch transfers" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
-  const user = auth.user!;
 
   try {
     const body = await req.json();
-    const data = schema.parse(body);
+    const { fromBranchId, toBranchId, reason, notes, items } = body;
 
-    if (data.fromBranchId === data.toBranchId) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Source and destination must be different', 400);
+    if (!fromBranchId || !toBranchId || !items || items.length === 0) {
+      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
-    const pharmacyId = await getPharmacyId(user);
-    if (!pharmacyId) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Pharmacy not found', 404);
+    const user = await prisma.user.findUnique({ where: { id: auth.user.id } });
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    const [from, to] = await Promise.all([
-      prisma.pharmacyBranch.findUnique({ where: { id: data.fromBranchId } }),
-      prisma.pharmacyBranch.findUnique({ where: { id: data.toBranchId } }),
-    ]);
-    if (!from || !to || from.pharmacyId !== pharmacyId || to.pharmacyId !== pharmacyId) {
-      return errorResponse(ErrorCodes.FORBIDDEN, 'Invalid branches', 403);
+    let pharmacyId = user.parentPharmacyId;
+    if (!pharmacyId) {
+      const pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
+      pharmacyId = pharmacy?.id || null;
     }
+    if (!pharmacyId) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
 
-    const medicineIds = data.items.map(i => i.medicineId);
+    // 🔥 মেডিসিনের নাম বের করা হচ্ছে (কারণ ডেটাবেসে এটি লাগে)
+    const medicineIds = items.map((i: any) => i.medicineId);
     const medicines = await prisma.medicine.findMany({
-      where: { id: { in: medicineIds }, pharmacyId },
+      where: { id: { in: medicineIds } },
+      select: { id: true, name: true }
     });
-    if (medicines.length !== medicineIds.length) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Some medicines not found', 400);
-    }
 
-    const transferNumber = await getNextTransferNumber(pharmacyId);
+    const transferNumber = `TRF-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 100)}`;
 
     const transfer = await prisma.branchTransfer.create({
       data: {
-        transferNumber,
         pharmacyId,
-        fromBranchId: data.fromBranchId,
-        toBranchId: data.toBranchId,
-        status: "PENDING",
-        reason: data.reason || null,
-        notes: data.notes || null,
+        transferNumber,
+        fromBranchId,
+        toBranchId,
+        status: 'PENDING',
+        reason: reason || null,
+        notes: notes || null,
         requestedById: user.id,
         items: {
-          create: data.items.map(i => ({
-            medicineId: i.medicineId,
-            medicineName: medicines.find(m => m.id === i.medicineId)!.name,
-            quantity: i.quantity,
-          })),
-        },
-      },
-      include: { items: true },
+          create: items.map((i: any) => {
+            const med = medicines.find(m => m.id === i.medicineId);
+            return {
+              medicineId: i.medicineId,
+              medicineName: med?.name || "Unknown Medicine", // 🔥 নাম যুক্ত করা হলো
+              quantity: Number(i.quantity),
+              receivedQty: 0
+            };
+          })
+        }
+      }
     });
 
-    return NextResponse.json({ success: true, transfer }, { status: 201 });
+    return NextResponse.json({ success: true, transfer });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, error.issues[0].message, 400);
-    }
-    console.error('[TRANSFER_CREATE]', error);
-    return errorResponse(ErrorCodes.INTERNAL_ERROR, error.message || 'Failed to create transfer', 500);
+    console.error("Transfer create error:", error);
+    return NextResponse.json({ message: "Failed to create transfer" }, { status: 500 });
   }
 }

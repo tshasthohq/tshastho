@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       },
     });
 
-    await prisma.pharmacy.create({
+    const pharmacy = await prisma.pharmacy.create({
       data: {
         userId: user.id,
         shopName: data.shopName,
@@ -53,6 +53,21 @@ export async function POST(req: Request) {
         area: data.area,
         city: data.city,
       },
+    });
+
+    // অটোমেটিক্যালি Main Branch তৈরি করা
+    await prisma.pharmacyBranch.create({
+      data: {
+        pharmacyId: pharmacy.id,
+        name: `${data.shopName} (Main)`,
+        code: "MAIN",
+        address: data.address,
+        area: data.area,
+        city: data.city,
+        phone: data.phone || null,
+        isMainBranch: true,
+        isActive: true,
+      }
     });
 
     return NextResponse.json({ success: true, message: 'Pharmacy registration submitted for approval', userId: user.id }, { status: 201 });

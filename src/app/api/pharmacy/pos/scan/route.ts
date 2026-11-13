@@ -17,6 +17,8 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const barcode = url.searchParams.get('barcode');
+  const branchId = url.searchParams.get('branchId');
+
   if (!barcode) return errorResponse(ErrorCodes.VALIDATION_ERROR, 'barcode required', 400);
 
   const bc = await prisma.medicineBarcode.findUnique({
@@ -28,6 +30,24 @@ export async function GET(req: Request) {
     return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Barcode not found', 404);
   }
 
+  let currentStock = 0;
+
+  if (branchId === "ALL") {
+     // Sum all branch stocks for this medicine
+     const allStocks = await prisma.branchStock.aggregate({
+       where: { medicineId: bc.medicineId },
+       _sum: { quantity: true }
+     });
+     currentStock = allStocks._sum.quantity || 0;
+  } else if (branchId) {
+    const branchStock = await prisma.branchStock.findUnique({
+      where: { branchId_medicineId: { branchId, medicineId: bc.medicineId } }
+    });
+    currentStock = branchStock ? branchStock.quantity : 0;
+  } else {
+    currentStock = bc.medicine.stock; // Fallback
+  }
+
   return NextResponse.json({
     success: true,
     medicine: {
@@ -36,7 +56,7 @@ export async function GET(req: Request) {
       brand: bc.medicine.brand,
       sellingPrice: bc.medicine.sellingPrice,
       purchasePrice: bc.medicine.purchasePrice,
-      stock: bc.medicine.stock,
+      stock: currentStock,
     },
   });
 }

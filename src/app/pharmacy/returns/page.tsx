@@ -2,176 +2,208 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useBranch } from "@/context/BranchContext";
 import Link from "next/link";
-import { RotateCcw, Plus, CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
+import { 
+  RotateCcw, Plus, CheckCircle, Clock, XCircle, Search, 
+  ArrowLeft, RefreshCw, FileText
+} from "lucide-react";
 
 export default function ReturnsPage() {
   const { user } = useAuth();
+  const { activeBranch } = useBranch();
   const [returns, setReturns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (typeFilter) params.set("type", typeFilter);
-    if (statusFilter) params.set("status", statusFilter);
-    const res = await fetch(`/api/pharmacy/returns?${params}`, { credentials: "include" });
-    const data = await res.json();
-    setReturns(data.returns || []);
+    try {
+      const params = new URLSearchParams();
+      if (typeFilter) params.set("type", typeFilter);
+      if (statusFilter) params.set("status", statusFilter);
+      
+      params.set("branchId", activeBranch?.id || "ALL");
+      const res = await fetch(`/api/pharmacy/returns?${params}`, { credentials: "include" });
+      const data = await res.json();
+      setReturns(data.returns || []);
+    } catch (e) { console.error(e); }
     setLoading(false);
   };
 
-  useEffect(() => { if (user) load(); }, [user, typeFilter, statusFilter]);
+  useEffect(() => { if (user) load(); }, [user, typeFilter, statusFilter, activeBranch?.id]);
 
   const handleApprove = async (id: string) => {
     if (!confirm("Approve this return?")) return;
-    const res = await fetch(`/api/pharmacy/returns/${id}/approve`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (res.ok) load();
-    else alert("Failed to approve");
+    try {
+      const res = await fetch(`/api/pharmacy/returns/${id}/approve`, { method: "POST", credentials: "include" });
+      if (res.ok) load(); else alert("Failed to approve");
+    } catch { alert("Network error"); }
   };
 
   const handleProcess = async (id: string) => {
     if (!confirm("Process this return? Stock and ledger will be updated.")) return;
     setProcessing(id);
-    const res = await fetch(`/api/pharmacy/returns/${id}/process`, {
-      method: "POST",
-      credentials: "include",
-    });
-    setProcessing(null);
-    if (res.ok) load();
-    else {
+    try {
+      const res = await fetch(`/api/pharmacy/returns/${id}/process`, { method: "POST", credentials: "include" });
       const data = await res.json();
-      alert(data.message || "Failed to process");
-    }
+      if (res.ok) load(); 
+      else alert(data.message || "Failed to process");
+    } catch { alert("Network error"); }
+    setProcessing(null);
   };
 
-  const typeColor = (t: string) => {
+  const getTypeStyle = (t: string) => {
     switch (t) {
-      case "CUSTOMER_RETURN": return "bg-blue-100 text-blue-700";
-      case "SUPPLIER_RETURN": return "bg-purple-100 text-purple-700";
-      case "DAMAGE_WRITE_OFF": return "bg-red-100 text-red-700";
-      case "EXPIRED_WRITE_OFF": return "bg-orange-100 text-orange-700";
-      default: return "bg-slate-100 text-slate-700";
+      case "CUSTOMER_RETURN": return "bg-blue-50 text-blue-700 border-blue-200";
+      case "SUPPLIER_RETURN": return "bg-purple-50 text-purple-700 border-purple-200";
+      case "DAMAGE_WRITE_OFF": return "bg-red-50 text-red-700 border-red-200";
+      case "EXPIRED_WRITE_OFF": return "bg-orange-50 text-orange-700 border-orange-200";
+      default: return "bg-slate-50 text-slate-700 border-slate-200";
     }
   };
 
-  const statusColor = (s: string) => {
+  const getStatusStyle = (s: string) => {
     switch (s) {
-      case "PROCESSED": return "bg-green-100 text-green-700";
-      case "APPROVED": return "bg-blue-100 text-blue-700";
-      case "REJECTED": return "bg-red-100 text-red-700";
-      default: return "bg-amber-100 text-amber-700";
+      case "PROCESSED": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "APPROVED": return "bg-blue-100 text-blue-700 border-blue-200";
+      case "REJECTED": return "bg-red-100 text-red-700 border-red-200";
+      default: return "bg-amber-100 text-amber-700 border-amber-200";
     }
   };
-// CONTINUES
+
+  const filteredReturns = returns.filter(r => 
+    !search || 
+    r.returnNumber?.toLowerCase().includes(search.toLowerCase()) ||
+    r.customerName?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-24">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <RotateCcw className="text-blue-600" size={22} />
-          <h1 className="text-xl font-bold text-slate-800">Returns</h1>
+    <div className="min-h-screen bg-[#F8FAFC] pb-24">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-4 py-3 shadow-sm">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/pharmacy" className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <ArrowLeft size={20} className="text-slate-600" />
+            </Link>
+            <div>
+              <h1 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <RotateCcw className="text-indigo-600" size={20}/> Returns & Refunds
+              </h1>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Manage customer returns & damages</p>
+            </div>
+          </div>
+          <Link href="/pharmacy/returns/new" className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 transition-all">
+            <Plus size={16} /> New Return
+          </Link>
         </div>
-        <Link href="/pharmacy/returns/new"
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium">
-          <Plus size={16} /> New Return
-        </Link>
-      </div>
+      </header>
 
-      {/* Type filter */}
-      <div className="flex gap-2 mb-3 overflow-x-auto">
-        {["", "CUSTOMER_RETURN", "SUPPLIER_RETURN", "DAMAGE_WRITE_OFF", "EXPIRED_WRITE_OFF"].map((t) => (
-          <button key={t || "all"} onClick={() => setTypeFilter(t)}
-            className={`px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap ${
-              typeFilter === t ? "bg-blue-600 text-white" : "bg-white border border-slate-200"
-            }`}>
-            {t ? t.replace(/_/g, " ") : "All Types"}
-          </button>
-        ))}
-      </div>
+      <div className="max-w-5xl mx-auto p-4 space-y-5 mt-2">
+        
+        {/* Filters & Search */}
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input 
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by return number or customer..." 
+              className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" 
+            />
+          </div>
 
-      {/* Status filter */}
-      <div className="flex gap-2 mb-4">
-        {["", "PENDING", "APPROVED", "PROCESSED"].map((s) => (
-          <button key={s || "all"} onClick={() => setStatusFilter(s)}
-            className={`px-3 py-2 rounded-xl text-xs font-medium ${
-              statusFilter === s ? "bg-slate-800 text-white" : "bg-white border border-slate-200"
-            }`}>
-            {s || "All Status"}
-          </button>
-        ))}
-      </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+            {["", "CUSTOMER_RETURN", "SUPPLIER_RETURN", "DAMAGE_WRITE_OFF", "EXPIRED_WRITE_OFF"].map((t) => (
+              <button key={t} onClick={() => setTypeFilter(t)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-all ${
+                  typeFilter === t ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}>
+                {t ? t.replace(/_/g, " ") : "All Types"}
+              </button>
+            ))}
+          </div>
 
-      {loading ? (
-        <div className="text-center text-slate-500 p-8">Loading...</div>
-      ) : returns.length === 0 ? (
-        <div className="bg-white p-8 text-center rounded-2xl text-slate-500">
-          No returns found.
+          <div className="flex gap-2">
+            {["", "PENDING", "APPROVED", "PROCESSED"].map((s) => (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                  statusFilter === s ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}>
+                {s || "All Status"}
+              </button>
+            ))}
+          </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {returns.map((r) => (
-            <div key={r.id} className="bg-white p-4 rounded-2xl border border-slate-100">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <div className="font-mono text-xs text-slate-500">{r.returnNumber}</div>
-                  <div className="flex gap-2 mt-1">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${typeColor(r.type)}`}>
-                      {r.type.replace(/_/g, " ")}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor(r.status)}`}>
-                      {r.status}
-                    </span>
+
+        {/* List */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-40 bg-slate-200 animate-pulse rounded-3xl"></div>)}
+          </div>
+        ) : filteredReturns.length === 0 ? (
+          <div className="bg-white p-12 text-center rounded-3xl border border-slate-100 shadow-sm mt-4">
+            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <RotateCcw className="text-slate-300" size={32} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">No returns found</h3>
+            <p className="text-slate-500 text-sm">Create a new return to get started.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredReturns.map((r) => (
+              <div key={r.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-mono font-bold text-slate-800 text-base">{r.returnNumber}</h3>
+                    <p className="text-xs text-slate-500 mt-1">{new Date(r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                   </div>
-                  {r.customerName && <div className="text-xs text-slate-600 mt-1">Customer: {r.customerName}</div>}
-                  {r.supplier && <div className="text-xs text-slate-600 mt-1">Supplier: {r.supplier.name}</div>}
+                  <span className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(r.status)}`}>
+                    {r.status}
+                  </span>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-slate-800">৳ {Number(r.totalAmount).toFixed(2)}</div>
-                  {Number(r.refundAmount) > 0 && (
-                    <div className="text-xs text-red-600">Refund: ৳ {Number(r.refundAmount).toFixed(2)}</div>
+
+                <div className="flex flex-wrap gap-2">
+                  <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${getTypeStyle(r.type)}`}>
+                    {r.type.replace(/_/g, " ")}
+                  </span>
+                  <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                    {r.items?.length || 0} Items
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1.5">
+                  {r.customerName && <div className="flex justify-between"><span className="text-slate-500">Customer:</span> <span className="font-semibold text-slate-800">{r.customerName}</span></div>}
+                  <div className="flex justify-between"><span className="text-slate-500">Total Refund:</span> <span className="font-bold text-indigo-600">৳{Number(r.totalAmount).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Method:</span> <span className="font-semibold text-slate-800">{r.refundMethod}</span></div>
+                </div>
+
+                <div className="mt-auto pt-2">
+                  {r.status === "PENDING" && (
+                    <button onClick={() => handleApprove(r.id)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-md shadow-blue-500/20 flex items-center justify-center gap-1.5">
+                      <CheckCircle size={14} /> Approve Return
+                    </button>
+                  )}
+                  {r.status === "APPROVED" && (
+                    <button onClick={() => handleProcess(r.id)} disabled={processing === r.id} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 disabled:opacity-50">
+                      {processing === r.id ? <RefreshCw size={14} className="animate-spin" /> : <FileText size={14} />}
+                      {processing === r.id ? "Processing..." : (r.type === 'SUPPLIER_RETURN' ? "Process (Remove Stock)" : "Process (Add Stock)")}
+                    </button>
+                  )}
+                  {r.status === "PROCESSED" && (
+                    <div className="w-full py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold text-center border border-emerald-100 flex items-center justify-center gap-1.5">
+                      <CheckCircle size={14} /> {r.type === 'SUPPLIER_RETURN' ? "Processed & Removed" : "Processed & Restocked"}
+                    </div>
                   )}
                 </div>
               </div>
-
-              <div className="text-xs text-slate-500 mb-2">
-                {r.items?.length || 0} items • {new Date(r.createdAt).toLocaleDateString()}
-              </div>
-
-              {r.status === "PENDING" && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleApprove(r.id)}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-1">
-                    <CheckCircle size={14} /> Approve
-                  </button>
-                </div>
-              )}
-              {r.status === "APPROVED" && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleProcess(r.id)} disabled={processing === r.id}
-                    className="flex-1 bg-green-600 text-white py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50">
-                    {processing === r.id ? "Processing..." : (
-                      <><CheckCircle size={14} /> Process (Update Stock)</>
-                    )}
-                  </button>
-                </div>
-              )}
-              {r.status === "PROCESSED" && (
-                <div className="text-xs text-slate-500 flex items-center gap-1">
-                  <CheckCircle size={12} className="text-green-600" />
-                  Processed by {r.processedBy?.name || "—"} on {new Date(r.processedAt).toLocaleDateString()}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

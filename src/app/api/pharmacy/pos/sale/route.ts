@@ -7,10 +7,10 @@ import { createVatInvoice } from '@/lib/tax/vat';
 import { logAudit } from '@/lib/pharmacy/audit';
 import { errorResponse, ErrorCodes } from '@/lib/errors';
 import { z } from 'zod';
-import { recordPosSale } from "@/lib/pharmacy/ledger";
+import { recordPosSale } from '@/lib/pharmacy/ledger';
 import { logCashDrawer } from '@/lib/pharmacy/cash-drawer';
 import { walletSpend } from '@/lib/wallet';
-import { earnPoints } from "@/lib/pharmacy/loyalty";
+import { earnPoints } from '@/lib/pharmacy/loyalty';
 import { calcStaffCommission } from '@/lib/pharmacy/staff-commission';
 
 function generateSaleNumber(seq: number) {
@@ -22,6 +22,7 @@ function generateSaleNumber(seq: number) {
 }
 
 const schema = z.object({
+  branchId: z.string().optional(), // 🔥 Branch ID added here
   items: z.array(z.object({
     medicineId: z.string().min(1),
     quantity: z.coerce.number().int().positive(),
@@ -31,7 +32,7 @@ const schema = z.object({
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   discountAmount: z.coerce.number().min(0).default(0),
-  paymentMethod: z.enum(['CASH', 'CARD', 'BKASH', 'NAGAD', 'MIXED', 'DUE', "WALLET"]).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'CARD', 'BKASH', 'NAGAD', 'MIXED', 'DUE', 'WALLET']).default('CASH'),
   splits: z.array(z.object({
     method: z.enum(['CASH', 'BKASH', 'NAGAD', 'CARD', 'CREDIT', 'DUE']),
     amount: z.coerce.number().min(0),
@@ -63,7 +64,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = schema.parse(body);
 
-    // Resolve pharmacyId
     let pharmacyId = user.parentPharmacyId;
     if (user.role === 'PHARMACY_OWNER') {
       const pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
@@ -71,13 +71,11 @@ export async function POST(req: Request) {
     }
     if (!pharmacyId) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Pharmacy not found', 404);
 
-    // Get open shift for this staff
     const openShift = await prisma.posShift.findFirst({
       where: { pharmacyId, staffId: user.id, status: 'OPEN' },
       orderBy: { openedAt: 'desc' },
     });
 
-    // Verify medicines & get prices
     const medicineIds = data.items.map(i => i.medicineId);
     const medicines = await prisma.medicine.findMany({
       where: { id: { in: medicineIds }, pharmacyId },
@@ -87,13 +85,11 @@ export async function POST(req: Request) {
       return errorResponse(ErrorCodes.VALIDATION_ERROR, 'One or more medicines not found', 400);
     }
 
-    // Build items with calculated subtotals & profit
     const itemsData = data.items.map(item => {
       const med = medicines.find(m => m.id === item.medicineId)!;
-      // SECURITY FIX (P1-11): Ignore client unitPrice, use server-side DB price
-      const actualUnitPrice = Number((med as any).sellingPrice || (med as any).price || 0);
+      const actualUnitPrice = Number(med.sellingPrice || 0);
       const subtotal = (actualUnitPrice * item.quantity) - item.discount;
-      const purchasePrice = Number(med.purchasePrice);
+      const purchasePrice = Number(med.purchasePrice || 0);
       const profit = subtotal - (purchasePrice * item.quantity);
       return {
         medicineId: item.medicineId,
@@ -109,7 +105,6 @@ export async function POST(req: Request) {
 
     const subtotal = itemsData.reduce((s, i) => s + i.subtotal, 0);
 
-    // Loyalty redemption
     let loyaltyDiscount = 0;
     let linkedUser: any = null;
     if (data.loyaltyPointsToRedeem > 0 && data.customerPhone) {
@@ -126,44 +121,39 @@ export async function POST(req: Request) {
         }
       }
     }
+    
     const totalAmount = Math.max(0, subtotal - data.discountAmount - loyaltyDiscount);
     const totalProfit = itemsData.reduce((s, i) => s + i.profit, 0) - data.discountAmount;
-
     const paidAmount = data.paymentMethod === 'DUE' ? 0 : (data.paidAmount || totalAmount);
     const changeAmount = Math.max(0, paidAmount - totalAmount);
     const dueAmount = Math.max(0, totalAmount - paidAmount);
 
-    // Get next sale number
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    // Item 36: WALLET payment — resolve customer + check balance first
-  let walletCustomerId: string | null = null;
-  if (data.paymentMethod === 'WALLET') {
-    if (!data.customerPhone) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Customer phone required for wallet payment', 400);
+
+    let walletCustomerId: string | null = null;
+    if (data.paymentMethod === 'WALLET') {
+      if (!data.customerPhone) {
+        return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Customer phone required for wallet payment', 400);
+      }
+      const cust = await prisma.user.findFirst({
+        where: { phone: data.customerPhone },
+        select: { id: true, walletAccount: { select: { balance: true, isFrozen: true } } },
+      });
+      if (!cust) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'No wallet account for this phone', 404);
+      if (cust.walletAccount?.isFrozen) return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Wallet frozen', 400);
+      const bal = Number(cust.walletAccount?.balance ?? 0);
+      if (bal < Number(totalAmount)) {
+        return errorResponse(ErrorCodes.VALIDATION_ERROR, `Insufficient wallet balance. Available: ৳${bal.toFixed(2)}, required: ৳${Number(totalAmount).toFixed(2)}`, 400);
+      }
+      walletCustomerId = cust.id;
     }
-    const cust = await prisma.user.findFirst({
-      where: { phone: data.customerPhone },
-      select: { id: true, walletAccount: { select: { balance: true, isFrozen: true } } },
-    });
-    if (!cust) {
-      return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'No wallet account for this phone', 404);
-    }
-    if (cust.walletAccount?.isFrozen) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Wallet frozen', 400);
-    }
-    const bal = Number(cust.walletAccount?.balance ?? 0);
-    if (bal < Number(totalAmount)) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, `Insufficient wallet balance. Available: ${bal.toFixed(2)}, required: ${Number(totalAmount).toFixed(2)}`, 400);
-    }
-    walletCustomerId = cust.id;
-  }
-  const todayCount = await prisma.posSale.count({
+
+    const todayCount = await prisma.posSale.count({
       where: { pharmacyId, createdAt: { gte: todayStart } },
     });
     const saleNumber = generateSaleNumber(todayCount + 1);
 
-    // Handle customer (optional)
     let customerId: string | null = null;
     if (data.customerPhone) {
       const existing = await prisma.posCustomer.findFirst({
@@ -172,22 +162,12 @@ export async function POST(req: Request) {
       if (existing) {
         await prisma.posCustomer.update({
           where: { id: existing.id },
-          data: {
-            totalSpent: { increment: totalAmount },
-            visitCount: { increment: 1 },
-            name: data.customerName || existing.name,
-          },
+          data: { totalSpent: { increment: totalAmount }, visitCount: { increment: 1 }, name: data.customerName || existing.name },
         });
         customerId = existing.id;
       } else {
         const created = await prisma.posCustomer.create({
-          data: {
-            pharmacyId,
-            name: data.customerName || null,
-            phone: data.customerPhone,
-            totalSpent: totalAmount,
-            visitCount: 1,
-          },
+          data: { pharmacyId, name: data.customerName || null, phone: data.customerPhone, totalSpent: totalAmount, visitCount: 1 },
         });
         customerId = created.id;
       }
@@ -199,6 +179,7 @@ export async function POST(req: Request) {
         data: {
           saleNumber,
           pharmacyId,
+          branchId: data.branchId || null, // 🔥 Save branchId
           customerId,
           customerName: data.customerName || null,
           customerPhone: data.customerPhone || null,
@@ -239,70 +220,77 @@ export async function POST(req: Request) {
           reason: `POS Sale ${saleNumber}`,
           userId: user.id,
         });
+
+        // 🔥 Deduct Branch Stock if branchId is provided
+        if (data.branchId) {
+          await tx.branchStock.updateMany({
+            where: { branchId: data.branchId, medicineId: item.medicineId },
+            data: { quantity: { decrement: item.quantity } }
+          });
+        }
       }
 
-      // Update shift totals if open
       if (openShift) {
-        await tx.posShift.update({
-          where: { id: openShift.id },
-          data: {
-            totalSales: { increment: totalAmount },
-            totalCash: data.paymentMethod === 'CASH' ? { increment: totalAmount } : undefined,
-            totalCard: data.paymentMethod === 'CARD' ? { increment: totalAmount } : undefined,
-            totalDigital: ['BKASH', 'NAGAD'].includes(data.paymentMethod) ? { increment: totalAmount } : undefined,
-            totalDue: dueAmount > 0 ? { increment: dueAmount } : undefined,
-            saleCount: { increment: 1 },
-          },
-        });
+        try {
+          await tx.posShift.update({
+            where: { id: openShift.id },
+            data: {
+              totalSales: { increment: totalAmount },
+              totalCash: data.paymentMethod === 'CASH' ? { increment: totalAmount } : undefined,
+              totalCard: data.paymentMethod === 'CARD' ? { increment: totalAmount } : undefined,
+              totalDigital: ['BKASH', 'NAGAD'].includes(data.paymentMethod) ? { increment: totalAmount } : undefined,
+              totalDue: dueAmount > 0 ? { increment: dueAmount } : undefined,
+              saleCount: { increment: 1 },
+            },
+          });
+        } catch (shiftError) {
+          console.error("Failed to update shift totals (timeout), but sale succeeded:", shiftError);
+        }
       }
 
       return createdSale;
-    });
+    }, { timeout: 20000 });
 
-  // Item 15: auto-trigger staff commission (fire-and-forget)
-  if (sale.staffId) {
-    calcStaffCommission(sale.id).catch((e) =>
-      console.error('[AUTO_COMMISSION_TRIGGER]', e),
-    );
-  }
-
-  // Item 36: wallet payment — debit wallet (idempotent)
-  if (data.paymentMethod === 'WALLET' && walletCustomerId) {
-    const spend = await walletSpend({
-      userId: walletCustomerId,
-      amount: Number(totalAmount),
-      ctx: {
-        vertical: 'PHARMACY',
-        contextId: pharmacyId,
-        referenceType: 'POS_SALE',
-        referenceId: sale.id,
-        referenceNumber: saleNumber,
-        description: 'POS sale ' + saleNumber,
-        idempotencyKey: 'pos-' + sale.id,
-        createdBy: user.id,
-        createdByRole: user.role,
-      },
-    });
-    if (!spend.ok) {
-      console.error('[POS_WALLET_SPEND_FAILED]', sale.id, spend.error);
-      return NextResponse.json({
-        success: false,
-        error: 'Sale created but wallet debit failed: ' + spend.error,
-        saleId: sale.id,
-      }, { status: 500 });
+    if (sale.staffId) {
+      calcStaffCommission(sale.id).catch((e) => console.error('[AUTO_COMMISSION_TRIGGER]', e));
     }
-  }
-  // Item 22: auto-open drawer on cash payment (fire-and-forget)
-  if (data.paymentMethod === 'CASH') {
-    logCashDrawer({
-      pharmacyId,
-      userId: user.id,
-      reason: 'SALE',
-      amount: totalAmount,
-      posSaleId: sale.id,
-      shiftId: openShift?.id ?? undefined,
-    }).catch((e) => console.error('[DRAWER_LOG]', e));
-  }
+
+    if (data.paymentMethod === 'WALLET' && walletCustomerId) {
+      const spend = await walletSpend({
+        userId: walletCustomerId,
+        amount: Number(totalAmount),
+        ctx: {
+          vertical: 'PHARMACY',
+          contextId: pharmacyId,
+          referenceType: 'POS_SALE',
+          referenceId: sale.id,
+          referenceNumber: saleNumber,
+          description: 'POS sale ' + saleNumber,
+          idempotencyKey: 'pos-' + sale.id,
+          createdBy: user.id,
+          createdByRole: user.role,
+        },
+      });
+      if (!spend.ok) {
+        console.error('[POS_WALLET_SPEND_FAILED]', sale.id, spend.error);
+        return NextResponse.json({
+          success: false,
+          error: 'Sale created but wallet debit failed: ' + spend.error,
+          saleId: sale.id,
+        }, { status: 500 });
+      }
+    }
+
+    if (data.paymentMethod === 'CASH') {
+      logCashDrawer({
+        pharmacyId,
+        userId: user.id,
+        reason: 'SALE',
+        amount: totalAmount,
+        posSaleId: sale.id,
+        shiftId: openShift?.id ?? undefined,
+      }).catch(e => console.error('[DRAWER_LOG]', e));
+    }
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useBranch } from "@/context/BranchContext";
+import { QRCodeSVG } from "qrcode.react";
+import Link from "next/link";
 import { useInventorySync } from "@/hooks/useInventorySync";
 import { submitPosSale } from "@/lib/offline/sale-submit";
 import VoiceInputButton from "@/components/pharmacy/VoiceInputButton";
@@ -11,7 +14,7 @@ import SplitPaymentModal from "@/components/pharmacy/SplitPaymentModal";
 import OfflineIndicator from "@/components/pharmacy/OfflineIndicator";
 import BarcodeScannerListener from "@/components/pharmacy/BarcodeScannerListener";
 import { 
-  Search, Plus, Minus, Trash2, ShoppingCart, X, Printer, 
+  ArrowLeft, Search, Plus, Minus, Trash2, ShoppingCart, X, Printer, 
   Wallet, CheckCircle, Barcode, CreditCard, UserPlus, AlertTriangle
 } from "lucide-react";
 
@@ -28,6 +31,7 @@ interface CartItem {
 
 export default function POSPage() {
   const { user } = useAuth();
+  const { activeBranch } = useBranch();
   const { tick: stockSyncTick } = useInventorySync();
   
   const [search, setSearch] = useState("");
@@ -36,6 +40,7 @@ export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   
   const [shift, setShift] = useState<any>(null);
+  const [pharmacy, setPharmacy] = useState<any>(null);
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [openingCash, setOpeningCash] = useState(0);
   const [closingCash, setClosingCash] = useState(0);
@@ -47,6 +52,7 @@ export default function POSPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [paidAmount, setPaidAmount] = useState(0);
+  const [heldSale, setHeldSale] = useState<any>(null);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   
@@ -64,18 +70,35 @@ export default function POSPage() {
   const [showBarcode, setShowBarcode] = useState(false);
 
   const loadShift = async () => {
-    const res = await fetch("/api/pharmacy/pos/shift/current", { credentials: "include" });
-    const data = await res.json();
-    setShift(data.shift || null);
+    try {
+      const res = await fetch("/api/pharmacy/pos/shift/current", { credentials: "include" });
+      if (!res.ok) { setShift(null); return; }
+      const text = await res.text();
+      if (!text) { setShift(null); return; }
+      const data = JSON.parse(text);
+      setShift(data.shift || null);
+    } catch (e) {
+      console.error("Shift load error", e);
+      setShift(null);
+    }
   };
 
-  useEffect(() => { if (user) loadShift(); }, [user, stockSyncTick]);
+  useEffect(() => { 
+    if (user) {
+      loadShift(); 
+      // Fetch pharmacy profile for receipt header
+      fetch("/api/pharmacy/profile", { credentials: "include" })
+        .then(res => res.json())
+        .then(data => { if (data.pharmacy) setPharmacy(data.pharmacy); })
+        .catch(console.error);
+    }
+  }, [user, stockSyncTick]);
 
   useEffect(() => {
     const onScan = (e: Event) => {
       const code = (e as CustomEvent).detail?.code;
       if (!code) return;
-      fetch(`/api/pharmacy/pos/scan?barcode=${encodeURIComponent(code)}`, { credentials: 'include' })
+      fetch(`/api/pharmacy/pos/scan?barcode=${encodeURIComponent(code)}&branchId=${activeBranch?.id}`, { credentials: 'include' })
         .then((r) => r.json())
         .then((d) => { if (d.success && d.medicine) addToCart(d.medicine); })
         .catch((err) => console.error('[SCAN]', err));
@@ -89,7 +112,7 @@ export default function POSPage() {
     if (search.length < 2) { setResults([]); return; }
     setSearching(true);
     searchTimer.current = setTimeout(async () => {
-      const res = await fetch(`/api/pharmacy/pos/medicine-search?q=${encodeURIComponent(search)}`, { credentials: "include" });
+      const res = await fetch(`/api/pharmacy/pos/medicine-search?q=${encodeURIComponent(search)}&branchId=${activeBranch?.id}`, { credentials: "include" });
       const data = await res.json();
       setResults(data.medicines || []);
       setSearching(false);
@@ -115,7 +138,7 @@ export default function POSPage() {
   const handleBarcodeScan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
-    const res = await fetch(`/api/pharmacy/pos/scan?barcode=${encodeURIComponent(barcodeInput.trim())}`, { credentials: "include" });
+    const res = await fetch(`/api/pharmacy/pos/scan?barcode=${encodeURIComponent(barcodeInput.trim())}&branchId=${activeBranch?.id}`, { credentials: "include" });
     if (res.ok) {
       const data = await res.json();
       addToCart(data.medicine);
@@ -190,6 +213,7 @@ export default function POSPage() {
     if (warnings.length > 0) { setInteractionWarnings(warnings); setShowInteractionWarning(true); setSaving(false); return; }
     
     const res = await submitPosSale({
+      branchId: activeBranch?.id || undefined,
       items: cart.map(c => ({ medicineId: c.medicineId, quantity: c.quantity, unitPrice: c.unitPrice, discount: c.discount })),
       customerName: customerName || undefined, customerPhone: customerPhone || undefined,
       discountAmount, paymentMethod, paidAmount: paymentMethod === "DUE" ? 0 : (paidAmount || total),
@@ -198,7 +222,7 @@ export default function POSPage() {
     const data: any = await res.json();
     setSaving(false);
     if (res.ok) {
-      setShowReceipt(data.receipt); setCart([]); setCustomerName(""); setCustomerPhone("");
+      setShowReceipt({ ...data.receipt, customerName, customerPhone }); setCart([]); setCustomerName(""); setCustomerPhone("");
       setDiscountAmount(0); setPaidAmount(0); setNotes(""); setPaymentMethod("CASH");
       setLoyaltyInfo(null); setLoyaltyPoints(0); setShowPayment(false); loadShift();
     } else { alert(data.message || "Sale failed"); }
@@ -208,6 +232,7 @@ export default function POSPage() {
     if (cart.length === 0) return;
     setSaving(true);
     const res = await submitPosSale({
+      branchId: activeBranch?.id || undefined,
       items: cart.map(c => ({ medicineId: c.medicineId, quantity: c.quantity, unitPrice: c.unitPrice, discount: c.discount })),
       customerName: customerName || undefined, customerPhone: customerPhone || undefined,
       discountAmount, paymentMethod: "MIXED", paidAmount: splits.filter(s => s.method !== "CREDIT" && s.method !== "DUE").reduce((a, b) => a + b.amount, 0),
@@ -216,7 +241,7 @@ export default function POSPage() {
     const data: any = await res.json();
     setSaving(false);
     if (res.ok) {
-      setShowReceipt(data.receipt); setCart([]); setCustomerName(""); setCustomerPhone("");
+      setShowReceipt({ ...data.receipt, customerName, customerPhone }); setCart([]); setCustomerName(""); setCustomerPhone("");
       setDiscountAmount(0); setPaidAmount(0); setNotes(""); setShowSplitModal(false); setShowPayment(false); loadShift();
     } else { alert(data.message || "Sale failed"); }
   };
@@ -243,14 +268,87 @@ export default function POSPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-24">
+    <div className="min-h-screen bg-[#F8FAFC] pb-24 print:bg-white print:pb-0">
+      <style jsx global>{`
+        @media print {
+          @page { margin: 0; }
+          html, body { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            background: white !important; 
+            overflow: hidden !important; 
+            height: 100% !important; 
+          }
+          
+          /* Hide everything by default */
+          body * { visibility: hidden; }
+          
+          /* Collapse the main page layout so it doesn't create extra pages */
+          .min-h-screen { 
+            min-height: 0 !important; 
+            height: 0 !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            overflow: hidden !important;
+          }
+          
+          /* Make the modal wrapper visible and position it at the top */
+          .fixed.inset-0 {
+            visibility: visible !important;
+            position: absolute !important; /* Fixed এর বদলে absolute ব্যবহার করা হলো */
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            display: block !important;
+            z-index: 9999 !important;
+          }
+          
+          /* Reset the inner modal card */
+          .fixed.inset-0 > div {
+            visibility: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+          }
+          
+          /* Show the receipt */
+          #print-receipt, #print-receipt * { visibility: visible !important; }
+          
+          /* Format the receipt for printing */
+          #print-receipt {
+            position: static !important; /* fixed বা absolute নয়, একদম নরমাল ফ্লো-তে থাকবে */
+            margin: 0 auto !important;
+            width: 100% !important;
+            max-width: 80mm !important;
+            padding: 10px !important;
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          
+          /* Hide print buttons */
+          .no-print, .print\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       {/* Top Bar */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-4 py-3 shadow-sm">
+      <div className="print:hidden bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-4 py-3 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-              <ShoppingCart className="text-indigo-600" size={20} />
-            </div>
+            <Link href="/pharmacy" className="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center transition-colors">
+              <ArrowLeft className="text-slate-600" size={20} />
+            </Link>
             <div>
               <h1 className="font-bold text-slate-800 text-lg">POS Terminal</h1>
               <p className="text-[10px] text-slate-500 uppercase tracking-wider">Point of Sale</p>
@@ -275,7 +373,7 @@ export default function POSPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 grid lg:grid-cols-12 gap-6">
+      <div className="print:hidden max-w-7xl mx-auto p-4 grid lg:grid-cols-12 gap-6">
         
         {/* Left: Search & Cart */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-5">
@@ -331,12 +429,25 @@ export default function POSPage() {
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 Cart Items <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{cart.length}</span>
               </h2>
-              {cart.length > 0 && (
-                <button onClick={() => setCart([])} className="text-xs text-red-500 font-bold hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">Clear All</button>
-              )}
-            </div>
+              
+              <div className="flex items-center gap-2">
+                {heldSale && (
+                  <button onClick={() => { setCart(heldSale.cart); setCustomerName(heldSale.customerName); setCustomerPhone(heldSale.customerPhone); setHeldSale(null); }} className="text-xs text-emerald-600 font-bold bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors border border-emerald-200 shadow-sm animate-pulse">
+                    Resume Sale
+                  </button>
+                )}
+                {cart.length > 0 && (
+                  <button onClick={() => { setHeldSale({ cart, customerName, customerPhone }); setCart([]); setCustomerName(""); setCustomerPhone(""); }} className="text-xs text-amber-600 font-bold bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors border border-amber-200">
+                    Hold
+                  </button>
+                )}
+                {cart.length > 0 && (
+                  <button onClick={() => { if(window.confirm("Are you sure you want to clear the cart?")) setCart([]) }} className="text-xs text-red-500 font-bold hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">Clear All</button>
+                )}
+              </div>
 
-            {cart.length === 0 ? (
+              </div>
+      {cart.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center justify-center">
                 <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                   <ShoppingCart size={32} className="text-slate-300" />
@@ -357,7 +468,24 @@ export default function POSPage() {
                       <button onClick={() => updateQty(item.medicineId, -1)} className="w-8 h-8 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors">
                         <Minus size={14} />
                       </button>
-                      <span className="w-10 text-center text-sm font-bold text-slate-800">{item.quantity}</span>
+                      <input 
+                        type="number" 
+                        className="w-12 text-center text-sm font-bold text-slate-800 bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!isNaN(val) && val > 0) {
+                            setCart(prev => prev.map(c => c.medicineId === item.medicineId ? { ...c, quantity: val > c.stock ? c.stock : val } : c));
+                          } else if (e.target.value === "") {
+                            setCart(prev => prev.map(c => c.medicineId === item.medicineId ? { ...c, quantity: 0 } : c));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (item.quantity === 0) {
+                            setCart(prev => prev.map(c => c.medicineId === item.medicineId ? { ...c, quantity: 1 } : c));
+                          }
+                        }}
+                      />
                       <button onClick={() => updateQty(item.medicineId, 1)} disabled={item.quantity >= item.stock} className="w-8 h-8 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-600 hover:text-emerald-500 disabled:opacity-50 transition-colors">
                         <Plus size={14} />
                       </button>
@@ -405,11 +533,17 @@ export default function POSPage() {
             </div>
 
             <div className="mb-6 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                <UserPlus size={14}/> Customer Info (Optional)
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">
+                <UserPlus size={16} className="text-indigo-600"/> Customer Info (Optional)
               </div>
-              <input value={customerPhone} onChange={(e) => { setCustomerPhone(e.target.value); if(e.target.value.length===11) checkLoyalty(e.target.value); }} placeholder="01XXXXXXXXX" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-400 outline-none transition-colors" />
-              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer Name" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-400 outline-none transition-colors" />
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Phone Number</label>
+                <input value={customerPhone} onChange={(e) => { setCustomerPhone(e.target.value); if(e.target.value.length===11) checkLoyalty(e.target.value); }} placeholder="01XXXXXXXXX" className="w-full px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-base text-slate-900 font-semibold placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Customer Name</label>
+                <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. John Doe" className="w-full px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-base text-slate-900 font-semibold placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm" />
+              </div>
             </div>
 
             <button onClick={() => setShowPayment(true)} disabled={cart.length === 0} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 disabled:opacity-50 transition-all shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group">
@@ -423,8 +557,8 @@ export default function POSPage() {
 
       {/* Shift Modal */}
       {showShiftModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="print:static print:bg-white print:inset-auto print:p-0 print:z-auto fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="print:shadow-none print:w-full print:max-w-full bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <h2 className="font-bold text-xl text-slate-800 mb-5 text-center">{shift ? "Close Shift" : "Open Shift"}</h2>
             {shift ? (
               <div className="space-y-4">
@@ -482,12 +616,25 @@ export default function POSPage() {
               {paymentMethod !== "DUE" && (
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Amount Received</label>
+                  <div className="relative">
                   <input type="number" value={paidAmount} onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
                     className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-all" placeholder="0.00" />
+                </div>
+                {/* Quick Cash Buttons */}
+                <div className="flex gap-2 mt-2">
+                  {[100, 200, 500, 1000].map(amt => (
+                    <button key={amt} type="button" onClick={() => setPaidAmount(amt)} className="flex-1 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl text-sm hover:bg-indigo-100 transition-colors border border-indigo-100">
+                      {amt}
+                    </button>
+                  ))}
+                </div>
                 </div>
               )}
 
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-slate-600"><span>Discount</span><span className="font-bold text-red-500">-৳{discountAmount.toFixed(2)}</span></div>
+                )}
                 <div className="flex justify-between text-sm text-slate-600"><span>Total Payable</span><span className="font-bold text-slate-800">৳{total.toFixed(2)}</span></div>
                 {paymentMethod !== "DUE" && (
                   <>
@@ -512,35 +659,108 @@ export default function POSPage() {
 
       {/* Receipt Modal */}
       {showReceipt && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="text-emerald-600" size={32} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:bg-white print:p-0 print:static print:z-auto print:block print:items-start print:justify-start">
+          <div id="print-receipt" className="bg-white rounded-3xl w-full max-w-[340px] shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden print:shadow-none print:rounded-none print:w-full print:max-w-none">
+            
+            {/* Receipt Body */}
+            <div className="p-6 font-mono text-slate-800">
+              
+              {/* Close Button (Hidden on Print) */}
+              <div className="flex justify-end mb-2 no-print">
+                <button onClick={() => setShowReceipt(null)} className="p-1.5 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 transition-colors no-print">
+                  <X size={16} />
+                </button>
               </div>
-              <h2 className="font-bold text-xl text-slate-800">Sale Complete!</h2>
-              <p className="text-xs text-slate-500 font-mono mt-1">{showReceipt.saleNumber}</p>
-            </div>
 
-            <div className="border-t border-b border-dashed border-slate-200 py-4 space-y-2 text-sm mb-4 max-h-48 overflow-y-auto">
-              {showReceipt.items.map((i: any, idx: number) => (
-                <div key={idx} className="flex justify-between text-slate-700">
-                  <span>{i.qty} × {i.name}</span>
-                  <span className="font-semibold">৳{Number(i.subtotal).toFixed(2)}</span>
+              {/* Pharmacy Header */}
+              <div className="text-center mb-4 flex flex-col items-center justify-center">
+                {pharmacy?.logo && (
+                  <img src={pharmacy.logo} alt="Logo" className="w-12 h-12 object-contain mb-1 rounded-full border border-slate-100" />
+                )}
+                <h2 className="font-bold text-lg uppercase tracking-wider">{pharmacy?.shopName || "T Pharmacy"}</h2>
+                <p className="text-[11px] leading-tight mt-1">{pharmacy?.address || "123 Main Street"}</p>
+                <p className="text-[11px] leading-tight">{pharmacy?.area}, {pharmacy?.city}</p>
+                {pharmacy?.drugLicense && <p className="text-[11px] mt-1 font-semibold">Drug Lic: {pharmacy.drugLicense}</p>}
+              </div>
+
+              <div className="border-t border-dashed border-slate-300 my-3"></div>
+
+              {/* Meta Info */}
+              <div className="text-[11px] space-y-1 mb-3">
+                <div className="flex justify-between"><span>Invoice:</span><span>{showReceipt.saleNumber}</span></div>
+                <div className="flex justify-between"><span>Date:</span><span>{new Date(showReceipt.createdAt || Date.now()).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
+                {showReceipt.customerName && <div className="flex justify-between"><span>Customer:</span><span>{showReceipt.customerName}</span></div>}
+                {showReceipt.customerPhone && <div className="flex justify-between"><span>Phone:</span><span>{showReceipt.customerPhone}</span></div>}
+              </div>
+
+              <div className="border-t border-dashed border-slate-300 my-3"></div>
+
+              {/* Items List */}
+              <div className="mb-3">
+                <div className="flex justify-between text-[10px] font-bold mb-1">
+                  <span className="w-1/2">Item</span>
+                  <span className="w-1/4 text-center">Qty</span>
+                  <span className="w-1/4 text-right">Amount</span>
                 </div>
-              ))}
+                <div className="space-y-2">
+                  {showReceipt.items?.map((i: any, idx: number) => (
+                    <div key={idx} className="text-[11px]">
+                      <div className="flex justify-between items-start w-full">
+                        <span className="w-1/2 truncate pr-2">{i.name}</span>
+                        <span className="w-1/4 text-center">{i.qty} × {Number(i.price).toFixed(2)}</span>
+                        <span className="w-1/4 text-right">{Number(i.subtotal).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-dashed border-slate-300 my-3"></div>
+
+              {/* Totals */}
+              <div className="text-[11px] space-y-1.5 mb-4">
+                <div className="flex justify-between"><span>Subtotal:</span><span>{Number(showReceipt.subtotal).toFixed(2)}</span></div>
+                {showReceipt.discount > 0 && (
+                  <div className="flex justify-between text-slate-600"><span>Discount:</span><span>-{Number(showReceipt.discount).toFixed(2)}</span></div>
+                )}
+                <div className="flex justify-between font-bold text-sm mt-1 pt-1 border-t border-slate-200"><span>Total:</span><span>৳{Number(showReceipt.total).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Paid:</span><span>{Number(showReceipt.paid).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Change:</span><span>{Number(showReceipt.change).toFixed(2)}</span></div>
+              </div>
+
+              <div className="border-t border-dashed border-slate-300 my-3"></div>
+
+              {/* Footer */}
+              <div className="text-center text-[10px] text-slate-500 space-y-1">
+                
+              <div className="flex flex-col items-center justify-center mb-3 mt-2">
+                <QRCodeSVG 
+                  value={`https://tshastho.com/verify/receipt/${showReceipt.saleNumber}`} 
+                  size={50} 
+                  level={"M"} 
+                />
+                <p className="text-[8px] text-slate-400 mt-1 uppercase tracking-wider">Scan to Verify</p>
+              </div>
+              <p className="font-bold text-slate-700">Thank you for your purchase!</p>
+                <p className="text-[9px] leading-tight">Return Policy: Returns accepted within 7 days with original receipt. Medicines must be unopened.</p>
+                <div className="flex items-center justify-center gap-1 mt-3 pt-2 border-t border-slate-200">
+                  <span className="text-[8px] uppercase tracking-wider">Powered by</span>
+                  <img src="/logo.png" alt="Tshastho" className="h-3 object-contain" />
+                </div>
+              </div>
+
             </div>
 
-            <div className="space-y-2 text-sm mb-6">
-              <div className="flex justify-between text-slate-600"><span>Total</span><span className="font-bold text-slate-800">৳{Number(showReceipt.total).toFixed(2)}</span></div>
-              <div className="flex justify-between text-slate-600"><span>Paid</span><span className="font-bold text-slate-800">৳{Number(showReceipt.paid).toFixed(2)}</span></div>
-              <div className="flex justify-between text-emerald-600"><span>Change</span><span className="font-bold">৳{Number(showReceipt.change).toFixed(2)}</span></div>
+            {/* Action Buttons (Hidden on Print) */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex gap-3 no-print">
+              <button onClick={() => window.print()} className="flex-1 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-sm">
+                <Printer size={16}/> Print
+              </button>
+              <button onClick={() => setShowReceipt(null)} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-600/20 transition-colors">
+                New Sale
+              </button>
             </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => window.print()} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"><Printer size={18}/> Print</button>
-              <button onClick={() => setShowReceipt(null)} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors">New Sale</button>
-            </div>
+            
           </div>
         </div>
       )}
@@ -548,7 +768,7 @@ export default function POSPage() {
       {/* Barcode Modal */}
       {showBarcode && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div id="print-receipt" className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="text-center mb-6">
               <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Barcode className="text-indigo-600" size={28} />

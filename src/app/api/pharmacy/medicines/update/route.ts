@@ -15,6 +15,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Deleted!" }, { status: 200 });
     }
 
+    // নতুন কোড: শুধু স্টক আপডেট করার জন্য
+    if (action === "update_stock") {
+      const oldMed = await prisma.medicine.findUnique({ where: { id: medicineId } });
+      if (!oldMed) return NextResponse.json({ message: "Medicine not found" }, { status: 404 });
+
+      const newStock = parseInt(body.stock) || 0;
+      const diff = newStock - oldMed.stock;
+
+      const updated = await prisma.medicine.update({
+        where: { id: medicineId },
+        data: { stock: newStock }
+      });
+
+      // স্টক মুভমেন্ট হিস্ট্রি সেভ করা
+      if (diff !== 0) {
+        await prisma.stockMovement.create({
+          data: {
+            pharmacyId: oldMed.pharmacyId,
+            medicineId: medicineId,
+            type: 'ADJUSTMENT',
+            quantity: diff,
+            previousStock: oldMed.stock,
+            newStock: newStock,
+            reason: 'Manual adjustment from inventory',
+            userId: auth.user.id,
+          }
+        });
+      }
+
+      return NextResponse.json({ message: "Stock updated!", medicine: updated }, { status: 200 });
+    }
+
     const medicine = await prisma.medicine.update({
       where: { id: medicineId },
       data: {
@@ -32,7 +64,7 @@ export async function POST(req: Request) {
         masterMedicineId: body.masterMedicineId || null,
         images: Array.isArray(body.images) ? body.images : null,
         expiryDate: body.expiryDate ? new Date(body.expiryDate) : null,
-        batchNumber: body.batchNumber || null,
+        batchNumber: body.batchNumber || null, lowStockAlert: parseInt(body.lowStockAlert) || 10, barcode: body.barcode || null, supplier: body.supplier || null,
       },
     });
 

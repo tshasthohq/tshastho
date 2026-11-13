@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   if (auth.error) return auth.error;
 
   try {
-    const { ownerEmail, name, email, phone, password, staffRole, permissions, basicSalary, dailyRate, commissionPercent, salaryType, workingDaysPerMonth, hoursPerDay } = await req.json();
+    const { ownerEmail, branchId, name, email, phone, password, staffRole, permissions, basicSalary, dailyRate, commissionPercent, salaryType, workingDaysPerMonth, hoursPerDay } = await req.json();
 
     const owner = await prisma.user.findFirst({ where: { email: ownerEmail } });
     if (!owner) return NextResponse.json({ message: "Owner not found" }, { status: 404 });
