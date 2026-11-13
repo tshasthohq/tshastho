@@ -26,7 +26,7 @@ export default function PharmacyRegister() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/register/pharmacy", {
+      const res = await fetch("/api/auth/register/pharmacy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import "./globals.css";
+import { BranchProvider } from "@/context/BranchContext";
 import PWAInstallPrompt from "@/components/pwa/InstallPrompt";
 
 const inter = Inter({
@@ -59,7 +60,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased h-full bg-slate-50 text-slate-900">
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
-          {children}
+          <BranchProvider>{children}</BranchProvider>
         </GoogleOAuthProvider>
         <PWAInstallPrompt />
       </body>

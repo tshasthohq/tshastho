@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
+import { useBranch } from "@/context/BranchContext";
+import { Plus, Trash2, Save, ArrowLeft, Building2 } from "lucide-react";
 
 interface PurchaseItem {
   medicineId: string;
@@ -17,9 +18,12 @@ interface PurchaseItem {
 export default function NewPurchasePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { branches, activeBranch } = useBranch();
+  
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [medicines, setMedicines] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
+  const [receivingBranchId, setReceivingBranchId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<PurchaseItem[]>([
@@ -28,11 +32,21 @@ export default function NewPurchasePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
+  // Set default branch when activeBranch loads
+  useEffect(() => {
+    if (activeBranch && activeBranch.id !== "ALL") {
+      setReceivingBranchId(activeBranch.id);
+    } else if (branches.length > 0 && !receivingBranchId) {
+      // If Global is selected, default to Main branch (usually the first one)
+      setReceivingBranchId(branches.find(b => !b.isGlobal)?.id || "");
+    }
+  }, [activeBranch, branches]);
+
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      fetch("/api/pharmacy/suppliers", { credentials: "include" }).then((r) => r.json()),
-      fetch("/api/pharmacy/medicines", { credentials: "include" }).then((r) => r.json()),
+      fetch('/api/pharmacy/suppliers', { credentials: "include" }).then(r => r.json()),
+      fetch('/api/pharmacy/medicines', { credentials: "include" }).then(r => r.json()),
     ]).then(([s, m]) => {
       setSuppliers(s.suppliers || []);
       setMedicines(m.medicines || []);
@@ -61,7 +75,8 @@ export default function NewPurchasePage() {
     setMessage("");
 
     if (!supplierId) { setMessage("Please select a supplier"); return; }
-    if (items.some((i) => !i.medicineId || !i.batchNumber || !i.expiryDate)) {
+    if (!receivingBranchId) { setMessage("Please select a receiving branch"); return; }
+    if (items.some(i => !i.medicineId || !i.batchNumber || !i.expiryDate)) {
       setMessage("Please fill all item fields (medicine, batch number, expiry)");
       return;
     }
@@ -73,6 +88,7 @@ export default function NewPurchasePage() {
       credentials: "include",
       body: JSON.stringify({
         supplierId,
+        branchId: receivingBranchId, // <-- Hybrid PO Integration
         invoiceNumber: invoiceNumber || undefined,
         notes: notes || undefined,
         items,
@@ -99,29 +115,35 @@ export default function NewPurchasePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Supplier & Invoice */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+        {/* Supplier & Branch */}
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Supplier *</label>
-            <select required value={supplierId} onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm bg-white">
+            <select required value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm bg-white">
               <option value="">Select supplier</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}{s.companyName ? ` (${s.companyName})` : ""}</option>
               ))}
             </select>
-            {suppliers.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">
-                No suppliers yet. <a href="/pharmacy/suppliers" className="underline">Add one first</a>
-              </p>
-            )}
+          </div>
+
+          {/* Branch Selector */}
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+              <Building2 size={14} className="text-indigo-500" /> Receive To Branch *
+            </label>
+            <select required value={receivingBranchId} onChange={(e) => setReceivingBranchId(e.target.value)} className="w-full px-4 py-3 border border-indigo-200 rounded-xl text-sm bg-indigo-50/30 font-medium text-indigo-900">
+              <option value="" disabled>Select branch</option>
+              {branches.filter(b => !b.isGlobal).map((b) => (
+                <option key={b.id} value={b.id}>{b.name} {b.isMain ? "(Main)" : ""}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400 mt-1">Stock will be added to this branch's inventory upon receiving.</p>
           </div>
 
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Invoice Number</label>
-            <input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)}
-              placeholder="Optional"
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm" />
+            <input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="Optional" className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm" />
           </div>
         </div>
 
@@ -129,8 +151,7 @@ export default function NewPurchasePage() {
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-3">
             <h2 className="font-bold text-slate-800">Items</h2>
-            <button type="button" onClick={addItem}
-              className="flex items-center gap-1 text-sm text-blue-600 font-medium">
+            <button type="button" onClick={addItem} className="flex items-center gap-1 text-sm text-blue-600 font-medium">
               <Plus size={14} /> Add Item
             </button>
           </div>
@@ -141,57 +162,45 @@ export default function NewPurchasePage() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-medium text-slate-500">Item #{idx + 1}</span>
                   {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(idx)}
-                      className="p-1 text-red-500 hover:bg-red-50 rounded">
+                    <button type="button" onClick={() => removeItem(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded">
                       <Trash2 size={14} />
                     </button>
                   )}
                 </div>
 
-                <select required value={item.medicineId} onChange={(e) => updateItem(idx, "medicineId", e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-2 bg-white">
+                <select required value={item.medicineId} onChange={(e) => updateItem(idx, "medicineId", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-2 bg-white">
                   <option value="">Select medicine</option>
                   {medicines.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name} {m.brand ? `- ${m.brand}` : ""}</option>
+                    <option key={m.id} value={m.id}>{m.name}{m.brand ? ` - ${m.brand}` : ""}</option>
                   ))}
                 </select>
 
-                <input required value={item.batchNumber} onChange={(e) => updateItem(idx, "batchNumber", e.target.value)}
-                  placeholder="Batch number *"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-2" />
+                <input required value={item.batchNumber} onChange={(e) => updateItem(idx, "batchNumber", e.target.value)} placeholder="Batch number *" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-2" />
 
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <div>
                     <label className="text-xs text-slate-500 mb-1 block">Mfg Date</label>
-                    <input type="date" value={item.mfgDate} onChange={(e) => updateItem(idx, "mfgDate", e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                    <input type="date" value={item.mfgDate} onChange={(e) => updateItem(idx, "mfgDate", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   </div>
                   <div>
                     <label className="text-xs text-slate-500 mb-1 block">Expiry Date *</label>
-                    <input required type="date" value={item.expiryDate} onChange={(e) => updateItem(idx, "expiryDate", e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                    <input required type="date" value={item.expiryDate} onChange={(e) => updateItem(idx, "expiryDate", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-slate-500 mb-1 block">Quantity *</label>
-                    <input required type="number" min={1} value={item.quantity}
-                      onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                    <input required type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   </div>
                   <div>
                     <label className="text-xs text-slate-500 mb-1 block">Unit Cost (৳) *</label>
-                    <input required type="number" min={0} step="0.01" value={item.unitCost}
-                      onChange={(e) => updateItem(idx, "unitCost", Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                    <input required type="number" min={0} step="0.01" value={item.unitCost} onChange={(e) => updateItem(idx, "unitCost", Number(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   </div>
                 </div>
 
                 <div className="mt-2 text-right text-xs text-slate-500">
-                  Subtotal: <span className="font-bold text-slate-800">
-                    ৳ {((Number(item.quantity) || 0) * (Number(item.unitCost) || 0)).toFixed(2)}
-                  </span>
+                  Subtotal: <span className="font-bold text-slate-800">৳{((Number(item.quantity) || 0) * (Number(item.unitCost) || 0)).toFixed(2)}</span>
                 </div>
               </div>
             ))}
@@ -201,9 +210,7 @@ export default function NewPurchasePage() {
         {/* Notes */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
           <label className="text-xs font-medium text-slate-600 mb-1 block">Notes</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-            placeholder="Optional"
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm" />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional" className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm" />
         </div>
 
         {message && (
@@ -218,10 +225,9 @@ export default function NewPurchasePage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
           <div>
             <p className="text-xs text-slate-500">Total Amount</p>
-            <p className="text-xl font-bold text-slate-800">৳ {total.toFixed(2)}</p>
+            <p className="text-xl font-bold text-slate-800">৳{total.toFixed(2)}</p>
           </div>
-          <button onClick={handleSubmit} disabled={saving}
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-medium disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={saving} className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-medium disabled:opacity-50 shadow-md">
             <Save size={16} /> {saving ? "Creating..." : "Create Purchase"}
           </button>
         </div>

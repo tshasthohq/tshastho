@@ -2,18 +2,24 @@ import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/guards';
 import { recordStockMovement } from "@/lib/pharmacy/stock";
-import { recordOrderSale } from "@/lib/pharmacy/ledger";
-import { sendEmail, emailTemplates } from "@/lib/email";
+import { recordOrderSale } from '@/lib/pharmacy/ledger';
+import { sendEmail, emailTemplates } from '@/lib/email';
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { earnPoints } from "@/lib/pharmacy/loyalty";
+
 export async function POST(req: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
   try {
-    const { deliveryAddress, deliveryPhone, receiverPhone, paymentMethod, notes, deliveryCharge, paidAmount: paidInput, prescriptionUrl } = await req.json();
+    // 🔥 branchId রিসিভ করা হচ্ছে
+    const { deliveryAddress, deliveryPhone, receiverPhone, paymentMethod, notes, deliveryCharge, paidInput, prescriptionUrl, branchId } = await req.json();
 
     const user = auth.user!;
+
+    if (!branchId) {
+      return NextResponse.json({ message: "Please select a delivery branch" }, { status: 400 });
+    }
 
     const cartItems = await prisma.cartItem.findMany({
       where: { userId: user.id },
@@ -75,7 +81,6 @@ export async function POST(req: Request) {
       const finalAmount = totalAmount + deliveryFee - discountAmount;
       const netProfit = totalAmount - totalCost - platformFee;
 
-      // Paid amount handling
       const paidAmount = Math.min(Math.max(parseFloat(paidInput) || 0, 0), finalAmount);
       const dueAmount = Math.max(0, finalAmount - paidAmount);
       const isDue = dueAmount > 0;
@@ -87,6 +92,7 @@ export async function POST(req: Request) {
           orderNumber,
           patientId: user.id,
           pharmacyId,
+          branchId: branchId, // 🔥 Branch ID সেভ করা হচ্ছে
           totalAmount,
           platformFee,
           deliveryFee,
@@ -119,7 +125,7 @@ export async function POST(req: Request) {
             amount: finalAmount,
             paidAmount: paidAmount,
             orderId: order.id,
-            note: `Order ${orderNumber}${paidAmount > 0 ? ` (Paid: ৳${paidAmount.toFixed(2)})` : ""}`,
+            note: `Order ${orderNumber}${paidAmount > 0 ? ` (Paid: ৳${paidAmount.toFixed(2)})` : ''}`,
             status: paidAmount > 0 ? "PARTIAL" : "UNPAID",
           },
         });
@@ -130,99 +136,92 @@ export async function POST(req: Request) {
         await prisma.notification.create({
           data: {
             userId: pharmacy.userId,
-            title: isDue ? "🛒 New Order (Partial/Due)" : "🛒 New Order Received!",
-            message: `Order ${orderNumber} - ৳${finalAmount.toFixed(2)} from ${user.name}${paidAmount > 0 ? ` (Paid: ৳${paidAmount.toFixed(2)})` : ""}`,
+            title: isDue ? "⚠️ New Order (Partial/Due)" : "🛍️ New Order Received!",
+            message: `Order ${orderNumber} - ৳${finalAmount.toFixed(2)} from ${user.name}${paidAmount > 0 ? ` (Paid: ৳${paidAmount.toFixed(2)})` : ''}`,
             type: "new",
             link: "/pharmacy/orders",
           },
         });
+      }
 
-        // Notify all staff with view_orders permission
-        const allStaff = await prisma.user.findMany({
-          where: {
-            parentPharmacyId: pharmacy.id,
-            role: "PHARMACY_STAFF",
-            isActive: true,
-          },
-        });
+      const allStaff = await prisma.user.findMany({
+        where: { parentPharmacyId: pharmacyId, role: "PHARMACY_STAFF", isActive: true },
+      });
 
-        for (const st of allStaff) {
-          const stPerms = (st.permissions as string[]) || [];
-          if (stPerms.includes("view_orders")) {
-            await prisma.notification.create({
-              data: {
-                userId: st.id,
-                title: isDue ? "🛒 New Order (Due)" : "🛒 New Order Received!",
-                message: `Order ${orderNumber} - ৳${finalAmount.toFixed(2)}`,
-                type: "new",
-                link: "/pharmacy/orders",
-              },
-            });
-          }
+      for (const st of allStaff) {
+        const stPerms = (st.permissions as string[]) || [];
+        if (stPerms.includes("view_orders")) {
+          await prisma.notification.create({
+            data: {
+              userId: st.id,
+              title: isDue ? "⚠️ New Order (Due)" : "🛍️ New Order Received!",
+              message: `Order ${orderNumber} - ৳${finalAmount.toFixed(2)}`,
+              type: "new",
+              link: "/pharmacy/orders",
+            },
+          });
         }
       }
 
       orders.push(order);
 
-        // Deduct stock for this order via FIFO batch logic
-        for (const item of items) {
-          try {
-            await recordStockMovement({
-              pharmacyId,
-              medicineId: item.medicine.id,
-              type: 'SALE',
-              quantity: item.quantity,
-              referenceId: order.id,
-              reason: `Order ${orderNumber}`,
-              userId: user.id,
+      // 🔥 Deduct stock from specific branch
+      for (const item of items) {
+        try {
+          await recordStockMovement({
+            pharmacyId,
+            medicineId: item.medicine.id,
+            type: 'SALE',
+            quantity: item.quantity,
+            referenceId: order.id,
+            reason: `Order ${orderNumber}`,
+            userId: user.id,
+          });
+
+          // BranchStock deduction
+          await prisma.branchStock.updateMany({
+            where: { branchId, medicineId: item.medicine.id },
+            data: { quantity: { decrement: item.quantity } }
+          });
+
+        } catch (stockErr) {
+          console.error('[ORDER_STOCK_DEDUCT]', stockErr);
+        }
+      }
+
+      await prisma.cartItem.deleteMany({ where: { userId: user.id } });
+
+      // Send emails and WhatsApp (keeping your existing logic)
+      try {
+        if (orders && orders.length > 0) {
+          const firstOrder = orders[0];
+          const patient = await prisma.user.findUnique({ where: { id: user.id }, select: { email: true, name: true } });
+          if (patient?.email && firstOrder) {
+            const tpl = emailTemplates.orderConfirmed({
+              orderNumber: firstOrder.orderNumber,
+              customerName: patient.name || "Customer",
+              total: Number(firstOrder.finalAmount),
+              pharmacyName: "Tshastho Pharmacy",
             });
-          } catch (stockErr) {
-            console.error('[ORDER_STOCK_DEDUCT]', stockErr);
-            // Continue anyway — the order was created
+            await sendEmail({ to: patient.email, subject: tpl.subject, html: tpl.html });
           }
         }
-    }
+      } catch (emailErr) {
+        console.error('[ORDER_EMAIL]', emailErr);
+      }
 
-    await prisma.cartItem.deleteMany({ where: { userId: user.id } });
-
-    // Send order confirmation email to patient
-    try {
-      if (orders && orders.length > 0) {
-        const firstOrder = orders[0];
-        const patient = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { email: true, name: true },
-        });
-        if (patient?.email && firstOrder) {
-          const tpl = emailTemplates.orderConfirmed({
-            orderNumber: firstOrder.orderNumber,
-            customerName: patient.name || "Customer",
-            total: Number(firstOrder.finalAmount),
-            pharmacyName: "Tshastho Pharmacy",
-          });
-          await sendEmail({
-            to: patient.email,
-            subject: tpl.subject,
-            html: tpl.html,
+      try {
+        const userPhone = user.phone || (await prisma.user.findUnique({ where: { id: user.id }, select: { phone: true } }))?.phone;
+        if (userPhone && orders && orders.length > 0) {
+          const firstOrder = orders[0];
+          await sendWhatsApp({
+            to: userPhone,
+            body: `Tshastho: Order ${firstOrder.orderNumber} confirmed. Total: BDT ${Number(firstOrder.finalAmount).toFixed(2)}. We will notify when ready.`,
           });
         }
+      } catch (waErr) {
+        console.error('[ORDER_WHATSAPP]', waErr);
       }
-    } catch (emailErr) {
-      console.error("[ORDER_EMAIL]", emailErr);
-    }
-
-    // Send WhatsApp notification
-    try {
-      const userPhone = user.phone || (await prisma.user.findUnique({ where: { id: user.id }, select: { phone: true } }))?.phone;
-      if (userPhone && orders && orders.length > 0) {
-        const firstOrder = orders[0];
-        await sendWhatsApp({
-          to: userPhone,
-          body: `Tshastho: Order ${firstOrder.orderNumber} confirmed. Total: BDT ${Number(firstOrder.finalAmount).toFixed(2)}. We will notify when ready.`,
-        });
-      }
-    } catch (waErr) {
-      console.error("[ORDER_WHATSAPP]", waErr);
     }
 
     return NextResponse.json({ message: "Order placed! ✅", orders }, { status: 201 });

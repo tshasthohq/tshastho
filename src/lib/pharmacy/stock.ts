@@ -87,6 +87,11 @@ export async function recordStockMovement(params: RecordMovementParams) {
       await deductFromBatchesFIFO(tx, medicineId, quantity);
     }
 
+    // Check if Auto PO is needed (Only if stock decreased)
+    if (signedQty < 0) {
+      await checkAndCreateAutoPO(tx, medicineId, pharmacyId);
+    }
+
     // Create movement log
     const movement = await tx.stockMovement.create({
       data: {
@@ -166,5 +171,68 @@ export async function getExpiringBatches(pharmacyId: string, daysAhead = 90) {
       medicine: { select: { id: true, name: true, brand: true } },
     },
     orderBy: { expiryDate: 'asc' },
+  });
+}
+
+/**
+ * Automatically generates a Draft Purchase Order if stock falls below alert level.
+ */
+async function checkAndCreateAutoPO(tx: any, medicineId: string, pharmacyId: string) {
+  const med = await tx.medicine.findUnique({
+    where: { id: medicineId },
+    select: { id: true, name: true, stock: true, lowStockAlert: true, purchasePrice: true, supplier: true }
+  });
+
+  if (!med || med.stock > med.lowStockAlert) return; // স্টক ঠিক আছে
+
+  // চেক করা: এই ঔষধের জন্য আগে থেকেই কোনো PENDING/DRAFT PO আছে কি না
+  const existingPO = await tx.purchaseOrder.findFirst({
+    where: {
+      pharmacyId,
+      status: { in: ['DRAFT', 'ORDERED'] },
+      items: { some: { medicineId } }
+    }
+  });
+
+  if (existingPO) return; // আগে থেকেই PO আছে, নতুন করে তৈরি হবে না
+
+  // নতুন PO নাম্বার জেনারেট করা
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const count = await tx.purchaseOrder.count({ where: { pharmacyId } });
+  const purchaseNumber = `PO-AUTO-${dateStr}-${String(count + 1).padStart(4, '0')}`;
+
+  // কতটুকু অর্ডার করা হবে? (যেমন: lowStockAlert এর দ্বিগুণ)
+  const orderQty = med.lowStockAlert * 2;
+  const unitCost = Number(med.purchasePrice) || 0;
+  const totalAmount = orderQty * unitCost;
+
+  // সাপ্লায়ার নাম মিলিয়ে আইডি খোঁজা (যদি থাকে)
+  let supplierId = null;
+  if (med.supplier) {
+    const supplier = await tx.supplier.findFirst({ where: { name: med.supplier, pharmacyId } });
+    if (supplier) supplierId = supplier.id;
+  }
+
+  // PO তৈরি করা
+  await tx.purchaseOrder.create({
+    data: {
+      pharmacyId,
+      purchaseNumber,
+      supplierId,
+      status: 'DRAFT',
+      totalAmount,
+      dueAmount: totalAmount,
+      createdBy: 'SYSTEM',
+      notes: `Auto-generated: ${med.name} stock (${med.stock}) dropped below alert level (${med.lowStockAlert}).`,
+      items: {
+        create: [{
+          medicineId,
+          quantity: orderQty,
+          unitCost,
+          subtotal: totalAmount,
+        }]
+      }
+    }
   });
 }

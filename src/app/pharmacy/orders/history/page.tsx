@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 function OrderHistoryPageInner() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -39,7 +39,12 @@ function OrderHistoryPageInner() {
     .catch(() => setLoading(false));
   };
 
-  useEffect(() => { loadOrders(); }, []);
+  useEffect(() => {
+    // 🔥 authLoading শেষ হলে এবং ইউজার থাকলে তবেই অর্ডার লোড হবে
+    if (!authLoading && user) {
+      loadOrders();
+    }
+  }, [user, authLoading]);
 
   // Client-side filtering
   const filtered = useMemo(() => {
@@ -52,7 +57,7 @@ function OrderHistoryPageInner() {
     if (dateRange === "TODAY") start = today;
     else if (dateRange === "YESTERDAY") {
       start = new Date(today); start.setDate(start.getDate() - 1);
-      end = new Date(today); end.setDate(end.getDate() - 1);
+      end = new Date(today);
     }
     else if (dateRange === "WEEK") {
       start = new Date(today);

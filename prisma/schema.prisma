@@ -229,6 +229,7 @@ model Doctor {
 }
 
 model Pharmacy {
+  phone String?
   id                     String                   @id @default(cuid())
   userId                 String                   @unique
   user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -240,7 +241,12 @@ model Pharmacy {
   area                   String?
   city                   String
   deliveryRadius         Int                      @default(5)
+  deliveryFee    Float     @default(0)
   isOpen                 Boolean                  @default(true)
+  lowStockAlert   Boolean   @default(true)
+  expiryAlert     Boolean   @default(true)
+  openTime       String?
+  closeTime      String?
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
   medicines              Medicine[]
@@ -325,13 +331,16 @@ model Medicine {
   sellingPrice     Decimal
   discountPercent  Decimal                  @default(0)
   stock            Int                      @default(0)
+  lowStockAlert   Int       @default(10)
   unit             String                   @default("piece")
   stripSize        Int                      @default(10)
   boxSize          Int                      @default(100)
   manufacturer     String?
+  supplier        String?
   images           Json?
   expiryDate       DateTime?
   batchNumber      String?
+  barcode         String?
   isActive         Boolean                  @default(true)
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
@@ -378,6 +387,9 @@ model Order {
   patientId          String
   patient            User               @relation("PatientOrders", fields: [patientId], references: [id])
   pharmacyId         String
+  branchId String?
+  branch PharmacyBranch? @relation(fields: [branchId], references: [id])
+
   pharmacy           Pharmacy           @relation(fields: [pharmacyId], references: [id])
   totalAmount        Decimal
   platformFee        Decimal
@@ -919,9 +931,12 @@ model PurchaseOrder {
   id             String         @id @default(cuid())
   purchaseNumber String
   pharmacyId     String
+  branchId String?
+  branch PharmacyBranch? @relation(fields: [branchId], references: [id])
+
   pharmacy       Pharmacy       @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
-  supplierId     String
-  supplier       Supplier       @relation(fields: [supplierId], references: [id])
+  supplierId     String?
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id])
   status         PurchaseStatus @default(DRAFT)
   totalAmount    Decimal        @default(0)
   paidAmount     Decimal        @default(0)
@@ -950,9 +965,9 @@ model PurchaseItem {
   medicine    Medicine      @relation(fields: [medicineId], references: [id])
   batchId     String?
   batch       Batch?        @relation(fields: [batchId], references: [id])
-  batchNumber String
+  batchNumber   String?
   mfgDate     DateTime?
-  expiryDate  DateTime
+  expiryDate    DateTime?
   quantity    Int
   receivedQty Int           @default(0)
   unitCost    Decimal
@@ -1004,6 +1019,8 @@ model PosSale {
   id             String           @id @default(cuid())
   saleNumber     String
   pharmacyId     String
+  branchId String?
+  branch PharmacyBranch? @relation(fields: [branchId], references: [id])
   pharmacy       Pharmacy         @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
   customerId     String?
   customer       PosCustomer?     @relation(fields: [customerId], references: [id])
@@ -1363,6 +1380,8 @@ model ReturnOrder {
   id             String       @id @default(cuid())
   returnNumber   String
   pharmacyId     String
+  branchId String?
+  branch PharmacyBranch? @relation(fields: [branchId], references: [id])
   pharmacy       Pharmacy     @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
   type           ReturnType
   status         ReturnStatus @default(PENDING)
@@ -1536,6 +1555,10 @@ model PharmacyBranch {
 
   @@unique([pharmacyId, code])
   @@index([pharmacyId, isActive])
+  orders Order[]
+  purchaseOrders PurchaseOrder[]
+  posSales PosSale[]
+  returnOrders ReturnOrder[]
 }
 
 model BranchStock {

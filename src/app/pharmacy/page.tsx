@@ -10,15 +10,18 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
+import { useBranch } from "@/context/BranchContext";
 import DashboardCharts from "@/components/pharmacy/DashboardCharts";
 import PharmacyNav from "@/components/pharmacy/PharmacyNav";
 
 export default function PharmacyDashboard() {
   const { user } = useAuth();
+  const { activeBranch } = useBranch();
   const router = useRouter();
   
   const [pharmacy, setPharmacy] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [stockMovement, setStockMovement] = useState({ in: 0, out: 0 });
   const [stats, setStats] = useState<any>({
     today: { revenue: 0, cost: 0, platformFee: 0, netProfit: 0, orderCount: 0 },
     totalDue: 0, pendingOrders: 0, medicineCount: 0, stockValue: 0, stockCost: 0,
@@ -27,8 +30,29 @@ export default function PharmacyDashboard() {
   
   const [greeting, setGreeting] = useState("Hello");
   const [profileView, setProfileView] = useState("today");
+  const [customStart, setCustomStart] = useState("");
+  const [appliedStart, setAppliedStart] = useState("");
+  const [appliedEnd, setAppliedEnd] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   useEffect(() => {
+    let isCurrent = true;
+    
+    
+    // Reset stats state immediately to prevent showing old branch data
+    setStats({
+      today: { revenue: 0, cost: 0, platformFee: 0, netProfit: 0, orderCount: 0 },
+      yesterday: { revenue: 0, cost: 0, platformFee: 0, netProfit: 0, orderCount: 0 },
+      week: { revenue: 0, cost: 0, platformFee: 0, netProfit: 0, orderCount: 0 },
+      month: { revenue: 0, cost: 0, platformFee: 0, netProfit: 0, orderCount: 0, customerCount: 0 },
+      year: { revenue: 0, cost: 0, platformFee: 0, netProfit: 0, orderCount: 0, customerCount: 0 },
+      
+    total: { revenue: 0, cost: 0, platformFee: 0, netProfit: 0, orderCount: 0, customerCount: 0 },
+      totalDue: 0, pendingOrders: 0, medicineCount: 0, stockValue: 0, stockCost: 0,
+      expired: 0, expiringSoon: 0, customerCount: 0
+    });
+    setLoading(true);
+
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good Morning");
     else if (hour < 17) setGreeting("Good Afternoon");
@@ -36,25 +60,48 @@ export default function PharmacyDashboard() {
     else setGreeting("Good Night");
 
     const loadData = async () => {
-      try {
-        const profileRes = await fetch("/api/pharmacy/profile", { credentials: "include" });
-        const profileData = await profileRes.json();
-        if (profileData.pharmacy) setPharmacy(profileData.pharmacy);
+          try {
+            const currentBranchId = activeBranch?.id || "ALL";
+            let smUrl = `/api/pharmacy/stock-movement?branchId=${currentBranchId}&period=${profileView}`;
+            if (profileView === 'custom' && appliedStart && appliedEnd) {
+              smUrl += `&startDate=${appliedStart}&endDate=${appliedEnd}`;
+            }
 
-        const statsRes = await fetch("/api/pharmacy/stats", { credentials: "include" });
-        const statsData = await statsRes.json();
-        if (statsData.today) setStats(statsData);
-      } catch (err) {
-        console.error("Dashboard load error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+            const [profileRes, statsRes, smRes] = await Promise.all([
+              fetch("/api/pharmacy/profile", { credentials: "include" }).catch(() => null),
+              fetch(`/api/pharmacy/stats?branchId=${currentBranchId}&startDate=${appliedStart}&endDate=${appliedEnd}`, { credentials: "include" }).catch(() => null),
+              fetch(smUrl, { credentials: "include" }).catch(() => null)
+            ]);
+
+            if (isCurrent) {
+              if (profileRes?.ok) {
+                const pData = await profileRes.json().catch(() => null);
+                if (pData?.pharmacy) setPharmacy(pData.pharmacy);
+              }
+              if (statsRes?.ok) {
+                const sData = await statsRes.json().catch(() => null);
+                if (sData?.today) setStats(sData);
+              }
+              if (smRes?.ok) {
+                const smData = await smRes.json().catch(() => null);
+                if (smData?.stockIn !== undefined) setStockMovement({ in: smData.stockIn, out: smData.stockOut });
+              }
+            }
+          } catch (err) {
+            console.error("Dashboard load error:", err);
+          } finally {
+            if (isCurrent) setLoading(false);
+          }
+        };;;
 
     loadData();
     const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => { 
+      isCurrent = false; 
+      // Abort removed
+      clearInterval(interval); 
+    };
+  }, [activeBranch?.id, profileView, appliedStart, appliedEnd]);
 
   
 
@@ -70,13 +117,15 @@ export default function PharmacyDashboard() {
   if (!pharmacy) return <div className="p-6 text-center text-red-500 font-bold">Pharmacy profile not found.</div>;
 
   
-  const currentProfit = stats[profileView] || stats.today;
+  const currentProfit = (profileView === "custom" && stats.custom) ? stats.custom : (stats[profileView as keyof typeof stats] || stats.today);
 
   const profitTabs = [
     { key: "today", label: "Today" },
     { key: "yesterday", label: "Yesterday" },
     { key: "week", label: "This Week" },
     { key: "month", label: "This Month" },
+    { key: "year", label: "This Year" },
+    { key: "custom", label: "Custom Date" },
     { key: "total", label: "All Time" },
   ];
 
@@ -107,8 +156,12 @@ export default function PharmacyDashboard() {
                 <span className="flex items-center gap-1"><Activity size={12}/> {pharmacy.area}, {pharmacy.city}</span>
               </div>
             </div>
-            <div className="w-16 h-16 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
-              <Pill size={32} className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
+            <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] overflow-hidden">
+              {pharmacy?.logo ? (
+                <img src={pharmacy.logo} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <Pill size={32} className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
+              )}
             </div>
           </div>
         </div>
@@ -149,7 +202,10 @@ export default function PharmacyDashboard() {
         {/* High-End Financial Overview */}
         <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6 relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <h2 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+            
+      
+
+        <h2 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
               <div className="p-2 bg-emerald-50 rounded-xl"><TrendingUp size={18} className="text-emerald-600" /></div>
               Financial Overview
             </h2>
@@ -172,7 +228,21 @@ export default function PharmacyDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+        {profileView === "custom" && (
+          <div className="flex flex-col sm:flex-row items-center gap-2 mt-4 mb-2 bg-slate-50 p-2 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-white px-3 py-2 rounded-lg border border-slate-200 text-sm w-full outline-none focus:border-indigo-500" />
+            <span className="text-slate-400 text-sm font-medium hidden sm:block">to</span>
+            <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-white px-3 py-2 rounded-lg border border-slate-200 text-sm w-full outline-none focus:border-indigo-500" />
+            <button 
+              onClick={() => { setAppliedStart(customStart); setAppliedEnd(customEnd); }}
+              className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap shadow-sm"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Glassmorphism Profit Card */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 p-5 shadow-lg shadow-emerald-500/20 text-white group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
@@ -217,7 +287,7 @@ export default function PharmacyDashboard() {
             </div>
             <div>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Orders</p>
-              <p className="font-black text-slate-800 text-xl">{stats.total?.orderCount || 0}</p>
+              <p className="font-black text-slate-800 text-xl">{currentProfit?.orderCount || 0}</p>
             </div>
           </div>
 
@@ -227,7 +297,7 @@ export default function PharmacyDashboard() {
             </div>
             <div>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Customers</p>
-              <p className="font-black text-slate-800 text-xl">{stats.customerCount || 0}</p>
+              <p className="font-black text-slate-800 text-xl">{currentProfit?.customerCount || 0}</p>
             </div>
           </div>
 
@@ -244,11 +314,66 @@ export default function PharmacyDashboard() {
 
         {/* Charts Container */}
         <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-1 sm:p-2 overflow-hidden">
-          <DashboardCharts />
+          <DashboardCharts profileView={profileView} appliedStart={appliedStart} appliedEnd={appliedEnd} />
+
+        {/* 🔥 Stock Value Section */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+            </div>
+            <h3 className="font-bold text-slate-800 text-sm">Inventory Value</h3>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Selling Value</p>
+              <p className="text-xl font-black text-indigo-600">৳{(stats.stockValue || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-400 mt-1">মোট বিক্রয় মূল্য</p>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Cost Value</p>
+              <p className="text-xl font-black text-slate-800">৳{(stats.stockCost || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-400 mt-1">মোট ক্রয় মূল্য</p>
+            </div>
+          </div>
+        </div>
+
         </div>
 
         {/* Neumorphic Quick Actions */}
-        <h2 className="text-lg font-bold text-slate-800 mt-4 mb-3 px-1">Quick Actions</h2>
+        
+      {/* 🔥 Stock Movement Section */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mt-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path></svg>
+          </div>
+          <h3 className="font-bold text-slate-800 text-sm">Stock Movement</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+            <div className="flex items-center gap-1.5 mb-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>
+              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Stock In</p>
+            </div>
+            <p className="text-xl font-black text-emerald-700">{stockMovement.in} <span className="text-xs font-semibold text-emerald-600">pcs</span></p>
+            <p className="text-[10px] text-emerald-600/70 mt-1">PO, Returns, Transfers</p>
+          </div>
+          <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+            <div className="flex items-center gap-1.5 mb-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>
+              <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider">Stock Out</p>
+            </div>
+            <p className="text-xl font-black text-red-700">{stockMovement.out} <span className="text-xs font-semibold text-red-600">pcs</span></p>
+            <p className="text-[10px] text-red-600/70 mt-1">Sales, Transfers</p>
+          </div>
+        </div>
+      </div>
+
+
+      <h2 className="text-lg font-bold text-slate-800 mt-4 mb-3 px-1">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link href="/pharmacy/rx-requests" className="group bg-white p-5 rounded-[1.5rem] shadow-sm border border-slate-200 hover:border-blue-300 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 flex flex-col items-start relative overflow-hidden">
             <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-125 duration-500"></div>

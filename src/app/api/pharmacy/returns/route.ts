@@ -1,135 +1,140 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth/guards';
-import { getNextReturnNumber } from '@/lib/pharmacy/returns';
-import { errorResponse, ErrorCodes } from '@/lib/errors';
-import { z } from 'zod';
-
-async function getPharmacyId(user: any) {
-  if (user.role === 'PHARMACY_OWNER') {
-    const p = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
-    return p?.id || null;
-  }
-  return user.parentPharmacyId;
-}
-
-const itemSchema = z.object({
-  medicineId: z.string().min(1),
-  batchId: z.string().optional(),
-  quantity: z.coerce.number().int().positive(),
-  unitPrice: z.coerce.number().min(0).default(0),
-  isRestocked: z.boolean().default(false),
-  reason: z.string().optional(),
-});
-
-const createSchema = z.object({
-  type: z.enum(['CUSTOMER_RETURN', 'SUPPLIER_RETURN', 'DAMAGE_WRITE_OFF', 'EXPIRED_WRITE_OFF']),
-  supplierId: z.string().optional(),
-  originalSaleId: z.string().optional(),
-  customerName: z.string().optional(),
-  customerPhone: z.string().optional(),
-  refundMethod: z.enum(['CASH', 'ORIGINAL', 'STORE_CREDIT', 'NO_REFUND', 'WALLET']).default('CASH'),
-  reason: z.string().optional(),
-  notes: z.string().optional(),
-  items: z.array(itemSchema).min(1),
-});
 
 export async function GET(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
-  const user = auth.user!;
 
-  const pharmacyId = await getPharmacyId(user);
-  if (!pharmacyId) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Pharmacy not found', 404);
+  try {
+    const url = new URL(req.url);
+    const typeFilter = url.searchParams.get('type');
+    const statusFilter = url.searchParams.get('status');
+    const branchId = url.searchParams.get('branchId');
 
-  const url = new URL(req.url);
-  const type = url.searchParams.get('type');
-  const status = url.searchParams.get('status');
+    const user = await prisma.user.findUnique({ where: { id: auth.user.id } });
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-  const where: any = { pharmacyId };
-  if (type) where.type = type;
-  if (status) where.status = status;
+    let pharmacy = null;
+    if (user.parentPharmacyId) pharmacy = await prisma.pharmacy.findFirst({ where: { id: user.parentPharmacyId } });
+    if (!pharmacy) pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
+    if (!pharmacy) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
 
-  const returns = await prisma.returnOrder.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-    include: {
-      items: true,
-      supplier: { select: { id: true, name: true } },
-      processedBy: { select: { id: true, name: true } },
-    },
-  });
+    const whereClause: any = { pharmacyId: pharmacy.id };
+    if (typeFilter && typeFilter !== 'ALL') whereClause.type = typeFilter;
+    if (statusFilter && statusFilter !== 'ALL') whereClause.status = statusFilter;
+    if (branchId && branchId !== 'ALL') whereClause.branchId = branchId;
 
-  return NextResponse.json({ success: true, returns });
+    const returns = await prisma.returnOrder.findMany({
+      where: whereClause,
+      include: { items: true, branch: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return NextResponse.json({ success: true, returns });
+  } catch (error) {
+    return NextResponse.json({ message: "Failed to fetch returns" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
-  const user = auth.user!;
 
   try {
     const body = await req.json();
-    const data = createSchema.parse(body);
+    const { 
+      type, customerName, customerPhone, refundMethod, originalSaleId, 
+      items, totalAmount, refundAmount, branchId, reason, notes 
+    } = body;
 
-    const pharmacyId = await getPharmacyId(user);
-    if (!pharmacyId) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Pharmacy not found', 404);
-
-    // Verify medicines belong to pharmacy
-    const medicineIds = data.items.map(i => i.medicineId);
-    const medicines = await prisma.medicine.findMany({
-      where: { id: { in: medicineIds }, pharmacyId },
-    });
-    if (medicines.length !== medicineIds.length) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Some medicines not found', 400);
+    if (!items || items.length === 0) {
+      return NextResponse.json({ message: "No items provided" }, { status: 400 });
     }
 
-    const returnNumber = await getNextReturnNumber(pharmacyId, data.type);
+    const user = await prisma.user.findUnique({ where: { id: auth.user.id } });
+    let pharmacyId = user?.parentPharmacyId;
+    if (!pharmacyId) {
+      const pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user?.id } });
+      pharmacyId = pharmacy?.id;
+    }
+    if (!pharmacyId) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
 
-    const itemsData = data.items.map((item) => {
-      const med = medicines.find(m => m.id === item.medicineId)!;
-      return {
-        medicineId: item.medicineId,
-        batchId: item.batchId || null,
-        medicineName: med.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        subtotal: item.unitPrice * item.quantity,
-        isRestocked: item.isRestocked,
-        reason: item.reason || null,
-      };
+    const returnNumber = `RET-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 100)}`;
+    const targetBranchId = branchId || null;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 🔥 Check if originalSaleId belongs to POS Sale or Online Order
+      let validOriginalSaleId = null;
+      let refId = null;
+      let refType = null;
+
+      if (originalSaleId) {
+        const posSale = await tx.posSale.findUnique({ where: { id: originalSaleId } });
+        if (posSale) {
+          validOriginalSaleId = originalSaleId;
+        } else {
+          // এটি অনলাইন অর্ডার, তাই রেফারেন্সে সেভ করব
+          refId = originalSaleId;
+          refType = 'ONLINE_ORDER';
+        }
+      }
+      // ১. Return Order তৈরি করা
+      const returnOrder = await tx.returnOrder.create({
+        data: {
+          pharmacyId,
+          branchId: targetBranchId,
+          returnNumber,
+          type: type || 'CUSTOMER_RETURN',
+          status: 'PENDING',
+          customerName: customerName || null,
+          customerPhone: customerPhone || null,
+          refundMethod: refundMethod || 'CASH',
+          originalSaleId: validOriginalSaleId,
+          referenceId: refId,
+          referenceType: refType,
+          totalAmount: Number(totalAmount) || 0,
+          refundAmount: Number(refundAmount) || 0,
+          reason: reason || null,
+          notes: notes || null,
+          items: {
+            create: items.map((i: any) => ({
+              medicineId: i.medicineId,
+              medicineName: i.medicineName || 'Unknown', 
+              quantity: Number(i.quantity),
+              unitPrice: Number(i.unitPrice) || 0,
+              subtotal: (Number(i.quantity) * Number(i.unitPrice)) || 0,
+              isRestocked: Boolean(i.isRestocked),
+              reason: i.reason || null
+            }))
+          }
+        }
+      });
+
+      // ২. স্টক রিস্টক করা (যদি isRestocked true থাকে এবং ব্রাঞ্চ সিলেক্ট করা থাকে)
+      for (const item of items) {
+        // 🔥 Fetch real medicine name if unknown
+        let medName = item.medicineName;
+        if (!medName || medName === 'Unknown') {
+           const med = await tx.medicine.findUnique({ where: { id: item.medicineId }, select: { name: true } });
+           if (med) medName = med.name;
+        }
+        
+        if (item.isRestocked && targetBranchId) {
+          await tx.branchStock.upsert({
+            where: { branchId_medicineId: { branchId: targetBranchId, medicineId: item.medicineId } },
+            update: { quantity: { increment: Number(item.quantity) } },
+            create: { branchId: targetBranchId, medicineId: item.medicineId, quantity: Number(item.quantity) }
+          });
+        }
+      }
+
+      return returnOrder;
     });
 
-    const totalAmount = itemsData.reduce((s, i) => s + i.subtotal, 0);
-    const refundAmount = data.type === 'CUSTOMER_RETURN' && data.refundMethod !== 'NO_REFUND' ? totalAmount : 0;
-
-    const ret = await prisma.returnOrder.create({
-      data: {
-        returnNumber,
-        pharmacyId,
-        type: data.type,
-        status: "PENDING",
-        supplierId: data.supplierId || null,
-        originalSaleId: data.originalSaleId || null,
-        customerName: data.customerName || null,
-        customerPhone: data.customerPhone || null,
-        refundMethod: data.refundMethod,
-        refundAmount,
-        totalAmount,
-        reason: data.reason || null,
-        notes: data.notes || null,
-        items: { create: itemsData },
-      },
-      include: { items: true },
-    });
-
-    return NextResponse.json({ success: true, return: ret }, { status: 201 });
+    return NextResponse.json({ success: true, returnOrder: result });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return errorResponse(ErrorCodes.VALIDATION_ERROR, error.issues[0].message, 400);
-    }
-    console.error('[RETURN_CREATE]', error);
-    return errorResponse(ErrorCodes.INTERNAL_ERROR, error.message || 'Failed to create return', 500);
+    console.error("Return create error:", error);
+    return NextResponse.json({ message: "Failed to create return" }, { status: 500 });
   }
 }
