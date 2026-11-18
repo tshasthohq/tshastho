@@ -52,6 +52,12 @@ export async function PUT(req: Request) {
       create: { pharmacyId, ...data },
     });
 
+      // Invoice VAT pore Pharmacy.vatPercent theke, tai ekhane sync kora hocche
+      await prisma.pharmacy.update({
+        where: { id: pharmacyId },
+        data: { vatPercent: data.isVatRegistered && data.enableVatOnOnline ? data.vatRate : 0 },
+      });
+
     return NextResponse.json({ success: true, config });
   } catch (error) {
     if (error instanceof z.ZodError) {

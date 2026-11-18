@@ -19,7 +19,7 @@ export default function DoctorDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/doctor/my-appointments', { cache: 'no-store' });
+      const res = await fetch('/api/doctor/my-appointments', { next: { revalidate: 10 } });
       const data = await res.json();
       
       if (res.ok && data.success) {

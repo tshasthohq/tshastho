@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+export const revalidate = 10; // ১০ সেকেন্ড ক্যাশ থাকবে
 // GET /api/wallet/me — own wallet balance + stats — Item 36
 
 import { NextResponse } from 'next/server';

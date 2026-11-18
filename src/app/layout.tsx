@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { LanguageProvider } from "@/i18n/LanguageProvider";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -29,8 +31,12 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon-32.png",
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
     title: "Tshastho",
@@ -47,20 +53,21 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialLocale = (await cookies()).get("tshastho_lang")?.value;
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang={initialLocale || "en"} dir={initialLocale === "ar" || initialLocale === "ur" ? "rtl" : "ltr"} className={`${inter.variable} h-full`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <Script src="https://accounts.google.com/gsi/client" strategy="beforeInteractive" />
       </head>
       <body className="font-sans antialiased h-full bg-slate-50 text-slate-900">
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
-          <BranchProvider>{children}</BranchProvider>
+          <BranchProvider><LanguageProvider initialLocale={initialLocale}>{children}</LanguageProvider></BranchProvider>
         </GoogleOAuthProvider>
         <PWAInstallPrompt />
       </body>

@@ -78,6 +78,27 @@ export async function earnPoints(params: {
           link: '/dashboard/loyalty',
         },
       }).catch(() => {});
+
+      // LOYALTY_PUSH: commit hole-i push jabe (3 bar check, 1.5s por por)
+      const _uid = params.userId;
+      const _tier = tierInfo.label;
+      void (async () => {
+        try {
+          const { prisma: _p } = await import('@/lib/prisma');
+          const { sendPush } = await import('@/lib/push');
+          for (let i = 0; i < 6; i++) {
+            await new Promise((r) => setTimeout(r, i === 0 ? 400 : 800));
+            const n = await _p.notification.findFirst({
+              where: { userId: _uid, category: 'LOYALTY', title: { contains: _tier }, createdAt: { gte: new Date(Date.now() - 60000) } },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (n) {
+              await sendPush(_uid, { title: `Welcome to ${_tier}!`, body: n.message, url: '/dashboard/loyalty', tag: n.id });
+              break;
+            }
+          }
+        } catch (e) { console.error('[LOYALTY_PUSH]', e); }
+      })();
     }
 
     return await tx.loyaltyTransaction.create({

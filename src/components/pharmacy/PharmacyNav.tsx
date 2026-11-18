@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useBranch } from "@/context/BranchContext";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   LayoutDashboard, Pill, History, Truck, ShoppingCart,
   Users, UserCog, ClipboardList, DollarSign, Bell, Wallet,
@@ -53,6 +54,7 @@ export default function PharmacyNav({ pendingOrders = 0 }: { pendingOrders?: num
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { unread } = useNotifications();
   const { branches, activeBranch, setActiveBranch, loading, error } = useBranch();
   const [isOpen, setIsOpen] = useState(false);
   const [isBranchOpen, setIsBranchOpen] = useState(false);
@@ -121,7 +123,7 @@ export default function PharmacyNav({ pendingOrders = 0 }: { pendingOrders?: num
 
           <Link href="/pharmacy/notifications" className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center relative transition-colors">
             <Bell size={16} className="text-slate-600" />
-            {pendingOrders > 0 && <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>}
+            {unread > 0 && <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold border-2 border-white rounded-full flex items-center justify-center">{unread > 9 ? "9+" : unread}</span>}
           </Link>
           
           <Link href="/pharmacy/profile" className="hidden sm:flex w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full items-center justify-center text-white font-bold text-xs shadow-sm">

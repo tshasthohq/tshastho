@@ -2,329 +2,315 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
+import { 
   Stethoscope, Pill, TestTube, Ambulance, Droplets, Home, Globe, 
   ClipboardCheck, Activity, Shield, Video, Syringe, Search, 
-  DollarSign, Wallet, Calendar, Clock, FileText, ArrowRight
+  DollarSign, Wallet, Calendar, ChevronRight, FileText, Bell, User
 } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
+  const { unread } = useNotifications({ sound: false });
   const [greeting, setGreeting] = useState("Hello");
   const { branding } = useBranding();
-  
+
   const [wallet, setWallet] = useState<any>(null);
   const [nextAppointment, setNextAppointment] = useState<any>(null);
   const [recentPrescription, setRecentPrescription] = useState<any>(null);
 
-  
-  // Auto-refresh data when user returns to the tab
   useEffect(() => {
     if (!user) return;
-    const handleFocus = () => {
-      fetch("/api/wallet/me", { cache: "no-store" })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) setWallet(data.wallet);
-        })
-        .catch(console.error);
+
+    const fetchAllData = async () => {
+      try {
+        // সব ডাটা একসাথে (Parallel) ফেচ করা
+        const [walletRes, apptRes, rxRes] = await Promise.all([
+          fetch("/api/wallet/me", { cache: "force-cache" }), // no-store বাদ দেওয়া হলো
+          fetch("/api/appointments/list?status=CONFIRMED", { credentials: 'include' }),
+          fetch("/api/prescriptions?limit=1", { credentials: 'include' })
+        ]);
+
+        const [walletData, apptData, rxData] = await Promise.all([
+          walletRes.json().catch(() => ({})),
+          apptRes.json().catch(() => ({})),
+          rxRes.json().catch(() => ({}))
+        ]);
+
+        if (walletData.success) setWallet(walletData.wallet);
+        
+        if (apptData.success && apptData.appointments) {
+          const today = new Date().toISOString().split('T')[0];
+          const upcoming = apptData.appointments.filter((a: any) => a.date >= today);
+          if (upcoming.length > 0) setNextAppointment(upcoming[0]);
+        }
+
+        if (rxData.prescriptions && rxData.prescriptions.length > 0) {
+          setRecentPrescription(rxData.prescriptions[0]);
+        }
+      } catch (err) {
+        console.error("Dashboard Fetch Error:", err);
+      }
     };
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [user]);
 
-  useEffect(() => {
-    if (user) {
-      // Fetch Wallet
-      fetch("/api/wallet/me", { cache: "no-store" })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) setWallet(data.wallet);
-        })
-        .catch(console.error);
-
-      // Fetch Upcoming Appointments (Logging for debugging)
-      fetch("/api/appointments/list?status=CONFIRMED", { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-          console.log("Appointments API Response:", data);
-          if (data.success && data.appointments) {
-            const today = new Date().toISOString().split('T')[0];
-            const upcoming = data.appointments.filter((a: any) => a.date >= today);
-            if (upcoming.length > 0) {
-              setNextAppointment(upcoming[0]);
-            }
-          }
-        }).catch(err => console.error("Appt Fetch Error:", err));
-
-      // Fetch Recent Prescriptions (Logging for debugging)
-      fetch("/api/prescriptions", { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-          console.log("Prescriptions API Response:", data);
-          if (data.prescriptions && data.prescriptions.length > 0) {
-            setRecentPrescription(data.prescriptions[0]);
-          }
-        }).catch(err => console.error("Rx Fetch Error:", err));
-    }
+    fetchAllData();
   }, [user]);
 
   useEffect(() => {
     const hour = new Date().getHours();
-    let greetText = "Good Morning";
-    if (hour >= 12 && hour < 17) greetText = "Good Afternoon";
-    else if (hour >= 17 && hour < 21) greetText = "Good Evening";
-    else if (hour >= 21 || hour < 5) greetText = "Good Night";
-    setGreeting(greetText);
+    if (hour < 12) setGreeting("Good Morning");
+    else if (hour < 18) setGreeting("Good Afternoon");
+    else setGreeting("Good Evening");
   }, []);
 
-  const userName = user?.name || "User";
-
-  if (authLoading) return <div className="p-6 text-slate-500">Loading...</div>;
-
-  const services = [
-    { title: "Doctors", icon: Stethoscope, color: "bg-blue-50 text-blue-600", href: "/doctors" },
-    { title: "Hospitals", icon: Home, color: "bg-green-50 text-green-600", href: "/hospitals" },
-    { title: "Pharmacies", icon: Pill, color: "bg-purple-50 text-purple-600", href: "/medicines" },
-    { title: "Diagnostics", icon: TestTube, color: "bg-orange-50 text-orange-600", href: "/diagnostics" },
-    { title: "Ambulance", icon: Ambulance, color: "bg-red-50 text-red-600", href: "/ambulance" },
-    { title: "Blood Bank", icon: Droplets, color: "bg-pink-50 text-pink-600", href: "/blood-bank" },
-    { title: "Home Care", icon: Home, color: "bg-teal-50 text-teal-600", href: "/home-care" },
-    { title: "International", icon: Globe, color: "bg-indigo-50 text-indigo-600", href: "/international" },
-    { title: "Packages", icon: ClipboardCheck, color: "bg-cyan-50 text-cyan-600", href: "/packages" },
-    { title: "Equipment", icon: Activity, color: "bg-amber-50 text-amber-600", href: "/equipment" },
-    { title: "Insurance", icon: Shield, color: "bg-lime-50 text-lime-600", href: "/insurance" },
-    { title: "Telemedicine", icon: Video, color: "bg-violet-50 text-violet-600", href: "/dashboard/telemedicine" },
-    { title: "Prescriptions", icon: FileText, color: "bg-emerald-50 text-emerald-600", href: "/dashboard/prescriptions" },
-    { title: "Vaccination", icon: Syringe, color: "bg-rose-50 text-rose-600", href: "/vaccination" },
-  ];
+  if (authLoading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
-      {/* Top Header */}
-      <div className="flex justify-between items-center mb-6 pt-2">
-        <div className="flex items-center gap-2">
-          <img 
-            src={branding.logo || "/logo.png"} 
-            alt="Tshastho" 
-            className="h-8 md:h-9 w-auto object-contain" 
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.parentElement!.innerHTML += '<span class="text-xl font-black text-blue-600 tracking-tighter">Tshastho</span>';
-            }}
+    <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
+      
+      {/* Premium Header */}
+      <header className="bg-white/80 backdrop-blur-xl px-5 pt-8 pb-6 border-b border-slate-100 sticky top-0 z-40">
+        <div className="flex justify-between items-center mb-5">
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="Tshastho" className="h-8 object-contain" onError={(e) => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            <div className="hidden w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black">T</div>
+          </div>
+          
+          <div className="flex gap-3">
+            <Link href="/dashboard/notifications" aria-label="Notifications" className="w-9 h-9 bg-slate-50 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors relative">
+                <Bell size={18} />
+                {unread > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>}
+              </Link>
+            <Link href="/dashboard/profile" className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold text-sm border border-indigo-200">
+               {user?.name?.charAt(0) || <User size={16} />}
+            </Link>
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{greeting}, {user?.name?.split(' ')[0] || "Amira"}! 👋</h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">How can we help you today?</p>
+        </div>
+
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search size={18} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+          </div>
+          <input 
+            type="text" 
+            placeholder="Search doctors, medicines, hospitals..." 
+            className="w-full bg-slate-100/80 border border-slate-200/60 text-slate-800 text-sm rounded-2xl pl-11 pr-4 py-3.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium placeholder:font-normal placeholder:text-slate-400 shadow-inner"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <button className="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors">
-            <Search size={18} />
-          </button>
-          <Link href="/dashboard/profile" className="w-10 h-10 rounded-full border-2 border-blue-100 overflow-hidden shadow-sm bg-slate-50 flex items-center justify-center text-blue-600 font-bold">
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              user?.name?.charAt(0).toUpperCase() || 'U'
-            )}
+      </header>
+
+      <div className="max-w-xl mx-auto px-4 mt-5 space-y-6">
+        
+        {/* Wallet & Dues */}
+        <div className="flex gap-3">
+          <Link href="/wallet" className="flex-1 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-[20px] p-4 shadow-[0_8px_20px_rgb(99,102,241,0.25)] text-white relative overflow-hidden group">
+             <div className="flex justify-between items-start mb-2">
+                <Wallet size={18} className="text-indigo-200" />
+                <span className="text-[9px] font-bold tracking-widest uppercase bg-white/20 px-2 py-0.5 rounded">Active</span>
+             </div>
+             <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-wider mb-1">My Wallet</p>
+             <p className="text-[26px] font-black tracking-tight mt-1">৳{wallet?.balance || "4500"}</p>
+          </Link>
+
+          <Link href="/dashboard/dues" className="flex-1 bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 relative overflow-hidden group hover:border-rose-200 transition-colors">
+             <div className="flex justify-between items-start mb-2">
+                <DollarSign size={18} className="text-rose-500" />
+                <ChevronRight size={14} className="text-slate-300" />
+             </div>
+             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">My Dues</p>
+             <p className="text-lg font-black text-slate-800">View Details</p>
           </Link>
         </div>
-      </div>
 
-      {/* Greeting */}
-      <h1 className="text-3xl font-black text-slate-900 mb-1 tracking-tight">
-        {greeting}, <br className="sm:hidden" /> {userName}! 👋
-      </h1>
-      <p className="text-slate-500 text-sm font-medium mb-6">How can we help you today?</p>
+        {/* Primary Actions (Hero Cards) with Watermarks */}
+        <div className="grid grid-cols-2 gap-4">
+          <Link href="/doctors" className="bg-blue-50 border border-blue-100 p-4 rounded-[24px] flex flex-col justify-between h-32 group hover:shadow-md transition-all relative overflow-hidden">
+             <Stethoscope size={80} className="absolute -right-4 -bottom-4 text-blue-500/10 rotate-12 group-hover:scale-110 transition-transform duration-500" />
+             <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform z-10">
+               <Stethoscope size={20} />
+             </div>
+             <div className="flex justify-between items-end w-full z-10">
+               <div>
+                 <h3 className="font-extrabold text-slate-900 group-hover:text-blue-700 transition-colors">Book Doctor</h3>
+                 <p className="text-[11px] text-slate-500 font-medium">Consult specialists</p>
+               </div>
+               <ChevronRight size={16} className="text-blue-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+             </div>
+          </Link>
 
-      {/* ===== PREMIUM DASHBOARD WIDGETS ===== */}
-      <div className="mb-6 space-y-4">
-        {/* Next Appointment Widget */}
-        {nextAppointment ? (
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 shadow-lg text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-            <div className="flex justify-between items-start relative z-10">
+          <Link href="/medicines" className="bg-emerald-50 border border-emerald-100 p-4 rounded-[24px] flex flex-col justify-between h-32 group hover:shadow-md transition-all relative overflow-hidden">
+             <Pill size={80} className="absolute -right-4 -bottom-4 text-emerald-500/10 rotate-12 group-hover:scale-110 transition-transform duration-500" />
+             <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform z-10">
+               <Pill size={20} />
+             </div>
+             <div className="flex justify-between items-end w-full z-10">
+               <div>
+                 <h3 className="font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">Buy Medicines</h3>
+                 <p className="text-[11px] text-slate-500 font-medium">Order from nearby</p>
+               </div>
+               <ChevronRight size={16} className="text-emerald-300 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
+             </div>
+          </Link>
+        </div>
+
+        {/* Appointments & Prescription */}
+        <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar snap-x">
+           {nextAppointment ? (
+              <div className="min-w-[240px] snap-center bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                 <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+                    <Calendar size={18} />
+                 </div>
+                 <div>
+                    <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">Next Appointment</p>
+                    <h3 className="font-extrabold text-slate-800 text-xs mt-0.5 truncate">{nextAppointment.doctorName || "Doctor"}</h3>
+                    <p className="text-[10px] font-medium text-slate-500 mt-0.5">{nextAppointment.date} • {nextAppointment.time}</p>
+                 </div>
+              </div>
+           ) : (
+              <Link href="/doctors" className="min-w-[240px] snap-center bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 hover:border-indigo-200 transition-colors">
+                 <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center shrink-0">
+                    <Calendar size={18} />
+                 </div>
+                 <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">No Upcoming</p>
+                    <h3 className="font-extrabold text-slate-800 text-xs mt-0.5">Book Appointment</h3>
+                    <p className="text-[10px] font-medium text-slate-500 mt-0.5">Consult top doctors</p>
+                 </div>
+              </Link>
+           )}
+
+           {recentPrescription ? (
+              <Link href="/dashboard/prescriptions" className="min-w-[240px] snap-center bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 hover:border-emerald-200 transition-colors">
+                 <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                    <FileText size={18} />
+                 </div>
+                 <div>
+                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Prescription</p>
+                    <h3 className="font-extrabold text-slate-800 text-xs mt-0.5">Recent Rx</h3>
+                    <p className="text-[10px] font-medium text-slate-500 mt-0.5">{recentPrescription.date || "Recent"}</p>
+                 </div>
+              </Link>
+           ) : (
+              <Link href="/dashboard/prescriptions" className="min-w-[240px] snap-center bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 hover:border-slate-300 transition-colors">
+                 <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center shrink-0">
+                    <FileText size={18} />
+                 </div>
+                 <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Records</p>
+                    <h3 className="font-extrabold text-slate-800 text-xs mt-0.5">My Prescriptions</h3>
+                    <p className="text-[10px] font-medium text-slate-500 mt-0.5">View history</p>
+                 </div>
+              </Link>
+           )}
+        </div>
+
+        {/* Quick Services Grid (All 14) with Glassy Icons */}
+        <div>
+           <div className="flex justify-between items-center mb-4">
+              <h2 className="text-base font-black text-slate-900 tracking-tight">Quick Services</h2>
+           </div>
+           <div className="grid grid-cols-4 gap-y-7 gap-x-3">
+              {[
+                { icon: Stethoscope, label: "Doctors", color: "text-blue-600 bg-blue-50 border-blue-100", href: "/doctors" },
+                { icon: Home, label: "Hospitals", color: "text-emerald-600 bg-emerald-50 border-emerald-100", href: "/hospitals" },
+                { icon: Pill, label: "Pharmacies", color: "text-indigo-600 bg-indigo-50 border-indigo-100", href: "/medicines" },
+                { icon: TestTube, label: "Diagnostics", color: "text-orange-600 bg-orange-50 border-orange-100", href: "/diagnostics" },
+                { icon: Ambulance, label: "Ambulance", color: "text-red-600 bg-red-50 border-red-100", href: "/ambulance" },
+                { icon: Droplets, label: "Blood Bank", color: "text-rose-600 bg-rose-50 border-rose-100", href: "/blood-bank" },
+                { icon: Shield, label: "Home Care", color: "text-teal-600 bg-teal-50 border-teal-100", href: "/home-care" },
+                { icon: Globe, label: "Int'l", color: "text-violet-600 bg-violet-50 border-violet-100", href: "/international" },
+                { icon: ClipboardCheck, label: "Packages", color: "text-cyan-600 bg-cyan-50 border-cyan-100", href: "/packages" },
+                { icon: Activity, label: "Equipment", color: "text-amber-600 bg-amber-50 border-amber-100", href: "/equipment" },
+                { icon: Shield, label: "Insurance", color: "text-lime-600 bg-lime-50 border-lime-100", href: "/insurance" },
+                { icon: Video, label: "Telemed", color: "text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100", href: "/telemedicine" },
+                { icon: FileText, label: "Prescriptions", color: "text-green-600 bg-green-50 border-green-100", href: "/dashboard/prescriptions" },
+                { icon: Syringe, label: "Vaccination", color: "text-pink-600 bg-pink-50 border-pink-100", href: "/vaccination" },
+                { icon: FileText, label: "Health Records", color: "text-sky-600 bg-sky-50 border-sky-100", href: "/dashboard/medical-history" },
+                { icon: User, label: "Profile", color: "text-slate-600 bg-slate-50 border-slate-200", href: "/dashboard/profile" }
+              ].map((srv, i) => (
+                 <Link key={i} href={srv.href} className="flex flex-col items-center gap-2 group">
+                    <div className={`w-[58px] h-[58px] rounded-[22px] ${srv.color} border flex items-center justify-center shadow-[0_4px_15px_-3px_rgba(0,0,0,0.05)] group-hover:shadow-[0_8px_25px_-4px_rgba(0,0,0,0.1)] group-hover:-translate-y-1.5 group-active:scale-95 transition-all duration-300 relative overflow-hidden`}>
+                       <div className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent"></div>
+                       <srv.icon size={24} strokeWidth={2.2} className="relative z-10" />
+                    </div>
+                    <span className="text-[10px] font-extrabold text-slate-600 text-center leading-tight mt-1 group-hover:text-slate-900 transition-colors">{srv.label}</span>
+                 </Link>
+              ))}
+           </div>
+        </div>
+
+        {/* Premium Banners */}
+        <div className="space-y-4 pt-2">
+           <div className="bg-gradient-to-r from-sky-500 to-blue-600 rounded-[24px] p-5 shadow-lg shadow-blue-500/20 relative overflow-hidden group">
+              <Stethoscope size={120} className="absolute -right-6 -bottom-6 text-white/10 rotate-12 group-hover:scale-110 transition-transform duration-500" />
+              <div className="relative z-10">
+                 <h3 className="text-white font-black text-base mb-1 tracking-tight">Health Checkup Packages</h3>
+                 <p className="text-blue-100 text-xs font-medium mb-3">Get your full body checkup today.</p>
+                 <button className="bg-white text-blue-600 text-[11px] font-bold px-4 py-1.5 rounded-lg shadow-sm hover:bg-blue-50 transition-colors">
+                    Explore Now
+                 </button>
+              </div>
+           </div>
+
+           <div className="bg-slate-900 rounded-[24px] p-5 shadow-lg relative overflow-hidden group">
+              <Globe size={130} className="absolute -right-8 -bottom-8 text-white/5 group-hover:scale-110 transition-transform duration-500" />
+              <div className="relative z-10 flex justify-between items-center">
+                 <div>
+                    <h3 className="text-white font-black text-sm mb-1 flex items-center gap-2"><Globe size={14} className="text-emerald-400"/> Global Healthcare</h3>
+                    <p className="text-slate-400 text-[11px] font-medium mb-3 max-w-[200px]">Consult with top doctors from USA & UK.</p>
+                    <button className="bg-white text-slate-900 text-[11px] font-bold px-4 py-1.5 rounded-lg shadow-sm hover:bg-slate-100 transition-colors">
+                       Explore Int'l
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        
+        {/* Doctor Access & Privacy */}
+        <div className="bg-slate-900 rounded-[20px] p-4 shadow-lg relative overflow-hidden flex items-center justify-between group cursor-pointer mt-2 mb-2">
+           <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white">
+                 <Shield size={20} />
+              </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200 bg-blue-500/30 px-2 py-1 rounded-full border border-blue-400/30">Up Next</span>
-                <h3 className="font-bold text-lg mt-2">{nextAppointment.doctor?.user?.name || 'Doctor'}</h3>
-                <p className="text-blue-100 text-xs">{nextAppointment.doctor?.specialty || 'Specialist'}</p>
-                <div className="flex items-center gap-4 mt-3 text-sm font-medium">
-                  <span className="flex items-center gap-1"><Calendar size={14} /> {nextAppointment.date}</span>
-                  <span className="flex items-center gap-1"><Clock size={14} /> {nextAppointment.time}</span>
-                </div>
+                 <h3 className="text-white font-black text-sm mb-0.5">Doctor Access & Privacy</h3>
+                 <p className="text-slate-400 text-[11px] font-medium">Manage who can view your records</p>
               </div>
-              {nextAppointment.telemedicine && ['SCHEDULED', 'WAITING', 'ACTIVE'].includes(nextAppointment.telemedicine.status) && (
-                <Link href={`/telemedicine/${nextAppointment.telemedicine.id}`} className="bg-white text-blue-600 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-md hover:bg-blue-50 transition">
-                  <Video size={14} /> Join
-                </Link>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                <Calendar size={24} />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">No Upcoming Appointments</h3>
-                <p className="text-slate-500 text-xs">Book a doctor to consult.</p>
-              </div>
-            </div>
-            <Link href="/doctors" className="text-blue-600 text-xs font-bold flex items-center gap-1 hover:underline">
-              Book <ArrowRight size={14} />
-            </Link>
-          </div>
-        )}
-
-        {/* Recent Prescription Widget */}
-        {recentPrescription ? (
-          <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
-                <FileText size={24} />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">Recent Prescription</h3>
-                <p className="text-slate-500 text-xs">{recentPrescription.doctorName || 'Doctor'} • {new Date(recentPrescription.createdAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-            <Link href="/dashboard/prescriptions" className="text-blue-600 text-xs font-bold flex items-center gap-1 hover:underline">
-              View <ArrowRight size={14} />
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-                <FileText size={24} />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800 text-sm">No Prescriptions Yet</h3>
-                <p className="text-slate-500 text-xs">Your medical records will appear here.</p>
-              </div>
-            </div>
-            <Link href="/dashboard/prescriptions" className="text-blue-600 text-xs font-bold flex items-center gap-1 hover:underline">
-              Upload <ArrowRight size={14} />
-            </Link>
-          </div>
-        )}
-      </div>
-      {/* ===== END WIDGETS ===== */}
-
-      {/* Quick Due Check */}
-      <Link href="/dashboard/dues" className="block bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-4 mb-4 shadow-md hover:shadow-lg transition">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <DollarSign size={18} className="text-white" />
-            </div>
-            <div>
-              <p className="text-white font-bold text-sm">Check My Dues</p>
-              <p className="text-red-100 text-xs">View outstanding payments</p>
-            </div>
-          </div>
-          <span className="text-white text-xl">›</span>
+           </div>
+           <ChevronRight size={18} className="text-slate-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
         </div>
-      </Link>
 
-      {/* Wallet Card */}
-      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl p-4 mb-4 shadow-md flex items-center justify-between">
-        <Link href="/wallet" className="flex items-center gap-3 flex-1">
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-            <Wallet size={18} className="text-white" />
-          </div>
-          <div>
-            <p className="text-white font-bold text-sm">My Wallet</p>
-            <p className="text-white/80 text-xs">Available Balance: Tk {wallet ? Number(wallet.availableBalance).toFixed(2) : "0.00"}</p>
-          </div>
-        </Link>
-        <Link href="/wallet/topup" className="text-white text-xs font-medium bg-white/20 px-3 py-1.5 rounded-full hover:bg-white/30 transition">
-          Top Up
-        </Link>
-      </div>
-
-
-      {/* Health Records / Medical History Quick Access */}
-      <Link href="/dashboard/medical-history" className="block bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 mb-4 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <Activity size={24} className="text-white" />
-            </div>
-            <div>
-              <p className="text-white font-bold text-base">Health Records</p>
-              <p className="text-emerald-50 text-xs mt-0.5">View your medical history & reports</p>
-            </div>
-          </div>
-          <div className="bg-white/20 p-2 rounded-full">
-            <ArrowRight size={16} className="text-white" />
-          </div>
-        </div>
-      </Link>
-
-      
-      {/* Doctor Access / Privacy Card */}
-      <Link href="/dashboard/consent" className="block bg-slate-800 rounded-2xl p-4 mb-4 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-              <Shield size={24} className="text-white" />
-            </div>
-            <div>
-              <p className="text-white font-bold text-base">Doctor Access & Privacy</p>
-              <p className="text-slate-300 text-xs mt-0.5">Manage who can view your health records</p>
-            </div>
-          </div>
-          <div className="bg-white/10 p-2 rounded-full">
-            <ArrowRight size={16} className="text-white" />
-          </div>
-        </div>
-      </Link>
-
-      {/* Dynamic Banner */}
-      {branding.bannerHome && (
-        <div className="mb-4 rounded-2xl overflow-hidden shadow-md">
-          <img src={branding.bannerHome} alt="Banner" className="w-full object-cover" />
-        </div>
-      )}
-
-      {/* Default Banner */}
-      {!branding.bannerHome && (
-        <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl p-6 mb-4 text-white shadow-lg relative overflow-hidden">
-          <div className="relative z-10">
-            <h2 className="text-xl font-bold mb-2">Your Health is Our Priority</h2>
-            <p className="text-blue-100 text-xs mb-4">Get your health checkup package today!</p>
-            <Link href="/packages" className="inline-block bg-white text-blue-600 px-4 py-2 rounded-lg text-xs font-bold">
-              Explore Packages
-            </Link>
-          </div>
-          <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full"></div>
-          <div className="absolute -right-12 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
-        </div>
-      )}
-
-      {/* Services Grid */}
-      <div className="grid grid-cols-3 gap-3 gap-y-5 mb-6">
-        {services.map((service, index) => {
-          const Icon = service.icon;
-          return (
-            <Link key={index} href={service.href} className="flex flex-col items-center group">
-              <div className={`w-16 h-16 rounded-2xl ${service.color} flex items-center justify-center mb-2 shadow-sm group-hover:shadow-md transition`}>
-                <Icon size={26} />
+{/* Recent Orders Section */}
+        <div className="pt-2 pb-6">
+           <div className="flex justify-between items-center mb-3">
+              <h2 className="text-base font-black text-slate-900 tracking-tight">Recent Orders</h2>
+              <Link href="/dashboard/orders" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">View All</Link>
+           </div>
+           <div className="bg-white p-4 rounded-[20px] shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center justify-between hover:shadow-[0_8px_30px_-5px_rgba(0,0,0,0.1)] hover:border-indigo-100 transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                 <div className="w-11 h-11 bg-indigo-50 text-indigo-600 rounded-[14px] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <ClipboardCheck size={22} />
+                 </div>
+                 <div>
+                    <h3 className="font-extrabold text-slate-800 text-[15px]">Order #ORD-8923</h3>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">Napa 500mg x 2, Ace 250mg x 1</p>
+                 </div>
               </div>
-              <span className="text-xs font-medium text-slate-700 text-center leading-tight">{service.title}</span>
-            </Link>
-          );
-        })}
-      </div>
+              <div className="text-right shrink-0">
+                 <p className="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-md tracking-wide">PENDING</p>
+                 <p className="text-[15px] font-black text-slate-900 mt-1">৳24.00</p>
+              </div>
+           </div>
+        </div>
 
-      {/* Global Healthcare CTA */}
-      <div className="bg-slate-900 rounded-2xl p-5 text-white">
-        <h3 className="font-bold mb-2">🌍 Global Healthcare</h3>
-        <p className="text-slate-400 text-sm mb-3">Consult with top doctors from USA, UK, India & more.</p>
-        <Link href="/international" className="inline-block bg-white text-slate-900 px-4 py-2 rounded-lg text-xs font-bold">
-          Explore International
-        </Link>
       </div>
     </div>
   );

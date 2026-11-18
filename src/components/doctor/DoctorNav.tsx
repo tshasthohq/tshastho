@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Calendar, Video, MessageSquare, MapPin, Users, FilePlus, FileText, Award, UserPlus, Clock, Building, UserCheck, ShieldAlert, Footprints, DollarSign, CreditCard, QrCode, User, Menu, X, LogOut, CheckCircle, XCircle } from "lucide-react";
+import { Bell, LayoutDashboard, Calendar, Video, MessageSquare, MapPin, Users, FilePlus, FileText, Award, UserPlus, Clock, Building, UserCheck, ShieldAlert, Footprints, DollarSign, CreditCard, QrCode, User, Menu, X, LogOut, CheckCircle, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export default function DoctorNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user } = useAuth();
+  const { unread } = useNotifications();
   const [kycStatus, setKycStatus] = useState<string>("PENDING");
 
   const mainLinks = [
@@ -136,6 +138,18 @@ export default function DoctorNav() {
               <Menu size={20} />
               <span className="hidden sm:block">Menu</span>
             </button>
+            <Link
+              href="/doctor/notifications"
+              aria-label="Notifications"
+              className="relative p-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl transition"
+            >
+              <Bell size={20} />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </Link>
             <button
               onClick={() => {
                 document.cookie = "tshastho_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";

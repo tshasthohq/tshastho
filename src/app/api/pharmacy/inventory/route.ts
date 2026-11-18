@@ -7,69 +7,65 @@ export async function POST(req: Request) {
   if (auth.error) return auth.error;
 
   try {
-    // সরাসরি auth থেকে ইউজার নেওয়া হচ্ছে
     const user = await prisma.user.findUnique({ where: { id: auth.user.id } });
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     let pharmacy = null;
     if (user.parentPharmacyId) pharmacy = await prisma.pharmacy.findFirst({ where: { id: user.parentPharmacyId } });
-    if (!pharmacy) pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
+    else pharmacy = await prisma.pharmacy.findFirst({ where: { userId: user.id } });
     if (!pharmacy) return NextResponse.json({ message: "Pharmacy not found" }, { status: 404 });
 
-    const medicines = await prisma.medicine.findMany({
+    const body = await req.json().catch(() => ({}));
+    const page = body.page || 1;
+    const limit = body.limit || 20;
+    const search = body.search || '';
+
+    const whereClause: any = {
+      pharmacyId: pharmacy.id,
+      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {})
+    };
+
+    const [medicines, totalItems] = await Promise.all([
+      prisma.medicine.findMany({
+        where: whereClause,
+        take: limit,
+        skip: (page - 1) * limit,
+        orderBy: { name: 'asc' }
+      }),
+      prisma.medicine.count({ where: whereClause })
+    ]);
+
+    const allMedicinesForStats = await prisma.medicine.findMany({
       where: { pharmacyId: pharmacy.id },
+      select: { stock: true, sellingPrice: true, expiryDate: true, lowStockAlert: true }
     });
 
-    let totalItems = medicines.length;
-    let lowStock = 0;
-    let outOfStock = 0;
-    let totalStockValue = 0;
-    
-    let expired = 0;
-    let expiringSoon = 0; // < 30 days
-    let expiringWarning = 0; // < 90 days
-    let safe = 0;
-
+    let lowStock = 0, outOfStock = 0, totalStockValue = 0, expired = 0, expiringSoon = 0, expiringWarning = 0, safe = 0;
     const now = new Date();
 
-    for (const med of medicines) {
-      // স্টক ক্যালকুলেশন
+    for (const med of allMedicinesForStats) {
       if (med.stock === 0) outOfStock++;
       else if (med.stock <= (med.lowStockAlert || 10)) lowStock++;
-      
       totalStockValue += med.stock * Number(med.sellingPrice);
-
-      // এক্সপায়ারি ক্যালকুলেশন
       if (med.expiryDate) {
         const exp = new Date(med.expiryDate);
         const daysLeft = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
         if (daysLeft < 0) expired++;
         else if (daysLeft <= 30) expiringSoon++;
         else if (daysLeft <= 90) expiringWarning++;
         else safe++;
-      } else {
-        safe++; // যদি এক্সপায়ারি ডেট না থাকে
-      }
+      } else safe++;
     }
 
     return NextResponse.json({
       success: true,
       medicines,
-      stats: {
-        totalItems,
-        lowStock,
-        outOfStock,
-        totalStockValue,
-        expired,
-        expiringSoon,
-        expiringWarning,
-        safe
-      }
+      stats: { totalItems: allMedicinesForStats.length, lowStock, outOfStock, totalStockValue, expired, expiringSoon, expiringWarning, safe },
+      pagination: { page, limit, totalItems, totalPages: Math.ceil(totalItems / limit) }
     });
 
   } catch (error) {
-    console.error("Inventory stats error:", error);
-    return NextResponse.json({ message: "Failed to fetch inventory stats" }, { status: 500 });
+    console.error("Inventory API error:", error);
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

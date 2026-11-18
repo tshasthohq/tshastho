@@ -101,7 +101,18 @@ export async function POST(req: Request) {
       include: { items: true }
     });
 
-    return NextResponse.json({ success: true, prescription }, { status: 201 });
+    // PRESCRIPTION_NOTIFY
+      try {
+        await prisma.notification.create({ data: {
+          userId: data.patientId,
+          title: 'New Prescription',
+          message: `Your doctor has issued a new prescription (${prescriptionNo}).`,
+          type: 'new',
+          link: '/dashboard/prescriptions',
+        } });
+      } catch (e) { console.error('[PRESCRIPTION_NOTIFY]', e); }
+
+      return NextResponse.json({ success: true, prescription }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return errorResponse(ErrorCodes.VALIDATION_ERROR, error.issues[0].message, 400);

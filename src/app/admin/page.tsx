@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, XCircle, User, Stethoscope, Pill, LogOut, Settings, BarChart3, TrendingUp, Users, CreditCard, Clock, Activity, ShieldCheck, PhoneCall, Wallet } from "lucide-react";
+import { CheckCircle, XCircle, User, Stethoscope, Pill, LogOut, Settings, BarChart3, TrendingUp, Users, CreditCard, Clock, Activity, ShieldCheck, PhoneCall, Wallet, Droplet } from "lucide-react";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [filter, setFilter] = useState<"PENDING" | "APPROVED" | "REJECTED">("PENDING");
   const [roleFilter, setRoleFilter] = useState<"ALL" | "DOCTOR" | "PHARMACY_OWNER">("ALL");
 
@@ -56,6 +57,8 @@ export default function AdminDashboard() {
     { href: "/admin/payouts", title: "Payouts", icon: Wallet, color: "from-blue-500 to-indigo-600", desc: "Doctor withdrawals" },
     { href: "/admin/transactions", title: "Transactions", icon: Activity, color: "from-teal-400 to-cyan-600", desc: "Wallet activity" },
     { href: "/admin/analytics", title: "Analytics", icon: TrendingUp, color: "from-emerald-500 to-green-700", desc: "Revenue & stats" },
+    { href: "/admin/blood-donors", title: "Blood Donors", icon: Droplet, color: "from-red-500 to-rose-700", desc: "Verify donors" },
+    { href: "/admin/blood-requests", title: "Blood Requests", icon: Droplet, color: "from-rose-500 to-red-700", desc: "Moderate requests" },
     { href: "/admin/customers", title: "Customers", icon: Users, color: "from-orange-500 to-red-600", desc: "View all users" },
     { href: "/admin/settings", title: "Settings", icon: Settings, color: "from-blue-500 to-indigo-600", desc: "Platform config" },
     { href: "/admin/settings/hotline", title: "Hotline", icon: PhoneCall, color: "from-emerald-500 to-teal-600", desc: "Support number" },
@@ -172,7 +175,15 @@ export default function AdminDashboard() {
                     <div><span className="text-slate-500">Specialty:</span> <span className="font-medium">{u.doctorProfile.specialty}</span></div>
                     <div><span className="text-slate-500">Exp:</span> <span className="font-medium">{u.doctorProfile.experience} yrs</span></div>
                     <div><span className="text-slate-500">Fee:</span> <span className="font-medium">৳{u.doctorProfile.consultationFee}</span></div>
-                  </div>
+                  {selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setSelectedImage(null)}>
+          <div className="relative max-w-2xl w-full bg-white rounded-2xl p-2 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 bg-red-500 text-white w-8 h-8 flex items-center justify-center rounded-full font-bold hover:bg-red-600 shadow-lg z-10">X</button>
+            <img src={selectedImage} alt="Document" className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
+          </div>
+        </div>
+      )}
+    </div>
                 )}
 
                 {u.pharmacyProfile && (
@@ -181,6 +192,10 @@ export default function AdminDashboard() {
                     <div><span className="text-slate-500">Drug Lic:</span> <span className="font-medium">{u.pharmacyProfile.drugLicense}</span></div>
                     <div><span className="text-slate-500">Trade Lic:</span> <span className="font-medium">{u.pharmacyProfile.tradeLicense}</span></div>
                     <div><span className="text-slate-500">City:</span> <span className="font-medium">{u.pharmacyProfile.city}</span></div>
+<div className="col-span-2 mt-2 pt-2 border-t border-slate-200 flex gap-3">
+  {u.pharmacyProfile.drugLicenseUrl && <button onClick={() => setSelectedImage(u.pharmacyProfile.drugLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View Drug License</button>}
+  {u.pharmacyProfile.tradeLicenseUrl && <button onClick={() => setSelectedImage(u.pharmacyProfile.tradeLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View Trade License</button>}
+</div>
                   </div>
                 )}
 

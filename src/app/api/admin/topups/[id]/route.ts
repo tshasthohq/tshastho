@@ -24,6 +24,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         where: { id: requestId },
         data: { status: 'REJECTED', adminNote: note || 'Rejected by admin' },
       });
+      try {
+        await prisma.notification.create({ data: {
+          userId: topupReq.userId,
+          title: 'Wallet Top-up Rejected',
+          message: `Your top-up request of ৳${Number(topupReq.amount).toFixed(2)} was rejected.${note ? ' Reason: ' + note : ''}`,
+          type: 'rejected',
+          link: '/wallet',
+        } });
+      } catch (e) { console.error('[TOPUP_NOTIFY]', e); }
       return NextResponse.json({ success: true });
     }
 
@@ -83,6 +92,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         });
       });
 
+      try {
+        await prisma.notification.create({ data: {
+          userId: topupReq.userId,
+          title: 'Wallet Top-up Approved',
+          message: `৳${Number(topupReq.amount).toFixed(2)} has been added to your wallet.`,
+          type: 'confirmed',
+          link: '/wallet',
+        } });
+      } catch (e) { console.error('[TOPUP_NOTIFY]', e); }
       return NextResponse.json({ success: true });
     }
 

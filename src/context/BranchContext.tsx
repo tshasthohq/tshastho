@@ -30,6 +30,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // ✅ 403 Fix: শুধুমাত্র ফার্মেসি রোল থাকলেই ব্রাঞ্চ ফেচ করবে
+    const isPharmacyUser = user?.role === 'PHARMACY_OWNER' || user?.role === 'PHARMACY_STAFF' || user?.role === 'SUPER_ADMIN';
+    
+    if (!isPharmacyUser) {
+      setLoading(false);
+      return;
+    }
+
     if (!user) return; // Wait for auth to load
 
     async function fetchBranches() {

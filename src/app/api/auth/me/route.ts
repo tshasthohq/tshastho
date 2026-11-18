@@ -13,22 +13,20 @@ export async function GET() {
     const user = await prisma.user.findUnique({
       where: { id: payload.id as string },
       select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatarUrl: true,
-        role: true,
-        status: true,
-        isVerified: true,
-        address: true,
-        parentPharmacyId: true,
-        staffRole: true,
-        permissions: true,
-        patientProfile: true,
-        doctorProfile: true,
-        pharmacyProfile: true,
-      },
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      avatarUrl: true,
+      role: true,
+      status: true,
+      isVerified: true,
+      address: true,
+      parentPharmacyId: true,
+      staffRole: true,
+      permissions: true,
+      // ভারী প্রোফাইলগুলো বাদ দেওয়া হলো, কারণ এগুলো শুধু নির্দিষ্ট পেজেই দরকার
+    },
     });
 
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });

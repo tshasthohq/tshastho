@@ -22,6 +22,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = schema.parse(body);
 
+      if (data.purpose === 'WALLET_TOPUP') {
+        const autoSetting = await prisma.systemSetting.findUnique({ where: { key: 'wallet_auto_topup_enabled' } });
+        if (autoSetting?.value === 'false') {
+          return errorResponse(ErrorCodes.VALIDATION_ERROR, 'Automatic top-up is currently unavailable. Please use Manual (Admin).', 400);
+        }
+      }
+
     // If orderId provided, verify ownership & get amount
     if (!data.orderId && data.purpose !== 'WALLET_TOPUP') {
       return errorResponse(ErrorCodes.VALIDATION_ERROR, 'A valid orderId is required for this payment type.', 400);
