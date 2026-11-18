@@ -166,7 +166,10 @@ export async function changeAppointmentStatus(params: ChangeParams) {
           userId: notifyUserId,
           title: notifyTitle,
           message: notifyMsg,
-          type: 'info',
+          type: /* APPT_TYPE_BY_TITLE */ (/confirm/i.test(String(notifyTitle ?? '')) ? 'confirmed'
+          : /cancel|reject|declin/i.test(String(notifyTitle ?? '')) ? 'rejected'
+          : /complete/i.test(String(notifyTitle ?? '')) ? 'completed'
+          : 'info'),
           category: 'APPOINTMENT',
           link: isDoctor ? '/dashboard/appointments' : '/doctor',
         },

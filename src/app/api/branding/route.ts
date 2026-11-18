@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PUBLIC_CACHE } from "@/lib/cache";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
 
 export async function GET() {
   try {
@@ -36,7 +36,7 @@ export async function GET() {
       if (s.key === "tshastho_support_email") branding.supportEmail = s.value;
     }
 
-    return NextResponse.json({ branding }, { status: 200 });
+    return NextResponse.json({ branding }, { status: 200, headers: PUBLIC_CACHE });
   } catch (error) {
     return NextResponse.json({ message: "Error", error: String(error) }, { status: 500 });
   }

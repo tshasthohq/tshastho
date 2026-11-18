@@ -23,7 +23,7 @@ export async function GET() {
 
     const appointments: any[] = await prisma.appointment.findMany({
       where: { doctorId: doctor.id },
-      include: { patient: true } as any,
+      include: { patient: { select: { id: true, name: true, phone: true, email: true } } } as any,
       orderBy: { createdAt: 'desc' },
     });
 

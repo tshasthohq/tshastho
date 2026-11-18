@@ -14,6 +14,7 @@ export default function AdminSettingsPage() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [settings, setSettings] = useState({
     platform_fee_percent: "5",
+      wallet_auto_topup_enabled: "true",
     delivery_charge: "30",
     delivery_charge_free: "false",
     free_delivery_threshold: "500",
@@ -36,6 +37,7 @@ export default function AdminSettingsPage() {
         if (data.settings) {
           setSettings({
             platform_fee_percent: data.settings.platform_fee_percent || "5",
+            wallet_auto_topup_enabled: data.settings.wallet_auto_topup_enabled || "true",
             delivery_charge: data.settings.delivery_charge || "30",
             delivery_charge_free: data.settings.delivery_charge_free || "false",
             free_delivery_threshold: data.settings.free_delivery_threshold || "500",
@@ -89,6 +91,25 @@ export default function AdminSettingsPage() {
     setTimeout(() => setMessage(""), 2500);
   };
 
+  const toggleAutoTopup = async () => {
+    const prev = settings.wallet_auto_topup_enabled;
+    const next = prev === "false" ? "true" : "false";
+    setSettings({ ...settings, wallet_auto_topup_enabled: next });
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: { wallet_auto_topup_enabled: next } }),
+      });
+      if (!res.ok) throw new Error("fail");
+      setMessage(next === "true" ? "✅ Automatic top-up ON" : "✅ Automatic top-up OFF");
+    } catch {
+      setSettings({ ...settings, wallet_auto_topup_enabled: prev });
+      setMessage("❌ Failed to update");
+    }
+    setTimeout(() => setMessage(""), 2500);
+  };
+
   if (loading) return <div className="p-6 text-center text-slate-500">Loading...</div>;
 
   return (
@@ -104,6 +125,21 @@ export default function AdminSettingsPage() {
       </header>
 
       <div className="max-w-2xl mx-auto p-6">
+        {/* Wallet Auto Top-up Toggle */}
+        <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mb-4">
+          <div>
+            <p className="font-bold text-slate-800 text-sm">Automatic Wallet Top-up</p>
+            <p className="text-xs text-slate-500">Off hole user-ra shudhu Manual (Admin) top-up korte parbe</p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleAutoTopup}
+            className={`w-12 h-7 rounded-full p-1 transition ${settings.wallet_auto_topup_enabled === "false" ? "bg-slate-300" : "bg-emerald-500"}`}
+          >
+            <span className={`block w-5 h-5 bg-white rounded-full transition ${settings.wallet_auto_topup_enabled === "false" ? "" : "translate-x-5"}`} />
+          </button>
+        </div>
+
         {/* Tab Switcher */}
         <div className="flex gap-2 mb-6 bg-white p-1 rounded-2xl border border-slate-200">
           <button

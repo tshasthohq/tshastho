@@ -2,162 +2,210 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ShoppingBag, Package, Clock, CheckCircle, Truck, XCircle, Store, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { 
+  Package, Store, Calendar, ChevronRight, 
+  Clock, CheckCircle2, Truck, XCircle, Pill, 
+  Download, RefreshCcw, MessageCircle
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function PatientOrdersPage() {
+export default function MyOrdersPage() {
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>("ALL");
+  const [activeTab, setActiveTab] = useState("All");
+
+  const tabs = ["All", "Pending", "Accepted", "Delivering", "Delivered"];
 
   useEffect(() => {
-    const email = user?.email;
-    if (!email) { setLoading(false); return; }
+    if (!authLoading && !user) { router.push("/login"); return; }
+    if (authLoading || !user) return;
 
     fetch("/api/orders/my-orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      credentials: 'include',
+      body: JSON.stringify({ email: user?.email })
     })
       .then(res => res.json())
       .then(data => {
-        if (data.orders) setOrders(data.orders);
+        if (data.success && data.orders) setOrders(data.orders);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [user]);
+  }, [user, authLoading, router]);
 
-  const statusInfo = (status: string) => {
-    switch (status) {
-      case "PENDING": return { icon: Clock, color: "bg-amber-50 text-amber-700 border-amber-200", label: "Pending" };
-      case "ACCEPTED": return { icon: CheckCircle, color: "bg-blue-50 text-blue-700 border-blue-200", label: "Accepted" };
-      case "OUT_FOR_DELIVERY": return { icon: Truck, color: "bg-purple-50 text-purple-700 border-purple-200", label: "On the way" };
-      case "DELIVERED": return { icon: CheckCircle, color: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Delivered" };
-      case "REJECTED": return { icon: XCircle, color: "bg-red-50 text-red-700 border-red-200", label: "Rejected" };
-      case "CANCELLED": return { icon: XCircle, color: "bg-slate-100 text-slate-600 border-slate-200", label: "Cancelled" };
-      default: return { icon: Package, color: "bg-slate-100 text-slate-600 border-slate-200", label: status };
+  const filteredOrders = activeTab === "All" 
+    ? orders 
+    : orders.filter(o => o.status.toUpperCase() === activeTab.toUpperCase());
+
+  const getStatusStep = (status: string) => {
+    switch (status.toUpperCase()) {
+      case "PENDING": return 1;
+      case "ACCEPTED": return 2;
+      case "DELIVERING": return 3;
+      case "DELIVERED": return 4;
+      default: return 0; // Cancelled
     }
   };
 
-  const filterButtons = [
-    { key: "ALL", label: "All" },
-    { key: "PENDING", label: "Pending" },
-    { key: "ACCEPTED", label: "Accepted" },
-    { key: "OUT_FOR_DELIVERY", label: "Delivering" },
-    { key: "DELIVERED", label: "Delivered" },
-  ];
+  const renderTimeline = (status: string) => {
+    const step = getStatusStep(status);
+    if (status.toUpperCase() === "CANCELLED") {
+      return <div className="text-red-500 text-xs font-bold w-full text-center bg-red-50 py-1.5 rounded-lg border border-red-100">Order Cancelled</div>;
+    }
 
-  const filtered = filter === "ALL" ? orders : orders.filter(o => o.status === filter);
+    return (
+      <div className="flex items-center justify-between w-full mt-4 relative">
+        {/* Background Line */}
+        <div className="absolute left-0 right-0 top-2.5 h-1 bg-slate-100 rounded-full z-0"></div>
+        
+        {/* Progress Line */}
+        <div className="absolute left-0 top-2.5 h-1 bg-indigo-500 rounded-full z-0 transition-all duration-500" style={{ width: `${((step - 1) / 3) * 100}%` }}></div>
 
-  const formatDate = (d: string) => {
-    const date = new Date(d);
-    return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        {[
+          { icon: Clock, label: "Placed", active: step >= 1 },
+          { icon: CheckCircle2, label: "Accepted", active: step >= 2 },
+          { icon: Truck, label: "On Way", active: step >= 3 },
+          { icon: Package, label: "Delivered", active: step >= 4 }
+        ].map((s, i) => (
+          <div key={i} className="flex flex-col items-center relative z-10 gap-1.5">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors duration-300 ${s.active ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/30" : "bg-white text-slate-300 border-2 border-slate-100"}`}>
+              <s.icon size={12} strokeWidth={3} />
+            </div>
+            <span className={`text-[9px] font-bold ${s.active ? "text-indigo-700" : "text-slate-400"}`}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
-      <div className="max-w-3xl mx-auto p-4 sm:p-6">
-        
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
-            <ShoppingBag size={24} />
+    <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
+      
+      {/* Premium Header */}
+      <header className="bg-white/90 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-40 px-4 pt-6 pb-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center gap-3 mb-5">
+             <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                <Package size={20} />
+             </div>
+             <div>
+                <h1 className="text-xl font-black text-slate-900 tracking-tight">My Orders</h1>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Track and manage your medicine deliveries</p>
+             </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">My Orders</h1>
-            <p className="text-sm text-slate-500">Track your medicine deliveries</p>
+
+          {/* Premium Tabs */}
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+            {tabs.map(tab => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
+                  activeTab === tab 
+                    ? "bg-slate-900 text-white shadow-md" 
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
         </div>
+      </header>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide">
-          {filterButtons.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
-                filter === f.key
-                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Orders List */}
-        {filtered.length === 0 ? (
-          <div className="bg-white p-10 rounded-3xl text-center border border-slate-100 shadow-sm mt-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShoppingBag size={40} className="text-slate-300" />
+      <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4">
+        {filteredOrders.length === 0 ? (
+          <div className="bg-white p-10 rounded-3xl text-center border border-slate-100 shadow-sm mt-8 animate-in fade-in">
+            <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Package size={40} className="text-indigo-300" />
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">No orders found</h2>
-            <p className="text-slate-500 text-sm mb-6">Looks like you haven't placed any orders in this category yet.</p>
-            <Link href="/medicines" className="inline-flex items-center justify-center bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition">
-              Browse Medicines
+            <h2 className="text-xl font-black text-slate-900 mb-2">No orders found</h2>
+            <p className="text-slate-500 mb-8 text-sm">You haven't placed any {activeTab !== "All" ? activeTab.toLowerCase() : ""} orders yet.</p>
+            <Link href="/medicines">
+              <button className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-indigo-500/30 hover:scale-105 transition-transform">
+                Start Shopping
+              </button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filtered.map((order) => {
-              const s = statusInfo(order.status);
-              const StatusIcon = s.icon;
-              return (
-                <div key={order.id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                  
-                  {/* Top section */}
-                  <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-4">
-                    <div>
-                      <p className="font-bold text-slate-900 text-base">{order.orderNumber}</p>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
-                        <Store size={14} />
-                        <span className="font-medium truncate max-w-[150px]">{order.pharmacy?.shopName || 'Pharmacy'}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-1">{formatDate(order.createdAt)}</p>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${s.color}`}>
-                      <StatusIcon size={12} /> {s.label}
-                    </span>
+          filteredOrders.map((order: any) => (
+            <div key={order.id} className="bg-white rounded-[24px] p-5 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100 hover:shadow-[0_8px_30px_-5px_rgba(0,0,0,0.1)] transition-all group overflow-hidden relative">
+              
+              {/* Order Header */}
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-black text-slate-900 text-[15px]">{order.orderNumber}</h3>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium mt-1">
+                    <Store size={12} /> {order.pharmacy?.shopName || "Pharmacy"}
                   </div>
-
-                  {/* Items summary */}
-                  <div className="space-y-2 mb-4">
-                    {order.items.slice(0, 3).map((item: any) => (
-                      <div key={item.id} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-700 font-medium truncate pr-4">{item.medicineName} <span className="text-slate-400 font-normal">x{item.quantity}</span></span>
-                      </div>
-                    ))}
-                    {order.items.length > 3 && (
-                      <p className="text-xs text-blue-600 font-medium">+{order.items.length - 3} more items</p>
-                    )}
-                  </div>
-
-                  {/* Bottom section */}
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                    <div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Total Amount</p>
-                      <p className="font-bold text-lg text-slate-900">৳{parseFloat(order.finalAmount).toFixed(2)}</p>
-                    </div>
-                    <Link href={`/dashboard/orders/${order.id}`} className="bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 transition-colors">
-                      View Details <ChevronRight size={16} />
-                    </Link>
-                  </div>
-
                 </div>
-              );
-            })}
-          </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total</p>
+                  <p className="font-black text-slate-900 text-lg leading-none">৳{Number(order.totalAmount).toFixed(2)}</p>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              {renderTimeline(order.status)}
+
+              {/* Order Items Summary with Mock Images */}
+              <div className="bg-slate-50/80 rounded-2xl p-3.5 mt-4 border border-slate-100/50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                     {order.items?.slice(0, 3).map((item: any, idx: number) => (
+                        <div key={idx} className="w-8 h-8 rounded-full bg-white border-2 border-white shadow-sm flex items-center justify-center overflow-hidden z-10">
+                           {item.images?.length > 0 ? (
+                             <img src={item.images[0]} alt={item.medicineName} className="w-full h-full object-cover" />
+                           ) : (
+                             <Pill size={14} className="text-indigo-300" />
+                           )}
+                        </div>
+                     ))}
+                     {order.items?.length > 3 && (
+                        <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center text-[10px] font-bold text-slate-600 z-0">
+                           +{order.items.length - 3}
+                        </div>
+                     )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 truncate max-w-[150px]">
+                      {order.items?.[0]?.medicineName || "Medicine"} {order.items?.length > 1 ? `+ ${order.items.length - 1} more` : ""}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1"><Calendar size={10} /> {new Date(order.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions Footer */}
+              <div className="flex items-center gap-2 mt-4">
+                <Link href={`/dashboard/orders/${order.id}`} className="flex-1">
+                  <button className="w-full flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors">
+                    View Details <ChevronRight size={14} />
+                  </button>
+                </Link>
+                <Link href={`/dashboard/orders/${order.id}/memo`} className="flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors border border-slate-200">
+                  <Download size={14} /> Memo
+                </Link>
+                <button className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors border border-emerald-100" title="Reorder">
+                  <RefreshCcw size={14} />
+                </button>
+              </div>
+
+            </div>
+          ))
         )}
       </div>
     </div>

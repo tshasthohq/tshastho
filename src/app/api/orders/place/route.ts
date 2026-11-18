@@ -36,6 +36,9 @@ export async function POST(req: Request) {
     }
 
     const orders = [];
+    let remainingPaid = Math.max(parseFloat(paidInput) || 0, 0);
+
+    const deliveryFeePerPharmacy = Number(deliveryCharge) / Object.keys(byPharmacy).length;
 
     for (const pharmacyId of Object.keys(byPharmacy)) {
       const items = byPharmacy[pharmacyId];
@@ -76,12 +79,15 @@ export async function POST(req: Request) {
       const setting = await prisma.systemSetting.findUnique({ where: { key: "platform_fee_percent" } });
       const feePercent = setting ? parseFloat(setting.value) : 5;
       const platformFee = (totalAmount * feePercent) / 100;
-      const deliveryFee = parseFloat(deliveryCharge) || 0;
+      const deliveryFee = deliveryFeePerPharmacy || 0;
       const discountAmount = 0;
-      const finalAmount = totalAmount + deliveryFee - discountAmount;
+      const orderVatPercent = Number(items[0]?.medicine?.pharmacy?.vatPercent) || 0;
+      const vatAmount = (totalAmount * orderVatPercent) / 100;
+      const finalAmount = totalAmount + vatAmount + deliveryFee - discountAmount;
       const netProfit = totalAmount - totalCost - platformFee;
 
-      const paidAmount = Math.min(Math.max(parseFloat(paidInput) || 0, 0), finalAmount);
+      const paidAmount = Math.min(remainingPaid, finalAmount);
+      remainingPaid = Math.max(0, remainingPaid - paidAmount);
       const dueAmount = Math.max(0, finalAmount - paidAmount);
       const isDue = dueAmount > 0;
 
@@ -94,8 +100,9 @@ export async function POST(req: Request) {
           pharmacyId,
           branchId: branchId, // 🔥 Branch ID সেভ করা হচ্ছে
           totalAmount,
+          vatPercent: orderVatPercent,
           platformFee,
-          deliveryFee,
+          deliveryFee: deliveryFeePerPharmacy,
           discountAmount,
           finalAmount,
           totalCost,
@@ -163,31 +170,55 @@ export async function POST(req: Request) {
         }
       }
 
+      try {
+        await prisma.notification.create({ data: {
+          userId: user.id,
+          title: 'Order Placed',
+          message: `Order ${orderNumber} placed successfully. Total ৳${finalAmount.toFixed(2)}`,
+          type: 'new',
+          link: '/dashboard/orders',
+        } });
+      } catch (e) { console.error('[ORDER_PATIENT_NOTIFY]', e); }
+
       orders.push(order);
 
-      // 🔥 Deduct stock from specific branch
-      for (const item of items) {
+      // 🔥 Deduct stock from specific branch (SUPER FAST PARALLEL LOGIC)
+      await Promise.all(items.map(async (item: any) => {
         try {
-          await recordStockMovement({
-            pharmacyId,
-            medicineId: item.medicine.id,
-            type: 'SALE',
-            quantity: item.quantity,
-            referenceId: order.id,
-            reason: `Order ${orderNumber}`,
-            userId: user.id,
+          // ১. BranchStock চেক এবং আপডেট
+          const branchStock = await prisma.branchStock.findFirst({
+            where: { branchId: branchId, medicineId: item.medicine.id }
           });
 
-          // BranchStock deduction
-          await prisma.branchStock.updateMany({
-            where: { branchId, medicineId: item.medicine.id },
-            data: { quantity: { decrement: item.quantity } }
-          });
+          if (branchStock && branchStock.quantity >= item.quantity) {
+            await prisma.branchStock.update({
+              where: { id: branchStock.id },
+              data: { quantity: { decrement: item.quantity } }
+            });
 
+            // ২. Medicine.stock (Global Cache) আপডেট
+            await prisma.medicine.update({
+              where: { id: item.medicine.id },
+              data: { stock: { decrement: item.quantity } }
+            });
+
+            // ৩. StockMovement রেকর্ড
+            await recordStockMovement({
+              pharmacyId,
+              medicineId: item.medicine.id,
+              type: 'SALE',
+              quantity: item.quantity,
+              referenceId: order.id,
+              reason: `Order ${orderNumber}`,
+              userId: user.id,
+            });
+          } else {
+             console.log(`[STOCK_WARN] Not enough stock for ${item.medicine.name}`);
+          }
         } catch (stockErr) {
-          console.error('[ORDER_STOCK_DEDUCT]', stockErr);
+          console.error('[ORDER_STOCK_DEDUCT_ERROR]', stockErr);
         }
-      }
+      }));
 
       await prisma.cartItem.deleteMany({ where: { userId: user.id } });
 

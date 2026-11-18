@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendPush } from '@/lib/push';
 import { requireAuth } from '@/lib/auth/guards';
 import { isSlotAvailable } from '@/lib/doctor/schedule';
 import { errorResponse, ErrorCodes } from '@/lib/errors';
@@ -139,6 +140,18 @@ export async function POST(req: Request) {
 
       return appointment;
     });
+
+    // APPT_BOOK_PUSH: transaction commit hobar por doctor-ke push
+    try {
+      const docUser = await prisma.doctor.findUnique({ where: { id: String(data.doctorId) }, select: { userId: true } });
+      if (docUser?.userId) {
+        void sendPush(docUser.userId, {
+          title: 'New Appointment Request',
+          body: `New appointment on ${data.date} at ${data.time}`,
+          url: '/doctor',
+        });
+      }
+    } catch (e) { console.error('[APPT_BOOK_PUSH]', e); }
 
     return NextResponse.json({ success: true, appointment: result }, { status: 201 });
 

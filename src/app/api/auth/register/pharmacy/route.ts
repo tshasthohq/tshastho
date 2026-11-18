@@ -16,6 +16,8 @@ const schema = z.object({
   address: z.string().min(5),
   area: z.string().min(2),
   city: z.string().min(2),
+  drugLicenseUrl: z.string().optional(),
+  tradeLicenseUrl: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
     const limit = rateLimit(ip);
     if (!limit.success) return errorResponse(ErrorCodes.RATE_LIMITED, 'Too many requests', 429);
 
-    const body = await req.json();
+    const body = await req.json(); console.log("BODY RECEIVED:", body);
     const data = schema.parse(body);
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
@@ -49,13 +51,15 @@ export async function POST(req: Request) {
         shopName: data.shopName,
         drugLicense: data.drugLicense,
         tradeLicense: data.tradeLicense,
+        drugLicenseUrl: data.drugLicenseUrl || null,
+        tradeLicenseUrl: data.tradeLicenseUrl || null,
         address: data.address,
         area: data.area,
         city: data.city,
       },
     });
 
-    // অটোমেটিক্যালি Main Branch তৈরি করা
+    // 🔥 Main Branch তৈরি করা হচ্ছে
     await prisma.pharmacyBranch.create({
       data: {
         pharmacyId: pharmacy.id,
@@ -70,9 +74,37 @@ export async function POST(req: Request) {
       }
     });
 
+    // 🔥 AUTO-CATALOG SYNC: নতুন ফার্মেসির ইনভেন্টরিতে ৫,৬১৬টি মেডিসিন (স্টক ০) কপি করা
+    try {
+      const masterMeds = await prisma.masterMedicine.findMany();
+      if (masterMeds.length > 0) {
+        const medicinesData = masterMeds.map(master => ({
+          pharmacyId: pharmacy.id,
+          masterMedicineId: master.id,
+          name: master.name,
+          brand: master.brand,
+          genericName: master.genericName,
+          category: master.category,
+          purchasePrice: 0,
+          sellingPrice: 0,
+          stock: 0,
+          unit: "piece",
+          isActive: true
+        }));
+
+        await prisma.medicine.createMany({
+          data: medicinesData,
+          skipDuplicates: true
+        });
+        console.log(`✅ Auto-synced ${masterMeds.length} medicines to new pharmacy: ${pharmacy.shopName}`);
+      }
+    } catch (syncError) {
+      console.error('[PHARMACY_CATALOG_SYNC_ERROR]', syncError);
+    }
+
     return NextResponse.json({ success: true, message: 'Pharmacy registration submitted for approval', userId: user.id }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) return errorResponse(ErrorCodes.VALIDATION_ERROR, error.issues[0].message, 400);
+    if (error instanceof z.ZodError) return errorResponse(ErrorCodes.VALIDATION_ERROR, JSON.stringify(error.issues[0]), 400);
     console.error('[PHARMACY_REGISTER]', error instanceof Error ? error.message : 'Unknown error');
     return errorResponse(ErrorCodes.INTERNAL_ERROR, 'Internal server error', 500);
   }

@@ -17,6 +17,19 @@ export default function WalletTopupPage() {
   const [amount, setAmount] = useState<number | string>("");
   const [selectedMethod, setSelectedMethod] = useState("");
   const [trxId, setTrxId] = useState("");
+  const [autoEnabled, setAutoEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/settings/public')
+      .then(res => res.json())
+      .then(data => {
+        if (data.walletAutoTopupEnabled === false) {
+          setAutoEnabled(false);
+          setTopupType("MANUAL");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/payment-methods')
@@ -104,12 +117,14 @@ export default function WalletTopupPage() {
         </div>
 
         <div className="flex bg-slate-200 p-1 rounded-xl mb-6">
+          {autoEnabled && (
           <button
             onClick={() => { setTopupType("AUTOMATED"); setError(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${topupType === "AUTOMATED" ? "bg-white text-blue-600 shadow-sm" : "text-slate-600"}`}
           >
             Automatic (Instant)
           </button>
+          )}
           <button
             onClick={() => { setTopupType("MANUAL"); setError(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${topupType === "MANUAL" ? "bg-white text-blue-600 shadow-sm" : "text-slate-600"}`}

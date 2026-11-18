@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         return NextResponse.redirect(new URL(`/payment/failed?paymentId=${payment.id}`, process.env.NEXT_PUBLIC_APP_URL || req.url));
       }
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: any) => {
         // 1. Update payment status
         await tx.payment.update({
           where: { id: payment.id },

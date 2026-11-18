@@ -1,42 +1,37 @@
-// Tshastho Service Worker - v1.0
-const CACHE_NAME = "tshastho-v1";
-const STATIC_ASSETS = ["/", "/login", "/icon.svg", "/manifest.json"];
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS).catch(() => null))
-  );
-  self.skipWaiting();
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) {}
+  const title = data.title || 'Tshastho';
+  event.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    list.forEach((c) => c.postMessage({ type: 'push-received' }));
+    const focused = list.some((c) => c.visibilityState === 'visible' && c.focused);
+    if (focused) return; // page nijei sound bajabe
+    await self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: '/logo.png',
+      badge: '/logo.png',
+      data: { url: data.url || '/' },
+      vibrate: [200, 100, 200],
+      tag: data.tag || undefined,
+      renotify: true,
+      requireInteraction: true,
+    });
+  })());
 });
 
-self.addEventListener("activate", (event) => {
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-// Network-first for API, cache-first for static
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Only handle same-origin GET
-  if (request.method !== "GET" || url.origin !== self.location.origin) return;
-
-  // Never cache API routes
-  if (url.pathname.startsWith("/api/")) return;
-
-  // Network-first
-  event.respondWith(
-    fetch(request)
-      .then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => null);
-        return res;
-      })
-      .catch(() => caches.match(request).then((r) => r || caches.match("/")))
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if ('focus' in c) { c.navigate(url); return c.focus(); }
+      }
+      return self.clients.openWindow(url);
+    })
   );
 });

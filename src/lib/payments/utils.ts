@@ -37,7 +37,7 @@ export async function recordLedgerEntry(params: {
   description?: string;
   referenceId?: string;
 }, tx?: Prisma.TransactionClient) {
-  const db = tx || prisma;
+  const db: any = tx || (prisma as any);
   return db.ledgerEntry.create({
     data: {
       paymentId: params.paymentId,

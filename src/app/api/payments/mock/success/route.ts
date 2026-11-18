@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
   if (!payment) return NextResponse.redirect(new URL('/payment/failed', appUrl));
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.payment.update({
       where: { id: paymentId },
       data: {

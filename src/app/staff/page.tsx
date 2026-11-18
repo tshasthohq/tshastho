@@ -5,9 +5,11 @@ import { Clock, MapPin, LogIn, LogOut, CheckCircle, AlertCircle, Loader2, User, 
 import Link from "next/link";
 import SelfieCapture from "@/components/staff/SelfieCapture";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export default function StaffPage() {
   const { user, loading: authLoading } = useAuth();
+  const { unread } = useNotifications();
 
   const router = useRouter();
   const [userName, setUserName] = useState("Staff");
@@ -229,7 +231,11 @@ export default function StaffPage() {
             <LayoutDashboard size={14} className="text-white" />
             <span className="text-xs font-medium text-white">Dashboard</span>
           </Link>
-          <button onClick={async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); router.push("/login"); }} className="text-red-300 p-2">
+          <Link href="/staff/notifications" aria-label="Notifications" className="relative text-white p-2">
+              <Bell size={20} />
+              {unread > 0 && <span className="absolute top-0 right-0 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">{unread > 9 ? "9+" : unread}</span>}
+            </Link>
+            <button onClick={async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); router.push("/login"); }} className="text-red-300 p-2">
             <LogOut size={20} />
           </button>
         </div>

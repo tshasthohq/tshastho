@@ -53,11 +53,9 @@ export default function DoctorDetailPage() {
 
   const loadDoctor = async () => {
     setLoading(true);
-    const res = await fetch(`/api/doctors?q=&limit=100`, { credentials: "include" });
-    const data = await res.json();
-    // find by id
-    const found = (data.doctors || []).find((d: any) => d.id === doctorId);
-    if (found) setDoctor(found);
+    const res = await fetch(`/api/doctors/${doctorId}`);
+    const data = await res.json().catch(() => ({}));
+    if (data.doctor) setDoctor(data.doctor);
     setLoading(false);
   };
 

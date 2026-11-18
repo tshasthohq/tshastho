@@ -31,7 +31,23 @@ export async function POST(req: Request) {
       data: { paidAmount: newPaidAmount, amount: newDueAmount, status: newDueAmount === 0 ? "PAID" : "PARTIAL" }
     });
 
-    return NextResponse.json({ success: true, message: "Cash collected successfully!" });
+    // COLLECT_CASH_NOTIFY
+      try {
+        if (order.patientId) {
+          const paid = Number(amount);
+          await prisma.notification.create({ data: {
+            userId: order.patientId,
+            title: newDueAmount === 0 ? 'Payment Completed' : 'Payment Received',
+            message: newDueAmount === 0
+              ? `${order.orderNumber}: ৳${paid.toFixed(2)} received. Your due is fully paid. Thank you!`
+              : `${order.orderNumber}: ৳${paid.toFixed(2)} received. Remaining due ৳${newDueAmount.toFixed(2)}.`,
+            type: newDueAmount === 0 ? 'completed' : 'confirmed',
+            link: '/dashboard/orders',
+          } });
+        }
+      } catch (e) { console.error('[COLLECT_CASH_NOTIFY]', e); }
+
+      return NextResponse.json({ success: true, message: "Cash collected successfully!" });
   } catch (error) {
     return NextResponse.json({ message: "Failed to collect cash" }, { status: 500 });
   }

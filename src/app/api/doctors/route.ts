@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { PUBLIC_CACHE } from "@/lib/cache";
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: Request) {
@@ -41,15 +42,12 @@ export async function GET(req: Request) {
     orderBy,
     take: limit,
     include: {
-      user: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+      user: { select: { id: true, name: true, avatarUrl: true } },
       specialties: true,
       qualifications: { orderBy: { year: 'desc' }, take: 3 },
-      experiences: { orderBy: { startYear: 'desc' } },
       chambers: { where: { isActive: true }, orderBy: { isPrimary: 'desc' } },
-      awards: { orderBy: { year: 'desc' } },
-      memberships: true,
     },
   });
 
-  return NextResponse.json({ success: true, doctors, count: doctors.length });
+  return NextResponse.json({ success: true, doctors, count: doctors.length }, { headers: PUBLIC_CACHE });
 }

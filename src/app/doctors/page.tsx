@@ -12,6 +12,10 @@ export default function DoctorsPage() {
   const [doctors, setDoctors] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearch(q);
+  }, []);
   const [loading, setLoading] = useState(true);
   const [hotlineNumber, setHotlineNumber] = useState("01737326555");
 

@@ -1,28 +1,32 @@
 "use client";
+import { AlertCircle, AlertTriangle, ArrowLeft, Barcode, Calendar, Camera, CheckCircle, CheckCircle2, Clock, Download, Edit, Image as ImageIcon, Info, Layers, Library, Loader2, Package, Pill, Plus, Printer, Save, Search, ShoppingCart, Sliders, Tag, Trash2, TrendingDown, TrendingUp, Upload, X } from 'lucide-react';
 
 import PermissionGuard from "@/components/staff/PermissionGuard";
+import BatchModal from "@/components/pharmacy/BatchModal";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  ArrowLeft, Plus, Pill, Search, Edit, Trash2, X, Save, TrendingUp, 
-  Info, Library, Image as ImageIcon, Loader2, Calendar, AlertTriangle, 
-  Clock, Package 
-, TrendingDown , Barcode , ShoppingCart , CheckCircle , Sliders } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useBranch } from "@/context/BranchContext";
 import * as XLSX from "xlsx";
 import BarcodeGenerator from "react-barcode";
-import { Tag, Printer, Camera } from "lucide-react";
 import CameraScanner from "@/components/pharmacy/CameraScanner";
-import { Download, Upload } from "lucide-react";
 
 function PharmacyMedicinesPageInner() {
   const router = useRouter();
   const { user } = useAuth();
   const { activeBranch } = useBranch();
   const [medicines, setMedicines] = useState<any[]>([]);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [selectedBatchMed, setSelectedBatchMed] = useState<any>(null);
+  const [medBatches, setMedBatches] = useState<any[]>([]);
+  const [newBatch, setNewBatch] = useState({ batchNumber: "", expiryDate: "", quantity: "", purchasePrice: "", sellingPrice: "" });
+  const [totalItems, setTotalItems] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const fetchingRef = useRef(false);
   const [pharmacy, setPharmacy] = useState<any>(null);
   const [suppliersList, setSuppliersList] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -68,7 +72,8 @@ function PharmacyMedicinesPageInner() {
     stock: "", unit: "piece", manufacturer: "",
     masterMedicineId: "", images: [] as string[],
     expiryDate: "", batchNumber: "", lowStockAlert: "10", barcode: "", supplier: "",
-  };
+  
+    strength: "",};
   const [formData, setFormData] = useState(emptyForm);
 
   
@@ -79,23 +84,73 @@ function PharmacyMedicinesPageInner() {
       .catch(console.error);
   }, [user]);
 
-  const loadMedicines = () => {
-    setLoading(true);
+  const loadMedicines = (pageNum = 1, isLoadMore = false, searchQuery = "") => {
+    if (isLoadMore && fetchingRef.current) return; // লক: যদি অলরেডি লোড হচ্ছে, তবে আটকে দাও
+    if (isLoadMore) fetchingRef.current = true;
+    else setLoading(true);
+
     fetch("/api/pharmacy/medicines", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ branchId: activeBranch?.id })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.medicines) setMedicines(data.medicines);
-        if (data.pharmacy) setPharmacy(data.pharmacy);
-        if (data.platformFeePercent) setPlatformFee(data.platformFeePercent);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ branchId: activeBranch?.id, page: pageNum, limit: 20, search: searchQuery })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.medicines) {
+        if (isLoadMore) {
+          setMedicines(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const newItems = data.medicines.filter((m: any) => !existingIds.has(m.id)); // ডুপ্লিকেট বাদ দেওয়া
+            return [...prev, ...newItems];
+          });
+        } else {
+          setMedicines(data.medicines);
+        }
+        setPage(pageNum);
+        if (data.pagination) {
+          setHasMore(data.pagination.page < data.pagination.totalPages);
+          setTotalItems(data.pagination.totalItems);
+        } else {
+          setHasMore(false);
+        }
+      }
+      if (data.pharmacy) setPharmacy(data.pharmacy);
+      if (data.platformFeePercent) setPlatformFee(data.platformFeePercent);
+      setLoading(false);
+      setIsFetchingMore(false);
+      fetchingRef.current = false; // লক খুলে দেওয়া
+    })
+    .catch(() => {
+      setLoading(false);
+      setIsFetchingMore(false);
+      fetchingRef.current = false; // লক খুলে দেওয়া
+    });
   };
+  // Premium Debounced Backend Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMedicines([]); // নতুন সার্চের আগে পুরনো ডাটা ক্লিয়ার করা
+      loadMedicines(1, false, search);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [search, activeBranch?.id]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 300
+      ) {
+        if (hasMore && !isFetchingMore && !loading) {
+          loadMedicines(page + 1, true);
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasMore, isFetchingMore, loading, page]);
+;
 
   useEffect(() => { loadMedicines(); }, [activeBranch?.id]);
 
@@ -241,6 +296,32 @@ function PharmacyMedicinesPageInner() {
     setShowForm(true);
   };
 
+  
+  const fetchBatches = async (medicineId: string) => {
+    try {
+      const res = await fetch(`/api/pharmacy/medicines/batches?medicineId=${medicineId}`);
+      const data = await res.json();
+      if (data.success) setMedBatches(data.batches);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAddBatch = async () => {
+    if (!newBatch.quantity) return alert("Quantity required");
+    try {
+      const res = await fetch("/api/pharmacy/medicines/batches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newBatch, medicineId: selectedBatchMed.id, branchId: activeBranch?.id })
+      });
+      if (res.ok) {
+        alert("✅ Batch added successfully!");
+        setNewBatch({ batchNumber: "", expiryDate: "", quantity: "", purchasePrice: "", sellingPrice: "" });
+        fetchBatches(selectedBatchMed.id);
+        loadMedicines(); // মোট স্টক আপডেট করার জন্য
+      }
+    } catch (e) { console.error(e); }
+  };
+
   const handleEdit = (med: any) => {
     setEditing(med);
     setFormData({
@@ -255,7 +336,8 @@ function PharmacyMedicinesPageInner() {
       lowStockAlert: String(med.lowStockAlert || 10),
       barcode: med.barcode || "",
       supplier: med.supplier || "",
-    });
+    
+      strength: med.strength || "",});
     setShowForm(true);
   };
 
@@ -324,34 +406,49 @@ function PharmacyMedicinesPageInner() {
     const file = e.target.files?.[0];
     if (!file) return;
     setLoading(true);
+    setMessage("Reading file...");
 
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
-        
-        const res = await fetch("/api/pharmacy/medicines/bulk", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ medicines: data }),
-        });
-        
-        const resData = await res.json();
-        if (res.ok) {
-          alert(resData.message);
-          loadMedicines();
-        } else {
-          alert(resData.message || "Import failed");
+
+        if (data.length === 0) throw new Error("File is empty");
+
+        const CHUNK_SIZE = 1000; // ১০০০ করে পাঠালেও এখন ফাস্ট হবে
+        const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+        let successCount = 0;
+
+        for (let i = 0; i < totalChunks; i++) {
+          const chunk = data.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          setMessage(`Importing ${successCount} / ${data.length} medicines...`);
+
+          const res = await fetch("/api/pharmacy/medicines/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ medicines: chunk }),
+          });
+
+          if (res.ok) {
+            successCount += chunk.length;
+          } else {
+            console.error("Chunk failed at index", i);
+          }
         }
+
+        alert(`✅ Successfully imported ${successCount} medicines!`);
+        loadMedicines();
       } catch (err) {
         console.error(err);
-        alert("Failed to parse Excel file");
+        alert("❌ Import failed. Check console.");
       } finally {
         setLoading(false);
+        setMessage("");
         if (bulkFileInputRef.current) bulkFileInputRef.current.value = "";
       }
     };
@@ -437,29 +534,28 @@ function PharmacyMedicinesPageInner() {
 
   // Filtering Logic
   const filteredMedicines = useMemo(() => {
-    let filtered = medicines.filter(m =>
-      !search || m.name?.toLowerCase().includes(search.toLowerCase()) ||
-      m.brand?.toLowerCase().includes(search.toLowerCase()) ||
-      m.genericName?.toLowerCase().includes(search.toLowerCase())
-    );
+    let filtered = medicines;
 
+    // ডিবাউন্সড সার্চ যেহেতু ব্যাকএন্ডে হচ্ছে, তাই এখানে শুধু ট্যাব ফিল্টার থাকবে
     if (activeFilter === "low") {
-      filtered = filtered.filter(m => m.stock > 0 && m.stock <= (m.lowStockAlert || 10));
+      filtered = filtered.filter((m: any) => m.stock > 0 && m.stock <= (m.lowStockAlert || 10));
     } else if (activeFilter === "expiring") {
-      filtered = filtered.filter(m => {
+      filtered = filtered.filter((m: any) => {
         if (!m.expiryDate) return false;
-        const daysLeft = Math.ceil((new Date(m.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-        return daysLeft > 0 && daysLeft <= 90;
+        const exp = new Date(m.expiryDate);
+        const now = new Date();
+        const diff = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return diff >= 0 && diff <= 90;
       });
     } else if (activeFilter === "expired") {
-      filtered = filtered.filter(m => m.expiryDate && new Date(m.expiryDate) < new Date());
+      filtered = filtered.filter((m: any) => m.expiryDate && new Date(m.expiryDate) < new Date());
     }
 
     return filtered;
-  }, [medicines, search, activeFilter]);
+  }, [medicines, activeFilter]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-24">
+<div className="min-h-screen bg-[#F8FAFC] pb-24">
       <style jsx global>{`
         @media print {
           @page { margin: 0; }
@@ -588,7 +684,7 @@ function PharmacyMedicinesPageInner() {
 
           <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
             {[
-              { key: "all", label: "All Medicines", icon: <Library size={14}/>, count: medicines.length },
+              { key: "all", label: "All Medicines", icon: <Library size={14}/>, count: totalItems },
               { key: "low", label: "Low Stock", icon: <AlertTriangle size={14}/>, count: medicines.filter(m => m.stock > 0 && m.stock <= (m.lowStockAlert || 10)).length },
               { key: "expiring", label: "Expiring Soon", icon: <Clock size={14}/>, count: medicines.filter(m => {
                 if (!m.expiryDate) return false;
@@ -630,79 +726,62 @@ function PharmacyMedicinesPageInner() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredMedicines.map((med) => {
+            {filteredMedicines.map((med, index) => {
               const d = calculateFinancials(med);
               const expStatus = getExpiryStatus(med.expiryDate);
               const img = med.images?.[0];
 
               return (
-                <div key={med.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all flex flex-col gap-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
-                        {img ? <img src={img} alt={med.name} className="w-full h-full object-cover" /> : <Pill className="text-indigo-400" size={24} />}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-800 text-base leading-tight">{med.name}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">{med.brand || med.genericName || "No generic"}</p>
-                      </div>
+                <div key={`${med.id}-${index}`} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col relative" style={{ contentVisibility: 'auto', containIntrinsicSize: '160px' }}>
+                  
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-14 h-14 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                      {img ? (
+                        <img src={img} alt="Med" className="w-full h-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                      ) : <Pill className="text-indigo-400" size={24} />}
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => fetchHistory(med)} className="p-2 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors" title="View History">
-                        <Clock size={16} />
-                      </button>
-                      <button onClick={() => { setAdjustMed(med); setAdjustNewStock(String(med.stock)); setShowAdjustModal(true); }} className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors" title="Adjust Stock">
-                        <Sliders size={16} />
-                      </button>
-                      <button onClick={() => { setSelectedPOMed(med); setPoQuantity(String(med.lowStockAlert * 2)); setShowPOModal(true); }} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors" title="Generate Purchase Order">
-                        <ShoppingCart size={16} />
-                      </button>
-                      <button onClick={() => { setLabelMed(med); setShowLabelModal(true); }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Print Label">
-                        <Tag size={16} />
-                      </button>
-                      <button onClick={() => handleEdit(med)} className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors">
-                        <Edit size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(med.id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">
-                        <Trash2 size={16} />
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-800 text-[14px] leading-tight truncate">{med.name || 'Unknown'}</h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5 truncate">{med.brand || 'No Brand'} | {med.genericName || 'No Generic'}</p>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">{med.category || 'Tablet'} {med.strength ? `• ${med.strength}` : ''}</span>
+                        {med.strength && <span className="text-[8px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{med.strength}</span>}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {expStatus && (pharmacy?.expiryAlert !== false) && (
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${expStatus.color}`}>
-                        {expStatus.label}
-                      </span>
-                    )}
-                    {med.stock <= (med.lowStockAlert || 10) && (pharmacy?.lowStockAlert !== false) && (
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg border bg-orange-100 text-orange-700 border-orange-200">
-                        LOW STOCK
-                      </span>
-                    )}
-                    {med.batchNumber && (
-                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                        Batch: {med.batchNumber}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 mt-auto pt-4 border-t border-slate-100">
+                  <div className="flex items-end justify-between bg-slate-50 p-2 rounded-lg mt-auto">
                     <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Price</p>
-                      <p className="font-bold text-slate-800 text-sm">৳{d.finalPrice.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Stock</p>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => updateStock(med.id, med.stock - 1)} disabled={med.stock <= 0} className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 disabled:opacity-50 text-lg font-bold leading-none">-</button>
-                        <span className={`font-bold text-sm w-8 text-center ${(med.stock <= (med.lowStockAlert || 10) && pharmacy?.lowStockAlert !== false) ? 'text-red-500' : 'text-slate-800'}`}>{med.stock}</span>
-                        <button onClick={() => updateStock(med.id, med.stock + 1)} className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 text-lg font-bold leading-none">+</button>
-                      </div>
+                      <p className="text-[9px] font-semibold text-slate-400 uppercase">Price</p>
+                      <p className="font-bold text-slate-800 text-base">৳{med.sellingPrice || '0.00'}</p>
                     </div>
                     <div className="text-right">
-                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Unit</p>
-                       <p className="font-semibold text-slate-700 text-xs capitalize">{med.unit}</p>
+                      <p className="text-[9px] font-semibold text-slate-400 uppercase">Stock</p>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button className="w-5 h-5 rounded bg-white border text-slate-600 font-bold hover:bg-slate-100 flex items-center justify-center text-xs">-</button>
+                        <span className={`font-bold text-sm w-6 text-center ${med.stock === 0 || !med.stock ? 'text-red-500' : 'text-slate-800'}`}>{med.stock || 0}</span>
+                        <button className="w-5 h-5 rounded bg-white border text-slate-600 font-bold hover:bg-slate-100 flex items-center justify-center text-xs">+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex gap-1">
+                      {med.stock === 0 || !med.stock ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-red-50 text-red-600 border-red-200">OUT OF STOCK</span>
+                      ) : med.stock <= (med.lowStockAlert || 10) ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-orange-50 text-orange-600 border-orange-200">LOW STOCK</span>
+                      ) : (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-emerald-50 text-emerald-600 border-emerald-200">IN STOCK</span>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={() => fetchHistory(med)} className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="History"><Clock size={14} /></button>
+                      <button onClick={() => { setAdjustMed(med); setAdjustNewStock(String(med.stock)); setShowAdjustModal(true); }} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Adjust Stock"><Sliders size={14} /></button>
+                      <button onClick={() => { setSelectedPOMed(med); setPoQuantity(String((med.lowStockAlert || 10) * 2)); setShowPOModal(true); }} className="p-1 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors" title="Purchase Order"><ShoppingCart size={14} /></button>
+                      <button onClick={() => { setSelectedBatchMed(med); fetchBatches(med.id); setShowBatchModal(true); }} className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Batches"><Layers size={14} /></button>
+                      <button onClick={() => handleEdit(med)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit"><Edit size={14} /></button>
+                      <button onClick={() => handleDelete(med.id)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 </div>
@@ -745,6 +824,16 @@ function PharmacyMedicinesPageInner() {
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1 block">Generic</label>
                     <input value={formData.genericName} onChange={(e) => setFormData({ ...formData, genericName: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 font-medium focus:bg-white outline-none" placeholder="Paracetamol" />
+
+                  <div className="mt-3">
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Strength</label>
+                    <input 
+                      value={formData.strength || ""} 
+                      onChange={(e) => setFormData({ ...formData, strength: e.target.value })} 
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 font-medium focus:bg-white outline-none" 
+                      placeholder="e.g. 500mg, 10ml" 
+                    />
+                  </div>
                   </div>
                 </div>
               </div>
@@ -989,35 +1078,20 @@ function PharmacyMedicinesPageInner() {
           </div>
         </div>
       )}
-
       {/* Barcode Label Modal */}
       {showLabelModal && labelMed && (
         <div className="print-modal-wrapper fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200 print:shadow-none print:w-full print:max-w-none">
-            
             <div className="flex justify-between items-center mb-4 print:hidden">
-              <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                <Tag className="text-emerald-600" size={20} /> Print Label
-              </h2>
+              <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2"><Tag className="text-emerald-600" size={20} /> Print Label</h2>
               <button onClick={() => setShowLabelModal(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={18}/></button>
             </div>
 
-            {/* Sticker Area */}
             <div id="barcode-label" className="border-2 border-dashed border-slate-300 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-white">
               <h3 className="font-bold text-slate-900 text-sm leading-tight mb-1">{labelMed.name}</h3>
               <p className="text-[10px] text-slate-500 mb-2">{labelMed.brand || labelMed.genericName}</p>
-              
-              <div className="text-xl font-black text-indigo-600 mb-2">
-                ৳{Number(labelMed.sellingPrice).toFixed(2)}
-              </div>
-
-              {/* React Barcode Component */}
-              <BarcodeGenerator value={labelMed.barcode || labelMed.id.slice(0, 10).toUpperCase()} 
-                width={1.5} 
-                height={40} 
-                fontSize={12} 
-                margin={0}
-              />
+              <div className="text-xl font-black text-indigo-600 mb-2">৳{Number(labelMed.sellingPrice).toFixed(2)}</div>
+              <BarcodeGenerator value={labelMed.barcode || labelMed.id.slice(0, 10).toUpperCase()} width={1.5} height={40} fontSize={12} margin={0} />
             </div>
 
             <div className="mt-6 flex gap-3 print:hidden">
@@ -1029,13 +1103,17 @@ function PharmacyMedicinesPageInner() {
         </div>
       )}
 
-      {showCamera && (
-        <CameraScanner 
-          onScan={handleCameraScan} 
-          onClose={() => setShowCamera(false)} 
+      {/* Batch Modal */}
+      {showBatchModal && selectedBatchMed && (
+        <BatchModal 
+          med={selectedBatchMed} 
+          batches={medBatches} 
+          activeBranch={activeBranch}
+          onClose={() => setShowBatchModal(false)}
+          onRefresh={(id: string) => { fetchBatches(id); loadMedicines(); }}
         />
       )}
-</div>
+    </div>
   );
 }
 
