@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { CROSSMATCH_RESERVE_HOURS } from "@/lib/blood-rules";
+import { CROSSMATCH_VALID_HOURS } from "@/lib/blood-rules";
 
 export const GROUP_KEYS = ["A_POS", "A_NEG", "B_POS", "B_NEG", "O_POS", "O_NEG", "AB_POS", "AB_NEG"] as const;
 export type StockStatus = "AVAILABLE" | "LOW" | "OUT";
@@ -19,7 +19,7 @@ export async function loadStatus(ids: string[]) {
 
   const rows = await prisma.bloodBag.groupBy({
     by: ["bloodBankId", "bloodGroup"],
-    where: { bloodBankId: { in: ids }, status: "AVAILABLE", testsClear: true, expiresAt: { gt: new Date() }, crossmatches: { none: { result: "COMPATIBLE", doneAt: { gt: new Date(Date.now() - CROSSMATCH_RESERVE_HOURS * 3600000) } } } },
+    where: { bloodBankId: { in: ids }, status: "AVAILABLE", testsClear: true, expiresAt: { gt: new Date() }, crossmatches: { none: { result: "COMPATIBLE", doneAt: { gt: new Date(Date.now() - CROSSMATCH_VALID_HOURS * 3600000) } } } },
     _count: { _all: true },
   });
   for (const r of rows) {
@@ -49,7 +49,7 @@ export async function loadUnits(ids: string[]) {
   if (!ids.length) return out;
   const rows = await prisma.bloodBag.groupBy({
     by: ["bloodBankId", "bloodGroup"],
-    where: { bloodBankId: { in: ids }, status: "AVAILABLE", testsClear: true, expiresAt: { gt: new Date() }, crossmatches: { none: { result: "COMPATIBLE", doneAt: { gt: new Date(Date.now() - CROSSMATCH_RESERVE_HOURS * 3600000) } } } },
+    where: { bloodBankId: { in: ids }, status: "AVAILABLE", testsClear: true, expiresAt: { gt: new Date() }, crossmatches: { none: { result: "COMPATIBLE", doneAt: { gt: new Date(Date.now() - CROSSMATCH_VALID_HOURS * 3600000) } } } },
     _count: { _all: true },
   });
   for (const r of rows) {

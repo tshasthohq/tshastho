@@ -8,7 +8,7 @@ import { z } from 'zod';
 const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8).max(128),
   phone: z.string().optional(),
   shopName: z.string().min(2),
   drugLicense: z.string().min(3),

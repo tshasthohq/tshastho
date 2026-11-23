@@ -14,7 +14,7 @@ const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   phone: z.string().optional(),
-  password: z.string().min(6),
+  password: z.string().min(8).max(128),
   role: z.enum(['RECEPTIONIST', 'ASSISTANT', 'NURSE', 'COMPOUNDER', 'MANAGER', 'OTHER']).default('ASSISTANT'),
   permissions: z.object({
     canViewAppointments: z.boolean().default(true),

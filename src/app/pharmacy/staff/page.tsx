@@ -370,7 +370,7 @@ function StaffPageInner() {
                       type={showPassword ? "text" : "password"} 
                       value={formData.password} 
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })} 
-                      placeholder="Min 6 characters" 
+                      placeholder="Min 8 characters" 
                       required 
                       minLength={6} 
                       className="h-12 bg-slate-50 border-slate-200 rounded-xl text-sm text-slate-900 font-medium placeholder:text-slate-400 focus-visible:ring-indigo-500 pr-10" 

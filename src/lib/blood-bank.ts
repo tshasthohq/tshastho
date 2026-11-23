@@ -43,7 +43,7 @@ export async function expireOldBags(bankId: string) {
 
 export const TTI_TESTS = ["HIV", "HBSAG", "HCV", "SYPHILIS", "MALARIA"];
 export const NEEDS_CROSSMATCH = ["WHOLE_BLOOD", "RBC"];
-export const CROSSMATCH_VALID_HOURS = 72;
+export { CROSSMATCH_VALID_HOURS } from "@/lib/blood-rules";
 
 const abo = (g: string) => g.replace("_POS", "").replace("_NEG", "");
 const rhPos = (g: string) => g.endsWith("_POS");
