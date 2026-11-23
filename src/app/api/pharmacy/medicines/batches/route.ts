@@ -54,10 +54,9 @@ export async function POST(req: Request) {
       });
 
     // ২. Medicine টেবিলের মোট স্টক বাড়ানো
-    await prisma.medicine.update({
-      where: { id: medicineId },
-      data: { stock: { increment: parseInt(quantity) } }
-    });
+    const addQty = parseInt(quantity);
+    await prisma.medicine.update({ where: { id: medicineId }, data: { stock: { increment: addQty } } });
+    await prisma.stockMovement.create({ data: { pharmacyId: med.pharmacyId, medicineId, batchId: batch.id, type: "PURCHASE" as any, quantity: addQty, previousStock: med.stock, newStock: med.stock + addQty, reason: "New batch added", userId: auth.user.id } });
 
     // ৩. ব্রাঞ্চ স্টক বাড়ানো (যদি ব্রাঞ্চ আইডি থাকে)
     if (branchId) {

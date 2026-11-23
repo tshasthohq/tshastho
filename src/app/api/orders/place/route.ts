@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const orders = [];
     let remainingPaid = Math.max(parseFloat(paidInput) || 0, 0);
 
-    const deliveryFeePerPharmacy = Number(deliveryCharge) / Object.keys(byPharmacy).length;
+    const deliveryFeePerPharmacy = Math.max(0, Number(deliveryCharge) || 0) / Object.keys(byPharmacy).length;
 
     for (const pharmacyId of Object.keys(byPharmacy)) {
       const items = byPharmacy[pharmacyId];

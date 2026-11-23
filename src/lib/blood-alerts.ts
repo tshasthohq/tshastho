@@ -18,7 +18,7 @@ type Req = {
 };
 
 export async function alertDonors(req: Req): Promise<number> {
-  const candidates = await prisma.bloodDonor.findMany({
+  let candidates = await prisma.bloodDonor.findMany({
     where: {
       ...eligibleWhere(),
       bloodGroup: req.bloodGroup,
@@ -28,6 +28,16 @@ export async function alertDonors(req: Req): Promise<number> {
     select: { userId: true, upazila: true, verified: true },
     take: 200,
   });
+  if (req.urgency === "CRITICAL" && candidates.length < 5) {
+    const full = await prisma.bloodRequest.findUnique({ where: { id: req.id }, select: { division: true } });
+    if (full?.division) {
+      candidates = await prisma.bloodDonor.findMany({
+        where: { ...eligibleWhere(), bloodGroup: req.bloodGroup, division: full.division, userId: { not: req.requesterId } },
+        select: { userId: true, upazila: true, verified: true },
+        take: 200,
+      });
+    }
+  }
   if (candidates.length === 0) return 0;
 
   const ids = candidates.map((c) => c.userId);

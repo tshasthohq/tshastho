@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const limit = rateLimit(ip);
     if (!limit.success) return errorResponse(ErrorCodes.RATE_LIMITED, 'Too many requests', 429);
 
-    const body = await req.json(); console.log("BODY RECEIVED:", body);
+    const body = await req.json();
     const data = schema.parse(body);
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } });

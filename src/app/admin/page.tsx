@@ -3,15 +3,22 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, XCircle, User, Stethoscope, Pill, LogOut, Settings, BarChart3, TrendingUp, Users, CreditCard, Clock, Activity, ShieldCheck, PhoneCall, Wallet, Droplet } from "lucide-react";
+import { CheckCircle, XCircle, User, Stethoscope, Pill, LogOut, Settings, BarChart3, TrendingUp, Users, CreditCard, Clock, Activity, ShieldCheck, PhoneCall, Wallet, Droplet, Building2 } from "lucide-react";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const openDoc = async (v: string | null) => {
+    if (!v) { setSelectedImage(null); return; }
+    if (!v.startsWith("private:")) { setSelectedImage(v); return; }
+    const u = `/api/admin/doc-file?path=${encodeURIComponent(v)}`;
+    if (v.toLowerCase().endsWith(".pdf")) window.open(u, "_blank");
+    else setSelectedImage(u);
+  };
   const [filter, setFilter] = useState<"PENDING" | "APPROVED" | "REJECTED">("PENDING");
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "DOCTOR" | "PHARMACY_OWNER">("ALL");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "DOCTOR" | "PHARMACY_OWNER" | "DIAGNOSTIC_OWNER" | "BLOOD_BANK_OWNER">("ALL");
 
   const loadData = () => {
     fetch('/api/admin/pending-users', { method: 'POST' })
@@ -59,6 +66,7 @@ export default function AdminDashboard() {
     { href: "/admin/analytics", title: "Analytics", icon: TrendingUp, color: "from-emerald-500 to-green-700", desc: "Revenue & stats" },
     { href: "/admin/blood-donors", title: "Blood Donors", icon: Droplet, color: "from-red-500 to-rose-700", desc: "Verify donors" },
     { href: "/admin/blood-requests", title: "Blood Requests", icon: Droplet, color: "from-rose-500 to-red-700", desc: "Moderate requests" },
+    { href: "/admin/hospitals", title: "Hospitals", icon: Building2, color: "from-sky-500 to-blue-700", desc: "Approve hospitals" },
     { href: "/admin/customers", title: "Customers", icon: Users, color: "from-orange-500 to-red-600", desc: "View all users" },
     { href: "/admin/settings", title: "Settings", icon: Settings, color: "from-blue-500 to-indigo-600", desc: "Platform config" },
     { href: "/admin/settings/hotline", title: "Hotline", icon: PhoneCall, color: "from-emerald-500 to-teal-600", desc: "Support number" },
@@ -137,7 +145,7 @@ export default function AdminDashboard() {
           </div>
           <div className="w-px h-6 bg-slate-300 mx-1 self-center"></div>
           <div className="flex gap-2">
-            {["ALL", "DOCTOR", "PHARMACY_OWNER"].map(r => (
+            {["ALL", "DOCTOR", "PHARMACY_OWNER", "DIAGNOSTIC_OWNER", "BLOOD_BANK_OWNER"].map(r => (
               <button key={r} onClick={() => setRoleFilter(r as any)} className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${roleFilter === r ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
                 {r === "ALL" ? "All Roles" : r.replace("_", " ")}
               </button>
@@ -152,6 +160,14 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div className="space-y-3">
+{selectedImage && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4" onClick={() => openDoc(null)}>
+          <div className="relative max-w-2xl w-full bg-white rounded-2xl p-2 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => openDoc(null)} className="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 flex items-center justify-center rounded-full font-bold z-10">X</button>
+            <img src={selectedImage} alt="Document" className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
+          </div>
+        </div>
+      )}
             {filtered.map((u) => (
               <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                 <div className="flex items-start gap-3 mb-3">
@@ -175,17 +191,22 @@ export default function AdminDashboard() {
                     <div><span className="text-slate-500">Specialty:</span> <span className="font-medium">{u.doctorProfile.specialty}</span></div>
                     <div><span className="text-slate-500">Exp:</span> <span className="font-medium">{u.doctorProfile.experience} yrs</span></div>
                     <div><span className="text-slate-500">Fee:</span> <span className="font-medium">৳{u.doctorProfile.consultationFee}</span></div>
-                  {selectedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setSelectedImage(null)}>
-          <div className="relative max-w-2xl w-full bg-white rounded-2xl p-2 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 bg-red-500 text-white w-8 h-8 flex items-center justify-center rounded-full font-bold hover:bg-red-600 shadow-lg z-10">X</button>
-            <img src={selectedImage} alt="Document" className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
-          </div>
-        </div>
-      )}
+                  
     </div>
                 )}
 
+{u.diagnostic && (
+  <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-1 mb-3">
+    <div><span className="text-slate-500">Center:</span> <span className="font-medium">{u.diagnostic.centerName}</span></div>
+    <div><span className="text-slate-500">Trade Lic:</span> <span className="font-medium">{u.diagnostic.tradeLicense}</span></div>
+    <div><span className="text-slate-500">DGHS Lic:</span> <span className="font-medium">{u.diagnostic.dghsLicense}</span></div>
+    <div><span className="text-slate-500">City:</span> <span className="font-medium">{u.diagnostic.city}</span></div>
+    <div className="flex gap-3 pt-1">
+      {u.diagnostic.tradeLicenseUrl && <button onClick={() => openDoc(u.diagnostic.tradeLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View Trade License</button>}
+      {u.diagnostic.dghsLicenseUrl && <button onClick={() => openDoc(u.diagnostic.dghsLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View DGHS License</button>}
+    </div>
+  </div>
+)}
                 {u.pharmacyProfile && (
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl">
                     <div><span className="text-slate-500">Shop:</span> <span className="font-medium">{u.pharmacyProfile.shopName}</span></div>
@@ -193,9 +214,24 @@ export default function AdminDashboard() {
                     <div><span className="text-slate-500">Trade Lic:</span> <span className="font-medium">{u.pharmacyProfile.tradeLicense}</span></div>
                     <div><span className="text-slate-500">City:</span> <span className="font-medium">{u.pharmacyProfile.city}</span></div>
 <div className="col-span-2 mt-2 pt-2 border-t border-slate-200 flex gap-3">
-  {u.pharmacyProfile.drugLicenseUrl && <button onClick={() => setSelectedImage(u.pharmacyProfile.drugLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View Drug License</button>}
-  {u.pharmacyProfile.tradeLicenseUrl && <button onClick={() => setSelectedImage(u.pharmacyProfile.tradeLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View Trade License</button>}
+  {u.pharmacyProfile.drugLicenseUrl && <button onClick={() => openDoc(u.pharmacyProfile.drugLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View Drug License</button>}
+  {u.pharmacyProfile.tradeLicenseUrl && <button onClick={() => openDoc(u.pharmacyProfile.tradeLicenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View Trade License</button>}
 </div>
+                  </div>
+                )}
+
+                {u.bloodBank && (
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs bg-red-50 p-3 rounded-xl">
+                    <div><span className="text-slate-500">Blood Bank:</span> <span className="font-medium">{u.bloodBank.name}</span></div>
+                    <div><span className="text-slate-500">DGHS Lic:</span> <span className="font-medium">{u.bloodBank.dghsLicense}</span></div>
+                    <div><span className="text-slate-500">Trade Lic:</span> <span className="font-medium">{u.bloodBank.tradeLicense || "-"}</span></div>
+                    <div><span className="text-slate-500">District:</span> <span className="font-medium">{u.bloodBank.district}</span></div>
+                    <div className="col-span-2"><span className="text-slate-500">Address:</span> <span className="font-medium">{u.bloodBank.address}</span></div>
+                    {u.bloodBank.licenseUrl && (
+                      <div className="col-span-2 pt-1">
+                        <button onClick={() => openDoc(u.bloodBank.licenseUrl)} className="text-blue-600 text-[10px] font-bold hover:underline">View License</button>
+                      </div>
+                    )}
                   </div>
                 )}
 

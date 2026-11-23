@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
+import { getPharmacyId } from "@/lib/pharmacy-scope";
 
 export async function POST(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
@@ -9,6 +10,18 @@ export async function POST(req: Request) {
   try {
     const { orderId, status, reason } = await req.json();
     if (!orderId || !status) return NextResponse.json({ message: "Missing fields" }, { status: 400 });
+
+    const me: any = auth.user;
+    if (!/^[A-Z_]{2,30}$/.test(String(status).toUpperCase())) {
+      return NextResponse.json({ message: "Invalid status" }, { status: 400 });
+    }
+    if (me.role !== "SUPER_ADMIN") {
+      const myPharmacyId = await getPharmacyId(me.id, me.parentPharmacyId);
+      const target = await prisma.order.findUnique({ where: { id: orderId }, select: { pharmacyId: true } });
+      if (!myPharmacyId || !target || target.pharmacyId !== myPharmacyId) {
+        return NextResponse.json({ message: "Order not found" }, { status: 404 });
+      }
+    }
 
     const order = await prisma.order.update({
       where: { id: orderId },

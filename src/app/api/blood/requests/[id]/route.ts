@@ -24,12 +24,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (request.status !== "OPEN" && request.status !== "MATCHED")
       return NextResponse.json({ error: "Request is already closed" }, { status: 400 });
 
-    await prisma.bloodRequest.update({ where: { id }, data: { status } });
-    if (status === "FULFILLED")
-      await prisma.bloodRequestResponse.updateMany({
-        where: { requestId: id, status: "ACCEPTED" },
-        data: { status: "DONATED" },
-      });
+    if (status === "FULFILLED") {
+      const accepted = await prisma.bloodRequestResponse.findMany({ where: { requestId: id, status: "ACCEPTED" }, select: { donorId: true } });
+      await prisma.$transaction([
+        prisma.bloodRequest.update({ where: { id }, data: { status } }),
+        prisma.bloodRequestResponse.updateMany({ where: { requestId: id, status: "ACCEPTED" }, data: { status: "DONATED" } }),
+        prisma.bloodDonor.updateMany({ where: { id: { in: accepted.map((r) => r.donorId) } }, data: { lastDonationDate: new Date(), totalDonations: { increment: 1 } } }),
+      ]);
+    } else {
+      await prisma.bloodRequest.update({ where: { id }, data: { status } });
+    }
 
     return NextResponse.json({ success: true, status });
   } catch (e) {

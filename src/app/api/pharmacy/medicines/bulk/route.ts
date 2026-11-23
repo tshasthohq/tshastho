@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from "@/lib/auth/guards";
+import { randomUUID } from "crypto";
 
 export async function POST(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
       }
 
       medicinesData.push({
+        id: randomUUID(),
         pharmacyId: pharmacy.id,
         name: String(name),
         brand: row.Brand || row.brand ? String(row.Brand || row.brand) : null,
@@ -59,6 +61,21 @@ export async function POST(req: Request) {
         skipDuplicates: true,
       });
       successCount = result.count;
+      try {
+        const ids = medicinesData.map((m: any) => m.id);
+        const qtyById = new Map(medicinesData.map((m: any) => [m.id, Number(m.stock || 0)]));
+        const movements: any[] = [];
+        for (let i = 0; i < ids.length; i += 5000) {
+          const made = await prisma.medicine.findMany({ where: { id: { in: ids.slice(i, i + 5000) } }, select: { id: true } });
+          for (const c of made) {
+            const q = Number(qtyById.get(c.id) || 0);
+            if (q > 0) movements.push({ pharmacyId: pharmacy!.id, medicineId: c.id, type: "OPENING", quantity: q, previousStock: 0, newStock: q, reason: "Bulk import", userId: auth.user.id });
+          }
+        }
+        for (let i = 0; i < movements.length; i += 5000) {
+          await prisma.stockMovement.createMany({ data: movements.slice(i, i + 5000) });
+        }
+      } catch (e) { console.error("[BULK] ledger write failed", e); }
     }
 
     return NextResponse.json({ success: true, message: `Added ${successCount} medicines. Failed: ${failCount}` });

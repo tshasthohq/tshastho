@@ -47,6 +47,7 @@ export async function POST(req: Request) {
     let created = 0;
     let updated = 0;
     let skipped = 0;
+    const movements: any[] = [];
     const errors: { row: number; message: string }[] = [];
 
     for (let i = 0; i < data.rows.length; i++) {
@@ -82,8 +83,9 @@ export async function POST(req: Request) {
             },
           });
           updated++;
+          if (row.stock !== existing.stock) movements.push({ pharmacyId, medicineId: existing.id, type: "ADJUSTMENT", quantity: row.stock - existing.stock, previousStock: existing.stock, newStock: row.stock, reason: "Import update", userId: user.id });
         } else {
-          await prisma.medicine.create({
+          const newMed = await prisma.medicine.create({
             data: {
               pharmacyId,
               name: row.name,
@@ -101,15 +103,18 @@ export async function POST(req: Request) {
             },
           });
           created++;
+          if (row.stock > 0) movements.push({ pharmacyId, medicineId: newMed.id, type: "OPENING", quantity: row.stock, previousStock: 0, newStock: row.stock, reason: "Import", userId: user.id });
         }
       } catch (err) {
         errors.push({ row: i + 1, message: err.message || 'Failed' });
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      summary: { created, updated, skipped, errors: errors.length },
+    if (movements.length) {
+      try { await prisma.stockMovement.createMany({ data: movements }); }
+      catch (e) { console.error("[IMPORT] ledger write failed", e); }
+    }
+    return NextResponse.json({ success: true, summary: { created, updated, skipped, errors: errors.length },
       errors: errors.slice(0, 20),
     });
   } catch (error) {

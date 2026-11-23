@@ -71,7 +71,7 @@ export async function POST(req: Request) {
         onlineAvailable: doctorData.onlineAvailable ?? undefined,
         inPersonAvailable: doctorData.inPersonAvailable ?? undefined,
       },
-      include: { user: true }
+      include: { user: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } } }
     });
 
     return NextResponse.json({ success: true, doctor: updatedDoctor });

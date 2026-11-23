@@ -83,7 +83,7 @@ export async function POST(req: Request) {
 
     // Notify consulting doctor
     const consultDoc = await prisma.doctor.findUnique({ where: { id: data.consultingDoctorId } });
-    if (consultDoc) {
+    if (consultDoc?.userId) {
       await prisma.notification.create({
         data: {
           userId: consultDoc.userId,

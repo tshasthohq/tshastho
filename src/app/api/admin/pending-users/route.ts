@@ -7,11 +7,12 @@ export async function POST() {
   if (auth.error) return auth.error;
 
   try {
-    const users = await prisma.user.findMany({
-      where: { role: { in: ["DOCTOR", "PHARMACY_OWNER"] } },
-      include: { doctorProfile: true, pharmacyProfile: true },
+    const rawUsers = await prisma.user.findMany({
+      where: { role: { in: ["DOCTOR", "PHARMACY_OWNER", "DIAGNOSTIC_OWNER", "BLOOD_BANK_OWNER"] } },
+      include: { doctorProfile: true, pharmacyProfile: true, diagnostic: true, bloodBank: true },
       orderBy: { createdAt: "desc" },
     });
+    const users = rawUsers.map(({ password, ...safe }: any) => safe);
     return NextResponse.json({ users }, { status: 200 });
   } catch (error) {
     console.error('[ADMIN_PENDING_USERS_ERROR]', error);

@@ -87,6 +87,20 @@ export async function POST(req: Request) {
       showPhone: b.showPhone === true,
     };
 
+    const existing = await prisma.bloodDonor.findUnique({
+      where: { userId: user.id },
+      select: { bloodGroup: true, lastDonationDate: true },
+    });
+    if (existing) {
+      if (existing.bloodGroup !== bloodGroup)
+        return NextResponse.json({ error: "Blood group cannot be changed after registration. Contact support if it was a mistake." }, { status: 409 });
+      if (existing.lastDonationDate && (!lastDonationDate || +lastDonationDate < +existing.lastDonationDate))
+        return NextResponse.json({ error: "Last donation date cannot be moved earlier." }, { status: 400 });
+    }
+
+    if (!existing && b.eligibleDeclared !== true)
+      return NextResponse.json({ error: "Please confirm you meet the donor requirements" }, { status: 400 });
+
     const donor = await prisma.bloodDonor.upsert({
       where: { userId: user.id },
       create: { userId: user.id, ...data },

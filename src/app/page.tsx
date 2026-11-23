@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { SOON_ROUTES } from "@/lib/soon";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useRouter } from "next/navigation";
 import { 
@@ -26,7 +28,7 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
   useEffect(() => {
-    fetch("/api/doctors")
+    fetch("/api/doctors?limit=8&lite=1")
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => {
         const list = Array.isArray(d) ? d : d.doctors || d.data || [];
@@ -61,6 +63,8 @@ export default function HomePage() {
     { name: "Dr. Aisha Rahman", specialty: "Neurologist", rating: 4.7, image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=300&h=300" },
     { name: "Dr. Michael Chen", specialty: "Pediatrician", rating: 4.8, image: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=300&h=300" },
   ];
+
+  useScrollReveal(topDoctors.length);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-200">
@@ -165,25 +169,44 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
+          <div className="max-w-2xl mx-auto mt-6">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-2 text-start md:text-center">{t("hero.popular")}</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:flex-wrap md:justify-center md:overflow-visible md:mx-0 md:px-0">
+              {["Cardiology", "Gynecology", "Pediatrics", "Dermatology", "Orthopedics", "Medicine", "ENT", "Neurology"].map((s) => (
+                <Link key={s} href={`/doctors?q=${s}`} className="shrink-0 px-4 py-2.5 rounded-full bg-white border border-slate-100 shadow-sm text-xs font-bold text-slate-700 active:scale-95 transition">
+                  {t("spec." + s, s)}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 mt-6 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1.5"><Stethoscope size={14} className="text-blue-600" />{t("trust.a")}</span>
+            <span className="flex items-center gap-1.5"><Video size={14} className="text-emerald-600" />{t("trust.b")}</span>
+            <span className="flex items-center gap-1.5"><Pill size={14} className="text-violet-600" />{t("trust.c")}</span>
+          </div>
         </div>
       </section>
+
       {/* Services Section */}
       <section className="py-10 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div data-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-6 md:mb-16">
             <h2 className="text-2xl md:text-4xl font-black text-slate-900 mb-1 md:mb-3">{t("services.title")}</h2>
             <p className="text-slate-500 text-sm md:text-lg">{t("services.sub")}</p>
           </div>
           
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-5">
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2.5 md:gap-5">
             {services.map((service, index) => {
               const Icon = service.icon;
               return (
                 <Link 
                   href={service.href} 
                   key={index} 
-                  className={`${index >= 12 ? "hidden md:flex " : ""}group bg-white p-3 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center`}
+                  className={`${index >= 12 ? "hidden md:flex md:col-span-4 md:justify-self-center md:w-[calc((100%-3.75rem)/4)] " : ""}relative group bg-white p-3 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center`}
                 >
+                  {SOON_ROUTES.includes(service.href) && (
+                  <span className="absolute top-1.5 end-1.5 text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{t("soon.badge")}</span>
+                )}
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-50 text-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
                     <Icon size={26} strokeWidth={1.5} />
                   </div>
@@ -198,7 +221,7 @@ export default function HomePage() {
 
       {/* How It Works Section */}
       <section className="py-10 md:py-16 bg-slate-50 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div data-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-6 md:mb-12">
             <h2 className="text-2xl md:text-4xl font-black text-slate-900 mb-1 md:mb-3">{t("how.title")}</h2>
             <p className="text-slate-500 text-sm md:text-lg">{t("how.sub")}</p>
@@ -227,9 +250,9 @@ export default function HomePage() {
         </div>
       </section>
       {/* Top Doctors Section — real data */}
-      {topDoctors.length > 0 && (
+      {topDoctors.length >= 3 && (
         <section className="py-10 md:py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-end justify-between mb-5 md:mb-12">
               <div>
                 <h2 className="text-2xl md:text-4xl font-black text-slate-900 mb-1 md:mb-3">{t("doc.title")}</h2>
@@ -284,18 +307,18 @@ export default function HomePage() {
       )}
 
       {/* Global Healthcare CTA */}
-      <section className="py-24 bg-slate-900 relative overflow-hidden">
+      <section className="py-14 md:py-24 bg-slate-900 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-500 rounded-full blur-3xl -mr-40 -mt-40"></div>
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-cyan-500 rounded-full blur-3xl -ml-20 -mb-20"></div>
         </div>
         
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-3xl md:text-5xl font-black text-white mb-6">{t("glob.h1")} {t("glob.h2")}</h2>
-          <p className="text-slate-300 text-lg mb-10 max-w-2xl mx-auto">
+        <div data-reveal className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h2 className="text-3xl md:text-5xl font-black text-white mb-4 md:mb-6 text-balance">{t("glob.h1")} {t("glob.h2")}</h2>
+          <p className="text-slate-300 text-base md:text-lg mb-8 md:mb-10 max-w-2xl mx-auto">
             {t("glob.p")}
           </p>
-          <Link href="/international" className="inline-flex items-center gap-2 bg-white text-slate-900 px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-50 transition-colors shadow-xl">
+          <Link href="/international" className="inline-flex items-center gap-2 bg-white text-slate-900 px-6 py-3.5 md:px-8 md:py-4 rounded-full font-bold text-lg hover:bg-blue-50 transition-colors shadow-xl">
             {t("glob.cta")} <ArrowRight size={20} />
           </Link>
         </div>
@@ -307,8 +330,8 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2">
               <div className="flex items-center gap-2">
-                {branding.logo ? (
-                  <img src={branding.logo} alt="Tshastho" className="h-8 object-contain brightness-0 invert" />
+                {(branding.logo || "/logo.png") ? (
+                  <img src={branding.logo || "/logo.png"} alt="Tshastho" className="h-10 object-contain bg-white rounded-xl px-3 py-1.5" />
                 ) : (
                   <span className="text-2xl font-black text-white tracking-tight">Tshastho</span>
                 )}

@@ -2,39 +2,36 @@ import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: Request) {
+const profileCache = new Map<string, { at: number; data: any }>();
+const PROFILE_TTL = 20000;
+
+export async function GET() {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
   if (auth.error) return auth.error;
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: auth.user.id } });
-    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
-
-    let pharmacy = null;
-    
-    // চেক করা হচ্ছে ইউজারের কোনো parentPharmacyId আছে কি না (স্টাফদের জন্য)
-    if (user.parentPharmacyId) {
-      pharmacy = await prisma.pharmacy.findUnique({
-        where: { id: user.parentPharmacyId },
-        include: { user: true },
-      });
+    const me: any = auth.user;
+    const hit = profileCache.get(me.id);
+    if (hit && Date.now() - hit.at < PROFILE_TTL) {
+      return NextResponse.json(hit.data, { status: 200 });
     }
-    
-    // যদি না থাকে, তবে userId দিয়ে খোঁজা হচ্ছে (ওনার্সদের জন্য)
+
+    let pharmacy: any = null;
+    if (me.parentPharmacyId) {
+      pharmacy = await prisma.pharmacy.findUnique({ where: { id: me.parentPharmacyId }, include: { user: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } } } });
+    }
     if (!pharmacy) {
-      pharmacy = await prisma.pharmacy.findUnique({
-        where: { userId: user.id },
-        include: { user: true },
-      });
+      pharmacy = await prisma.pharmacy.findUnique({ where: { userId: me.id }, include: { user: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } } } });
     }
 
-    return NextResponse.json({ pharmacy }, { status: 200 });
+    const data = { pharmacy };
+    if (pharmacy) profileCache.set(me.id, { at: Date.now(), data });
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
     console.error("PHARMACY_PROFILE_ERROR:", error);
     return NextResponse.json({ message: "Error", error: String(error) }, { status: 500 });
   }
 }
-
 
 export async function PUT(req: Request) {
   const auth = await requireRole(['PHARMACY_OWNER', 'PHARMACY_STAFF', 'SUPER_ADMIN']);
@@ -72,6 +69,7 @@ export async function PUT(req: Request) {
       }
     });
 
+    profileCache.clear();
     return NextResponse.json({ success: true, pharmacy: { ...updated, user: updatedUser } });
   } catch (error) {
     console.error("Profile update error:", error);

@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Stethoscope, Pill, TestTube, ShieldCheck } from "lucide-react";
 
-export const metadata = {
-  title: "About Tshastho",
-  description: "Tshastho is a connected healthcare platform for patients, doctors and pharmacies in Bangladesh.",
-};
 
 const points = [
   { Icon: Stethoscope, title: "Verified doctors", text: "Book appointments with doctors whose profiles are reviewed before they are listed." },

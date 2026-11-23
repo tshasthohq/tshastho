@@ -27,7 +27,7 @@ export default function LanguageSwitcher() {
         type="button"
         aria-label={t("nav.language")}
         onClick={() => setOpen(!open)}
-        className="h-9 w-9 md:w-auto md:px-3 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center gap-1.5 text-sm font-bold"
+        className="h-11 w-11 md:w-auto md:px-3 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center gap-1.5 text-sm font-bold"
       >
         <Globe size={18} />
         <span className="hidden md:inline uppercase">{locale}</span>

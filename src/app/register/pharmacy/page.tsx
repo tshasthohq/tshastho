@@ -155,7 +155,7 @@ export default function PharmacyRegister() {
                 <label className="block text-xs font-bold text-slate-800 mb-1.5">Password *</label>
                 <div className="relative">
                   <Lock size={18} className="absolute left-4 top-3.5 text-slate-400" />
-                  <Input name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="Min 6 characters" required className="h-12 pl-11 pr-11 bg-slate-50/50 border-slate-200 text-slate-900 font-medium placeholder:text-slate-400 focus-visible:ring-indigo-500 rounded-xl" />
+                  <Input name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="Min 8 characters" required className="h-12 pl-11 pr-11 bg-slate-50/50 border-slate-200 text-slate-900 font-medium placeholder:text-slate-400 focus-visible:ring-indigo-500 rounded-xl" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-600">
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>

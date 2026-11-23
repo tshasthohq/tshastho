@@ -1,5 +1,7 @@
 "use client";
 
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +12,7 @@ import { Eye, EyeOff, ArrowLeft, Gift } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 
 export default function Register() {
+  const { t: tr } = useLanguage();
   const router = useRouter();
   const { branding } = useBranding();
   
@@ -32,7 +35,7 @@ export default function Register() {
     setFormData({ ...formData, password: val });
     
     let strength = 0;
-    if (val.length >= 6) strength += 1;
+    if (val.length >= 8) strength += 1;
     if (val.length >= 8) strength += 1;
     if (/[A-Z]/.test(val)) strength += 1;
     if (/[0-9]/.test(val)) strength += 1;
@@ -61,19 +64,19 @@ export default function Register() {
         setMessage(data.message || "Google login failed");
       }
     } catch (err) {
-      setMessage("Network error during Google login");
+      setMessage(tr("auth.netGoogle", "Network error during Google login"));
     }
   };
 
   const loginWithGoogle = useGoogleLogin({
     onSuccess: handleGoogleLogin,
-    onError: () => setMessage("Google Login Failed"),
+    onError: () => setMessage(tr("auth.googleFail", "Google Login Failed")),
   });
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreeToTerms) {
-      setMessage("You must agree to the Terms & Conditions.");
+      setMessage(tr("auth.agreeErr", "You must agree to the Terms & Conditions."));
       return;
     }
 
@@ -91,13 +94,13 @@ export default function Register() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage("Registration Successful! Redirecting to verification...");
+        setMessage(tr("auth.regOk", "Registration Successful! Redirecting to verification..."));
         setTimeout(() => router.push(`/verify-otp?email=${formData.email}`), 1200);
       } else {
         setMessage(data.message || data.error || "Something went wrong");
       }
     } catch (error) {
-      setMessage("Error connecting to server");
+      setMessage(tr("auth.serverErr", "Error connecting to server"));
     } finally {
       setLoading(false);
     }
@@ -111,8 +114,9 @@ export default function Register() {
         href="/" 
         className="absolute top-6 left-6 flex items-center gap-2 text-slate-700 hover:text-blue-600 font-bold transition-all bg-white/70 backdrop-blur-md px-4 py-2 rounded-full shadow-sm border border-slate-200/50 z-20"
       >
-        <ArrowLeft size={18} /> Home
+        <ArrowLeft size={18} /> {tr("auth.home", "Home")}
       </Link>
+      <div className="absolute top-4 right-4 z-30"><LanguageSwitcher /></div>
 
       {/* Decorative Background Elements */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
@@ -133,8 +137,8 @@ export default function Register() {
               }}
             />
           </Link>
-          <h2 className="text-2xl font-bold text-slate-800">Create Account</h2>
-          <p className="text-slate-500 text-sm mt-1">Join Tshastho today</p>
+          <h2 className="text-2xl font-bold text-slate-800">{tr("auth.createAcc", tr("auth.createAcc", "Create Account"))}</h2>
+          <p className="text-slate-500 text-sm mt-1">{tr("auth.joinToday", "Join Tshastho today")}</p>
         </div>
 
         {/* Google Login Button */}
@@ -149,36 +153,36 @@ export default function Register() {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
-          Continue with Google
+          {tr("auth.google", "Continue with Google")}
         </button>
 
         <div className="flex items-center gap-4 mb-6">
           <div className="h-px bg-slate-200 flex-1"></div>
-          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Or register with email</span>
+          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">{tr("auth.orRegister", "Or register with email")}</span>
           <div className="h-px bg-slate-200 flex-1"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">{tr("auth.fullName", "Full Name")}</label>
             <Input
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="Enter your full name"
+              placeholder={tr("auth.phName", "Enter your full name")}
               className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">{tr("auth.email", "Email")}</label>
             <Input
               name="email"
               type="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="Enter your email"
+              placeholder={tr("auth.phEmail", "Enter your email")}
               className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
               required
             />
@@ -187,49 +191,49 @@ export default function Register() {
           {/* Grid for Phone and Gender */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">{tr("auth.phone", "Phone")}</label>
               <Input
                 name="phone"
                 type="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="Phone number"
+                placeholder={tr("auth.phPhone", "Phone number")}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Gender</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">{tr("auth.gender", "Gender")}</label>
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
                 className="w-full px-4 py-[13px] bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
               >
-                <option value="">Select</option>
-                <option value="MALE">Male</option>
-                <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
+                <option value="">{tr("auth.select", "Select")}</option>
+                <option value="MALE">{tr("auth.male", "Male")}</option>
+                <option value="FEMALE">{tr("auth.female", "Female")}</option>
+                <option value="OTHER">{tr("auth.other", "Other")}</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">{tr("auth.password", "Password")}</label>
             <div className="relative">
               <Input
                 name="password"
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handlePasswordChange}
-                placeholder="Min 6 characters"
+                placeholder={tr("auth.phPass", "Min 8 characters")}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
                 required
-                minLength={6}
+                minLength={8}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -247,7 +251,7 @@ export default function Register() {
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-              Referral Code <span className="text-xs text-slate-400 font-normal">(Optional)</span>
+              {tr("auth.referral", "Referral Code")} <span className="text-xs text-slate-400 font-normal">({tr("auth.optional", "Optional")})</span>
             </label>
             <div className="relative">
               <Gift className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -255,7 +259,7 @@ export default function Register() {
                 name="referralCode"
                 value={formData.referralCode}
                 onChange={handleChange}
-                placeholder="Enter referral code for bonus"
+                placeholder={tr("auth.phReferral", "Enter referral code for bonus")}
                 className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
               />
             </div>
@@ -270,7 +274,7 @@ export default function Register() {
               className="mt-1 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
             />
             <label htmlFor="terms" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
-              I agree to the <Link href="/terms" className="text-blue-600 font-semibold hover:underline">Terms of Service</Link> and <Link href="/privacy" className="text-blue-600 font-semibold hover:underline">Privacy Policy</Link>.
+              {tr("auth.agree", "I agree to the")} <Link href="/terms" className="text-blue-600 font-semibold hover:underline">{tr("auth.terms", "Terms of Service")}</Link> {tr("auth.and", "and")} <Link href="/privacy" className="text-blue-600 font-semibold hover:underline">{tr("auth.privacy", "Privacy Policy")}</Link>.
             </label>
           </div>
 
@@ -281,15 +285,15 @@ export default function Register() {
           )}
 
           <Button type="submit" disabled={loading} className="w-full py-6 rounded-xl font-bold text-base bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all mt-2">
-            {loading ? "Registering..." : "Create Account"}
+            {loading ? tr("auth.registering", "Registering...") : tr("auth.createAcc", "Create Account")}
           </Button>
         </form>
 
         <div className="mt-6 pt-6 border-t border-slate-100 text-center">
           <p className="text-sm text-slate-500">
-            Already have an account?{" "}
+            {tr("auth.haveAcc", "Already have an account?")}{" "}
             <Link href="/login" className="font-bold text-blue-600 hover:text-blue-700 hover:underline transition">
-              Login
+              {tr("auth.login", "Login")}
             </Link>
           </p>
         </div>

@@ -21,6 +21,30 @@ export type AuthUser = {
   pharmacyProfile?: any;
 };
 
+let inflight: Promise<AuthUser | null> | null = null;
+let cached: { at: number; user: AuthUser } | null = null;
+const CLIENT_TTL = 5000;
+
+function loadUser(): Promise<AuthUser | null> {
+  if (cached && Date.now() - cached.at < CLIENT_TTL) return Promise.resolve(cached.user);
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const u: AuthUser | null = data.user ?? null;
+      if (u) cached = { at: Date.now(), user: u };
+      return u;
+    } catch {
+      return null; // not logged in
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
+}
+
 export function useAuth() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -28,33 +52,20 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
-
-    async function fetchUser() {
-      try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          if (mounted) setUser(data.user);
-        }
-      } catch (e) {
-        // not logged in
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    fetchUser();
+    loadUser().then((u) => {
+      if (!mounted) return;
+      setUser(u);
+      setLoading(false);
+    });
     return () => {
       mounted = false;
     };
   }, []);
 
   const logout = async () => {
+    cached = null;
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } finally {
       router.push("/login");
     }

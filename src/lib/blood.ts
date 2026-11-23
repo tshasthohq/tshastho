@@ -1,4 +1,5 @@
 import { BloodGroup, Prisma } from "@prisma/client";
+import { DONATION_GAP_DAYS } from "@/lib/blood-rules";
 
 const MAP: Record<string, BloodGroup> = {
   "A+": "A_POS", "A-": "A_NEG", "B+": "B_POS", "B-": "B_NEG",
@@ -18,13 +19,13 @@ const DAY = 86400000;
 
 export function isEligible(last?: Date | null, gender?: string | null) {
   if (!last) return true;
-  const gap = gender === "FEMALE" ? 120 : 90;
+  const gap = gender === "FEMALE" ? DONATION_GAP_DAYS.female : DONATION_GAP_DAYS.male;
   return Date.now() - last.getTime() >= gap * DAY;
 }
 
 export function eligibleWhere(): Prisma.BloodDonorWhereInput {
-  const c90 = new Date(Date.now() - 90 * DAY);
-  const c120 = new Date(Date.now() - 120 * DAY);
+  const c90 = new Date(Date.now() - DONATION_GAP_DAYS.male * DAY);
+  const c120 = new Date(Date.now() - DONATION_GAP_DAYS.female * DAY);
   return {
     isAvailable: true,
     OR: [

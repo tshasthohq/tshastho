@@ -82,9 +82,9 @@ export async function GET(req: Request) {
       run((pv) => `SELECT COUNT(*) AS "cnt",
           COALESCE(SUM("stock" * "sellingPrice"), 0) AS "stockValue",
           COALESCE(SUM("stock" * "purchasePrice"), 0) AS "stockCost",
-          COUNT(*) FILTER (WHERE "expiryDate" < ${pv(now)}) AS "expired",
-          COUNT(*) FILTER (WHERE "expiryDate" >= ${pv(now)} AND "expiryDate" < ${pv(soon)}) AS "soon",
-          COUNT(*) FILTER (WHERE "stock" <= 10) AS "low"
+          COUNT(*) FILTER (WHERE "stock" > 0 AND "expiryDate" < ${pv(now)}) AS "expired",
+          COUNT(*) FILTER (WHERE "stock" > 0 AND "expiryDate" >= ${pv(now)} AND "expiryDate" < ${pv(soon)}) AS "soon",
+          COUNT(*) FILTER (WHERE "stock" > 0 AND "stock" <= "lowStockAlert") AS "low"
         FROM "Medicine" WHERE "pharmacyId" = ${pv(pharmacyId)}`),
     ]);
 

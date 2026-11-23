@@ -1,0 +1,702 @@
+]633;E;echo "=== STACK ===";af8ddeca-95db-4e23-96ef-839a0ae435a0]633;C=== STACK ===
+v24.22.2
+    "@supabase/supabase-js": "^2.117.1",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+=== ROUTES ===
+src/app/about/layout.tsx
+src/app/about/page.tsx
+src/app/admin/analytics/page.tsx
+src/app/admin/backup/page.tsx
+src/app/admin/blood-donors/page.tsx
+src/app/admin/blood-requests/page.tsx
+src/app/admin/currencies/page.tsx
+src/app/admin/customers/page.tsx
+src/app/admin/delivery/page.tsx
+src/app/admin/doctors/verification/page.tsx
+src/app/admin/drug-interactions/page.tsx
+src/app/admin/hospitals/layout.tsx
+src/app/admin/hospitals/page.tsx
+src/app/admin/page.tsx
+src/app/admin/payments/page.tsx
+src/app/admin/payouts/page.tsx
+src/app/admin/settings/gateways/page.tsx
+src/app/admin/settings/hotline/page.tsx
+src/app/admin/settings/page.tsx
+src/app/admin/settings/payments/page.tsx
+src/app/admin/topups/page.tsx
+src/app/admin/transactions/page.tsx
+src/app/ambulance/page.tsx
+src/app/api/admin/analytics/route.ts
+src/app/api/admin/backup/route.ts
+src/app/api/admin/blood/requests/route.ts
+src/app/api/admin/currencies/rates/route.ts
+src/app/api/admin/currencies/route.ts
+src/app/api/admin/currencies/seed/route.ts
+src/app/api/admin/customers/route.ts
+src/app/api/admin/delivery/jobs/[id]/route.ts
+src/app/api/admin/delivery/jobs/route.ts
+src/app/api/admin/delivery/overview/route.ts
+src/app/api/admin/delivery/riders/route.ts
+src/app/api/admin/delivery/settings/route.ts
+src/app/api/admin/doc-file/route.ts
+src/app/api/admin/doctor-documents/[id]/verify/route.ts
+src/app/api/admin/doctor-documents/route.ts
+src/app/api/admin/hospitals/[id]/route.ts
+src/app/api/admin/hospitals/route.ts
+src/app/api/admin/payment-methods/route.ts
+src/app/api/admin/payments/route.ts
+src/app/api/admin/payouts/[id]/route.ts
+src/app/api/admin/payouts/route.ts
+src/app/api/admin/pending-users/route.ts
+src/app/api/admin/settings/gateways/route.ts
+src/app/api/admin/settings/hotline/route.ts
+src/app/api/admin/settings/route.ts
+src/app/api/admin/topups/[id]/route.ts
+src/app/api/admin/topups/route.ts
+src/app/api/admin/transactions/route.ts
+src/app/api/admin/verify-user/route.ts
+src/app/api/appointments/[id]/collect-cash/route.ts
+src/app/api/appointments/[id]/route.ts
+src/app/api/appointments/book/route.ts
+src/app/api/appointments/list/route.ts
+src/app/api/appointments/my-appointments/route.ts
+src/app/api/auth/forgot-password/route.ts
+src/app/api/auth/google/route.ts
+src/app/api/auth/login/route.ts
+src/app/api/auth/logout/route.ts
+src/app/api/auth/me/route.ts
+src/app/api/auth/register/blood-bank/route.ts
+src/app/api/auth/register/diagnostic/route.ts
+src/app/api/auth/register/doctor/route.ts
+src/app/api/auth/register/hospital/route.ts
+src/app/api/auth/register/pharmacy/route.ts
+src/app/api/auth/register/route.ts
+src/app/api/auth/reset-password/route.ts
+src/app/api/auth/send-otp/route.ts
+src/app/api/auth/verify-otp/route.ts
+src/app/api/barcode/[text]/route.ts
+src/app/api/blood-bank/bags/[id]/crossmatch/route.ts
+src/app/api/blood-bank/bags/[id]/route.ts
+src/app/api/blood-bank/bags/[id]/tests/route.ts
+src/app/api/blood-bank/bags/route.ts
+src/app/api/blood-bank/invoices/[id]/route.ts
+src/app/api/blood-bank/me/route.ts
+src/app/api/blood-bank/reports/route.ts
+src/app/api/blood-bank/services/route.ts
+src/app/api/blood-bank/stock/route.ts
+src/app/api/blood/banks/[id]/route.ts
+src/app/api/blood/banks/route.ts
+src/app/api/blood/donors/route.ts
+src/app/api/blood/me/route.ts
+src/app/api/blood/requests/[id]/respond/route.ts
+src/app/api/blood/requests/[id]/responders/route.ts
+src/app/api/blood/requests/[id]/route.ts
+src/app/api/blood/requests/route.ts
+src/app/api/branding/route.ts
+src/app/api/cart/add/route.ts
+src/app/api/cart/remove/route.ts
+src/app/api/cart/route.ts
+src/app/api/cart/update/route.ts
+src/app/api/chat/threads/[id]/messages/route.ts
+src/app/api/chat/threads/route.ts
+src/app/api/currency/convert/route.ts
+src/app/api/diagnostic/audit/route.ts
+src/app/api/diagnostic/branding/route.ts
+src/app/api/diagnostic/departments/route.ts
+src/app/api/diagnostic/lab/items/[id]/route.ts
+src/app/api/diagnostic/lab/worklist/route.ts
+src/app/api/diagnostic/letterhead/route.ts
+src/app/api/diagnostic/orders/[id]/pay/route.ts
+src/app/api/diagnostic/orders/[id]/route.ts
+src/app/api/diagnostic/orders/route.ts
+src/app/api/diagnostic/patients/route.ts
+src/app/api/diagnostic/profile/route.ts
+src/app/api/diagnostic/referrers/[id]/route.ts
+src/app/api/diagnostic/referrers/route.ts
+src/app/api/diagnostic/signers/[id]/route.ts
+src/app/api/diagnostic/signers/route.ts
+src/app/api/diagnostic/test-methods/route.ts
+src/app/api/diagnostic/tests/[id]/route.ts
+src/app/api/diagnostic/tests/export/route.ts
+src/app/api/diagnostic/tests/import/route.ts
+src/app/api/diagnostic/tests/route.ts
+src/app/api/diagnostic/tests/seed/route.ts
+src/app/api/doctor/agents/[id]/route.ts
+src/app/api/doctor/agents/route.ts
+src/app/api/doctor/appointments/[id]/route.ts
+src/app/api/doctor/appointments/route.ts
+src/app/api/doctor/appointments/update/route.ts
+src/app/api/doctor/attendance-rules/route.ts
+src/app/api/doctor/awards/route.ts
+src/app/api/doctor/certificates/route.ts
+src/app/api/doctor/chambers/[id]/route.ts
+src/app/api/doctor/chambers/route.ts
+src/app/api/doctor/documents/route.ts
+src/app/api/doctor/earnings/route.ts
+src/app/api/doctor/experiences/route.ts
+src/app/api/doctor/follow-ups/route.ts
+src/app/api/doctor/leaves/route.ts
+src/app/api/doctor/local-overview/route.ts
+src/app/api/doctor/local-patients/route.ts
+src/app/api/doctor/local-prescriptions/route.ts
+src/app/api/doctor/memberships/route.ts
+src/app/api/doctor/my-appointments/route.ts
+src/app/api/doctor/patients/[id]/history/route.ts
+src/app/api/doctor/patients/[id]/medical-history/route.ts
+src/app/api/doctor/patients/route.ts
+src/app/api/doctor/payout-methods/[id]/route.ts
+src/app/api/doctor/payout-methods/route.ts
+src/app/api/doctor/payouts/route.ts
+src/app/api/doctor/prescription-templates/[id]/route.ts
+src/app/api/doctor/prescription-templates/route.ts
+src/app/api/doctor/prescriptions/route.ts
+src/app/api/doctor/qualifications/route.ts
+src/app/api/doctor/referrals/[id]/route.ts
+src/app/api/doctor/referrals/route.ts
+src/app/api/doctor/schedule/route.ts
+src/app/api/doctor/signature/route.ts
+src/app/api/doctor/specialties/route.ts
+src/app/api/doctor/staff-attendance/route.ts
+src/app/api/doctor/staff-attendance/today/route.ts
+src/app/api/doctor/staff-shifts/route.ts
+src/app/api/doctor/staff/[id]/attendance/route.ts
+src/app/api/doctor/staff/[id]/route.ts
+src/app/api/doctor/staff/route.ts
+src/app/api/doctor/update-profile/route.ts
+src/app/api/doctor/visits/[id]/route.ts
+src/app/api/doctor/visits/route.ts
+src/app/api/doctor/walk-in-earnings/route.ts
+src/app/api/doctors/[id]/reviews/route.ts
+src/app/api/doctors/[id]/route.ts
+src/app/api/doctors/[id]/slots/route.ts
+src/app/api/doctors/route.ts
+src/app/api/health/route.ts
+src/app/api/internal/expiry/scan/route.ts
+src/app/api/internal/retention/purge/route.ts
+src/app/api/loyalty/route.ts
+src/app/api/master-medicines/route.ts
+src/app/api/medicines/[id]/route.ts
+src/app/api/medicines/reviews/route.ts
+src/app/api/medicines/search/route.ts
+src/app/api/notifications/create/route.ts
+src/app/api/notifications/route.ts
+src/app/api/notifications/summary/route.ts
+src/app/api/orders/detail/route.ts
+src/app/api/orders/my-detail/route.ts
+src/app/api/orders/my-dues/route.ts
+src/app/api/orders/my-orders/route.ts
+src/app/api/orders/place/route.ts
+src/app/api/orders/smart-route/route.ts
+src/app/api/patients/me/consents/route.ts
+src/app/api/patients/me/medical-history/route.ts
+src/app/api/payment-methods/route.ts
+src/app/api/payments/[id]/refund/route.ts
+src/app/api/payments/[id]/status/route.ts
+src/app/api/payments/initiate/route.ts
+src/app/api/payments/list/route.ts
+src/app/api/payments/mock/success/route.ts
+src/app/api/payments/sslcommerz/cancel/route.ts
+src/app/api/payments/sslcommerz/fail/route.ts
+src/app/api/payments/sslcommerz/ipn/route.ts
+src/app/api/payments/sslcommerz/success/route.ts
+src/app/api/pharmacies/list/route.ts
+src/app/api/pharmacy/analytics/route.ts
+src/app/api/pharmacy/attendance/checkin/route.ts
+src/app/api/pharmacy/attendance/checkout/route.ts
+src/app/api/pharmacy/attendance/list/route.ts
+src/app/api/pharmacy/attendance/manual/route.ts
+src/app/api/pharmacy/attendance/monthly/route.ts
+src/app/api/pharmacy/attendance/today/route.ts
+src/app/api/pharmacy/audit/route.ts
+src/app/api/pharmacy/audit/stock/route.ts
+src/app/api/pharmacy/barcodes/route.ts
+src/app/api/pharmacy/batches/route.ts
+src/app/api/pharmacy/branch-transfer-suggestions/bulk-transfer/route.ts
+src/app/api/pharmacy/branch-transfer-suggestions/route.ts
+src/app/api/pharmacy/branches/route.ts
+src/app/api/pharmacy/cash-drawer/route.ts
+src/app/api/pharmacy/charts/route.ts
+src/app/api/pharmacy/credit-ledger/customers/route.ts
+src/app/api/pharmacy/credit-ledger/route.ts
+src/app/api/pharmacy/customers/detail/route.ts
+src/app/api/pharmacy/customers/list/route.ts
+src/app/api/pharmacy/dgda/logs/route.ts
+src/app/api/pharmacy/dgda/reports/route.ts
+src/app/api/pharmacy/dues/pay/route.ts
+src/app/api/pharmacy/dues/route.ts
+src/app/api/pharmacy/exchanges/[id]/approve/route.ts
+src/app/api/pharmacy/exchanges/[id]/process/route.ts
+src/app/api/pharmacy/exchanges/route.ts
+src/app/api/pharmacy/expiry-alerts/[id]/status/route.ts
+src/app/api/pharmacy/expiry-alerts/route.ts
+src/app/api/pharmacy/expiry-write-off/route.ts
+src/app/api/pharmacy/finance/daily-closing/route.ts
+src/app/api/pharmacy/finance/expenses/route.ts
+src/app/api/pharmacy/finance/ledger/route.ts
+src/app/api/pharmacy/finance/overview/route.ts
+src/app/api/pharmacy/finance/settlements/route.ts
+src/app/api/pharmacy/interactions/check/route.ts
+src/app/api/pharmacy/interactions/route.ts
+src/app/api/pharmacy/interactions/seed/route.ts
+src/app/api/pharmacy/inventory/route.ts
+src/app/api/pharmacy/medicines/[id]/substitutes-v2/route.ts
+src/app/api/pharmacy/medicines/[id]/substitutes/route.ts
+src/app/api/pharmacy/medicines/adjust/route.ts
+src/app/api/pharmacy/medicines/batches/route.ts
+src/app/api/pharmacy/medicines/bulk/route.ts
+src/app/api/pharmacy/medicines/export/route.ts
+src/app/api/pharmacy/medicines/history/route.ts
+src/app/api/pharmacy/medicines/import/route.ts
+src/app/api/pharmacy/medicines/route.ts
+src/app/api/pharmacy/medicines/update/route.ts
+src/app/api/pharmacy/migrate-stock/route.ts
+src/app/api/pharmacy/orders/[id]/route.ts
+src/app/api/pharmacy/orders/all/route.ts
+src/app/api/pharmacy/orders/collect-cash/route.ts
+src/app/api/pharmacy/orders/count/route.ts
+src/app/api/pharmacy/orders/history/route.ts
+src/app/api/pharmacy/orders/list/route.ts
+src/app/api/pharmacy/orders/route.ts
+src/app/api/pharmacy/orders/update/route.ts
+src/app/api/pharmacy/orders/verify-rx/route.ts
+src/app/api/pharmacy/payroll/[id]/route.ts
+src/app/api/pharmacy/payroll/route.ts
+src/app/api/pharmacy/pos/customer-loyalty/route.ts
+src/app/api/pharmacy/pos/medicine-search/route.ts
+src/app/api/pharmacy/pos/sale/route.ts
+src/app/api/pharmacy/pos/sales/route.ts
+src/app/api/pharmacy/pos/scan/route.ts
+src/app/api/pharmacy/pos/shift/close/route.ts
+src/app/api/pharmacy/pos/shift/current/route.ts
+src/app/api/pharmacy/pos/shift/open/route.ts
+src/app/api/pharmacy/pos/terminals/route.ts
+src/app/api/pharmacy/prescription-ocr/route.ts
+src/app/api/pharmacy/prescriptions/[id]/erasure/route.ts
+src/app/api/pharmacy/prescriptions/[id]/verify/route.ts
+src/app/api/pharmacy/prescriptions/retention/stats/route.ts
+src/app/api/pharmacy/prescriptions/route.ts
+src/app/api/pharmacy/print/log/route.ts
+src/app/api/pharmacy/print/route.ts
+src/app/api/pharmacy/profile/route.ts
+src/app/api/pharmacy/purchases/[id]/receive/route.ts
+src/app/api/pharmacy/purchases/[id]/route.ts
+src/app/api/pharmacy/purchases/route.ts
+src/app/api/pharmacy/recalls/[id]/status/route.ts
+src/app/api/pharmacy/recalls/route.ts
+src/app/api/pharmacy/refill-reminders/route.ts
+src/app/api/pharmacy/reports/route.ts
+src/app/api/pharmacy/returns/[id]/approve/route.ts
+src/app/api/pharmacy/returns/[id]/process/route.ts
+src/app/api/pharmacy/returns/[id]/retry-refund/route.ts
+src/app/api/pharmacy/returns/invoice-search/route.ts
+src/app/api/pharmacy/returns/route.ts
+src/app/api/pharmacy/reviews/[id]/moderate/route.ts
+src/app/api/pharmacy/reviews/[id]/reply/route.ts
+src/app/api/pharmacy/reviews/route.ts
+src/app/api/pharmacy/rx-requests/[id]/route.ts
+src/app/api/pharmacy/rx-requests/route.ts
+src/app/api/pharmacy/samples/distribute/route.ts
+src/app/api/pharmacy/samples/distributions/[id]/feedback/route.ts
+src/app/api/pharmacy/samples/distributions/route.ts
+src/app/api/pharmacy/samples/route.ts
+src/app/api/pharmacy/samples/stats/route.ts
+src/app/api/pharmacy/sms/bulk/route.ts
+src/app/api/pharmacy/sms/send/route.ts
+src/app/api/pharmacy/sms/templates/route.ts
+src/app/api/pharmacy/staff-performance/route.ts
+src/app/api/pharmacy/staff/add/route.ts
+src/app/api/pharmacy/staff/advance/route.ts
+src/app/api/pharmacy/staff/commissions/payout/route.ts
+src/app/api/pharmacy/staff/commissions/route.ts
+src/app/api/pharmacy/staff/delete/route.ts
+src/app/api/pharmacy/staff/list/route.ts
+src/app/api/pharmacy/staff/permissions/route.ts
+src/app/api/pharmacy/staff/salary-calc/route.ts
+src/app/api/pharmacy/staff/salary-history/route.ts
+src/app/api/pharmacy/staff/salary-save/route.ts
+src/app/api/pharmacy/staff/toggle/route.ts
+src/app/api/pharmacy/staff/update-branch/route.ts
+src/app/api/pharmacy/staff/update-salary/route.ts
+src/app/api/pharmacy/stats/route.ts
+src/app/api/pharmacy/stock-alerts/[id]/auto-po/route.ts
+src/app/api/pharmacy/stock-alerts/route.ts
+src/app/api/pharmacy/stock-movement/route.ts
+src/app/api/pharmacy/stock-movements/route.ts
+src/app/api/pharmacy/supplier-credits/[id]/apply/route.ts
+src/app/api/pharmacy/supplier-credits/route.ts
+src/app/api/pharmacy/suppliers/[id]/route.ts
+src/app/api/pharmacy/suppliers/route.ts
+src/app/api/pharmacy/tax-config/route.ts
+src/app/api/pharmacy/transfers/[id]/approve/route.ts
+src/app/api/pharmacy/transfers/[id]/complete/route.ts
+src/app/api/pharmacy/transfers/route.ts
+src/app/api/pharmacy/update-profile/route.ts
+src/app/api/pharmacy/vat-invoices/[id]/mushak-6.3/route.ts
+src/app/api/pharmacy/vat-invoices/route.ts
+src/app/api/pharmacy/vat-reports/route.ts
+src/app/api/pharmacy/wallet/[userId]/route.ts
+src/app/api/pharmacy/wallet/[userId]/topup/route.ts
+src/app/api/pharmacy/whatsapp/send/route.ts
+src/app/api/prescriptions/[id]/route.ts
+src/app/api/prescriptions/[id]/to-pharmacy/route.ts
+src/app/api/prescriptions/route.ts
+src/app/api/prescriptions/upload/route.ts
+src/app/api/push/subscribe/route.ts
+src/app/api/referrals/apply/route.ts
+src/app/api/referrals/route.ts
+src/app/api/settings/delivery/route.ts
+src/app/api/settings/public/route.ts
+src/app/api/staff/self/route.ts
+src/app/api/telemedicine/[id]/messages/route.ts
+src/app/api/telemedicine/[id]/route.ts
+src/app/api/telemedicine/[id]/token/route.ts
+src/app/api/telemedicine/route.ts
+src/app/api/test/route.ts
+src/app/api/upload/route.ts
+src/app/api/user/profile/route.ts
+src/app/api/verify/receipt/[id]/route.ts
+src/app/api/verify/rx/[no]/route.ts
+src/app/api/wallet/internal/earn/route.ts
+src/app/api/wallet/internal/spend/route.ts
+src/app/api/wallet/me/route.ts
+src/app/api/wallet/me/transactions/route.ts
+src/app/api/wallet/topup/manual/route.ts
+src/app/api/webhooks/sms/ssl-wireless/route.ts
+src/app/api/webhooks/whatsapp/meta/route.ts
+src/app/blood-bank/banks/[id]/page.tsx
+src/app/blood-bank/banks/page.tsx
+src/app/blood-bank/dashboard/page.tsx
+src/app/blood-bank/donate/page.tsx
+src/app/blood-bank/me/page.tsx
+src/app/blood-bank/memo/[id]/page.tsx
+src/app/blood-bank/page.tsx
+src/app/blood-bank/prices/page.tsx
+src/app/blood-bank/reports/page.tsx
+src/app/blood-bank/request/page.tsx
+src/app/cart/page.tsx
+src/app/chat/[id]/page.tsx
+src/app/checkout/page.tsx
+src/app/contact/layout.tsx
+src/app/contact/page.tsx
+src/app/dashboard/appointments/page.tsx
+src/app/dashboard/chat/page.tsx
+src/app/dashboard/consent/page.tsx
+src/app/dashboard/consents/page.tsx
+src/app/dashboard/dues/page.tsx
+src/app/dashboard/layout.tsx
+src/app/dashboard/loyalty/page.tsx
+src/app/dashboard/medical-history/page.tsx
+src/app/dashboard/notifications/page.tsx
+src/app/dashboard/orders/[id]/memo/page.tsx
+src/app/dashboard/orders/[id]/page.tsx
+src/app/dashboard/orders/page.tsx
+src/app/dashboard/page.tsx
+src/app/dashboard/prescriptions/[id]/page.tsx
+src/app/dashboard/prescriptions/page.tsx
+src/app/dashboard/profile/page.tsx
+src/app/dashboard/telemedicine/page.tsx
+src/app/diagnostic/lab/page.tsx
+src/app/diagnostic/layout.tsx
+src/app/diagnostic/letterhead/page.tsx
+src/app/diagnostic/orders/[id]/memo/page.tsx
+src/app/diagnostic/orders/[id]/page.tsx
+src/app/diagnostic/orders/[id]/report/page.tsx
+src/app/diagnostic/orders/page.tsx
+src/app/diagnostic/page.tsx
+src/app/diagnostic/reception/page.tsx
+src/app/diagnostic/referrers/page.tsx
+src/app/diagnostic/settings/page.tsx
+src/app/diagnostic/signers/page.tsx
+src/app/diagnostic/tests/page.tsx
+src/app/diagnostics/page.tsx
+src/app/doctor/agents/page.tsx
+src/app/doctor/appointments/page.tsx
+src/app/doctor/attendance-rules/page.tsx
+src/app/doctor/certificates/page.tsx
+src/app/doctor/chambers/page.tsx
+src/app/doctor/chat/page.tsx
+src/app/doctor/earnings/page.tsx
+src/app/doctor/follow-ups/page.tsx
+src/app/doctor/layout.tsx
+src/app/doctor/local-patients/[id]/page.tsx
+src/app/doctor/local-patients/page.tsx
+src/app/doctor/local-practice/page.tsx
+src/app/doctor/local-rx/[id]/page.tsx
+src/app/doctor/local-rx/new/page.tsx
+src/app/doctor/local-rx/page.tsx
+src/app/doctor/notifications/page.tsx
+src/app/doctor/page.tsx
+src/app/doctor/patients/[id]/page.tsx
+src/app/doctor/patients/page.tsx
+src/app/doctor/payout-methods/page.tsx
+src/app/doctor/payouts/page.tsx
+src/app/doctor/prescription-templates/page.tsx
+src/app/doctor/prescriptions/[id]/page.tsx
+src/app/doctor/prescriptions/new/page.tsx
+src/app/doctor/prescriptions/page.tsx
+src/app/doctor/profile/page.tsx
+src/app/doctor/referral/page.tsx
+src/app/doctor/referrals/new/page.tsx
+src/app/doctor/referrals/page.tsx
+src/app/doctor/schedule/page.tsx
+src/app/doctor/staff-attendance/page.tsx
+src/app/doctor/staff-attendance/report/page.tsx
+src/app/doctor/staff/page.tsx
+src/app/doctor/telemedicine/page.tsx
+src/app/doctor/visits/page.tsx
+src/app/doctor/walk-in-earnings/page.tsx
+src/app/doctors/[id]/page.tsx
+src/app/doctors/book/page.tsx
+src/app/doctors/layout.tsx
+src/app/doctors/page.tsx
+src/app/equipment/page.tsx
+src/app/forgot-password/page.tsx
+src/app/home-care/page.tsx
+src/app/hospital/layout.tsx
+src/app/hospital/page.tsx
+src/app/hospitals/[slug]/page.tsx
+src/app/hospitals/layout.tsx
+src/app/hospitals/page.tsx
+src/app/insurance/page.tsx
+src/app/international/page.tsx
+src/app/layout.tsx
+src/app/login/page.tsx
+src/app/medicines/[id]/page.tsx
+src/app/medicines/layout.tsx
+src/app/medicines/page.tsx
+src/app/packages/page.tsx
+src/app/page.tsx
+src/app/payment/cancelled/page.tsx
+src/app/payment/failed/page.tsx
+src/app/payment/success/page.tsx
+src/app/pharmacy/analytics/page.tsx
+src/app/pharmacy/attendance/page.tsx
+src/app/pharmacy/audit/page.tsx
+src/app/pharmacy/audit/stock/page.tsx
+src/app/pharmacy/barcodes/page.tsx
+src/app/pharmacy/barcodes/print/page.tsx
+src/app/pharmacy/batches/page.tsx
+src/app/pharmacy/branches/page.tsx
+src/app/pharmacy/credit-ledger/page.tsx
+src/app/pharmacy/customers/[id]/page.tsx
+src/app/pharmacy/customers/page.tsx
+src/app/pharmacy/dgda/page.tsx
+src/app/pharmacy/dues/page.tsx
+src/app/pharmacy/exchanges/page.tsx
+src/app/pharmacy/expiry-write-off/page.tsx
+src/app/pharmacy/finance/daily-closing/page.tsx
+src/app/pharmacy/finance/expenses/page.tsx
+src/app/pharmacy/finance/ledger/page.tsx
+src/app/pharmacy/finance/page.tsx
+src/app/pharmacy/finance/settlements/page.tsx
+src/app/pharmacy/inventory/page.tsx
+src/app/pharmacy/layout.tsx
+src/app/pharmacy/medicines/bulk/page.tsx
+src/app/pharmacy/medicines/page.tsx
+src/app/pharmacy/narcotic-register/page.tsx
+src/app/pharmacy/notifications/page.tsx
+src/app/pharmacy/orders/[id]/memo/page.tsx
+src/app/pharmacy/orders/[id]/page.tsx
+src/app/pharmacy/orders/history/page.tsx
+src/app/pharmacy/orders/page.tsx
+src/app/pharmacy/page.tsx
+src/app/pharmacy/payroll/page.tsx
+src/app/pharmacy/pos/page.tsx
+src/app/pharmacy/pos/sales/page.tsx
+src/app/pharmacy/prescription-ocr/page.tsx
+src/app/pharmacy/prescriptions/page.tsx
+src/app/pharmacy/profile/page.tsx
+src/app/pharmacy/purchases/new/page.tsx
+src/app/pharmacy/purchases/page.tsx
+src/app/pharmacy/refill-reminders/page.tsx
+src/app/pharmacy/reports/page.tsx
+src/app/pharmacy/returns/new/page.tsx
+src/app/pharmacy/returns/page.tsx
+src/app/pharmacy/rx-requests/page.tsx
+src/app/pharmacy/samples/page.tsx
+src/app/pharmacy/sms/page.tsx
+src/app/pharmacy/sms/templates/page.tsx
+src/app/pharmacy/staff/[id]/history/page.tsx
+src/app/pharmacy/staff/[id]/page.tsx
+src/app/pharmacy/staff/page.tsx
+src/app/pharmacy/stock-alerts/page.tsx
+src/app/pharmacy/stock-movements/page.tsx
+src/app/pharmacy/supplier-credits/page.tsx
+src/app/pharmacy/suppliers/page.tsx
+src/app/pharmacy/tax-config/page.tsx
+src/app/pharmacy/transfer-suggestions/page.tsx
+src/app/pharmacy/transfers/new/page.tsx
+src/app/pharmacy/transfers/page.tsx
+src/app/pharmacy/vat-invoices/page.tsx
+src/app/pharmacy/vat-reports/page.tsx
+src/app/pharmacy/wallet/page.tsx
+src/app/privacy/layout.tsx
+src/app/privacy/page.tsx
+src/app/register/blood-bank/page.tsx
+src/app/register/diagnostic/page.tsx
+src/app/register/doctor/page.tsx
+src/app/register/hospital/layout.tsx
+src/app/register/hospital/page.tsx
+src/app/register/page.tsx
+src/app/register/pharmacy/page.tsx
+src/app/reset-password/page.tsx
+src/app/staff/attendance/page.tsx
+src/app/staff/dashboard/page.tsx
+src/app/staff/notifications/page.tsx
+src/app/staff/page.tsx
+src/app/telemedicine/[id]/page.tsx
+src/app/telemedicine/page.tsx
+src/app/terms/layout.tsx
+src/app/terms/page.tsx
+src/app/vaccination/page.tsx
+src/app/verify-otp/page.tsx
+src/app/verify/[token]/page.tsx
+src/app/verify/receipt/[id]/page.tsx
+src/app/verify/rx/[no]/page.tsx
+src/app/wallet/page.tsx
+src/app/wallet/topup/page.tsx
+=== TYPOS ===
+=== TYPECHECK ===
+=== LINT ===
+Invalid project directory provided, no such directory: /workspaces/tshastho/lint
+=== BUILD ===
+├ ƒ /pharmacy/supplier-credits
+├ ƒ /pharmacy/suppliers
+├ ƒ /pharmacy/tax-config
+├ ƒ /pharmacy/transfer-suggestions
+├ ƒ /pharmacy/transfers
+├ ƒ /pharmacy/transfers/new
+├ ƒ /pharmacy/vat-invoices
+├ ƒ /pharmacy/vat-reports
+├ ƒ /pharmacy/wallet
+├ ƒ /privacy
+├ ƒ /register
+├ ƒ /register/blood-bank
+├ ƒ /register/diagnostic
+├ ƒ /register/doctor
+├ ƒ /register/hospital
+├ ƒ /register/pharmacy
+├ ƒ /reset-password
+├ ○ /robots.txt
+├ ○ /sitemap.xml                                                     1h      1y
+├ ƒ /staff
+├ ƒ /staff/attendance
+├ ƒ /staff/dashboard
+├ ƒ /staff/notifications
+├ ƒ /telemedicine
+├ ƒ /telemedicine/[id]
+├ ƒ /terms
+├ ƒ /vaccination
+├ ƒ /verify-otp
+├ ƒ /verify/[token]
+├ ƒ /verify/receipt/[id]
+├ ƒ /verify/rx/[no]
+├ ƒ /wallet
+└ ƒ /wallet/topup
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+=== ENV USED ===
+.env
+.env.example
+.env.local
+next-env.d.ts
+process.env.AUTH_SECRET
+process.env.CRON_SECRET
+process.env.EMAIL_FROM
+process.env.GOOGLE_VISION_API_KEY
+process.env.JWT_ACCESS_SECRET
+process.env.JWT_SECRET
+process.env.LIVEKIT_API_KEY
+process.env.LIVEKIT_API_SECRET
+process.env.META_WHATSAPP_PHONE_ID
+process.env.META_WHATSAPP_TOKEN
+process.env.META_WHATSAPP_VERIFY_TOKEN
+process.env.NEXTAUTH_SECRET
+process.env.NEXT_PUBLIC_APP_URL
+process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+process.env.NEXT_PUBLIC_LIVEKIT_URL
+process.env.NEXT_PUBLIC_SUPABASE_URL
+process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+process.env.NODE_ENV
+process.env.OCR_PROVIDER
+process.env.OPENAI_API_KEY
+process.env.PAYMENTS_MOCK_MODE
+process.env.REPORT_VERIFY_SECRET
+process.env.RESEND_API_KEY
+process.env.SMTP_HOST
+process.env.SMTP_PASS
+process.env.SMTP_PORT
+process.env.SMTP_USER
+process.env.SSLCOMMERZ_SANDBOX
+process.env.SSLCOMMERZ_STORE_ID
+process.env.SSLCOMMERZ_STORE_PASS
+process.env.SSL_WIRELESS_API_KEY
+process.env.SSL_WIRELESS_SENDER_ID
+process.env.SUPABASE_SERVICE_ROLE_KEY
+process.env.TWILIO_ACCOUNT_SID
+process.env.TWILIO_AUTH_TOKEN
+process.env.TWILIO_PHONE_NUMBER
+process.env.TWILIO_WHATSAPP_FROM
+process.env.VAPID_PRIVATE_KEY
+process.env.VAPID_SUBJECT
+=== GITIGNORE ENV ===
+33:# env files (can opt-in for committing if needed)
+34:.env*
+41:next-env.d.ts
+44:# Allow env template
+45:!.env.example
+=== SECRETS IN CODE ===
+=== LOCALHOST HARDCODED ===
+src/lib/payments/gateways/sslcommerz.ts:33:    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+src/app/api/auth/forgot-password/route.ts:38:    const baseUrl = origin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+src/app/api/payments/sslcommerz/fail/route.ts:4:const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+src/app/api/payments/sslcommerz/success/route.ts:6:const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+src/app/api/payments/sslcommerz/cancel/route.ts:4:const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+src/app/api/payments/mock/success/route.ts:5:const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+=== IMG NO ALT ===
+src/components/brand/TshasthoLogo.tsx:28:      <img 
+src/components/brand/TshasthoLogo.tsx:38:      <img 
+src/app/reset-password/page.tsx.bak8:73:          <img 
+src/app/reset-password/page.tsx:73:          <img 
+src/app/page.tsx:77:              <img 
+src/app/verify-otp/page.tsx:101:          <img 
+src/app/register/page.tsx.bak8:130:            <img 
+src/app/register/page.tsx.bakls:128:            <img 
+src/app/register/page.tsx:130:            <img 
+src/app/register/pharmacy/page.tsx.bak8:230:                      <img src={drugLicPreview} className="h-full object-contain" />
+=== CONSOLE/TODO ===
+src/lib/whatsapp/index.ts:36:  console.log('[WHATSAPP_MOCK]', { to: message.to, body: message.body });
+src/lib/email/index.ts:29:    console.log('[EMAIL_MOCK]', {
+src/app/api/auth/register/pharmacy/route.ts:99:        console.log(`✅ Auto-synced ${masterMeds.length} medicines to new pharmacy: ${pharmacy.shopName}`);
+src/app/api/auth/forgot-password/route.ts:44:    console.log(`[EMAIL SENT] Password reset link sent to ${email}`);
+src/app/api/auth/send-otp/route.ts:24:    console.log(`[OTP SENT] OTP for ${email} is: ${otp}`); // ডেভেলপমেন্টের জন্য লগ
+src/app/api/orders/place/route.ts:216:             console.log(`[STOCK_WARN] Not enough stock for ${item.medicine.name}`);
+src/app/api/upload/route.ts:46:        console.log('[UPLOAD] storage not configured, using dev placeholder');
+=== SQL/RLS FILES ===
+./prisma/migrations/20261004175459_loyalty_referral/migration.sql
+./prisma/migrations/20261121150000_diagnostic_signers/migration.sql
+./prisma/migrations/20261005195054_sms_whatsapp/migration.sql
+./prisma/migrations/20261005174354_premium_attendance/migration.sql
+./prisma/migrations/20261005161839_barcode_stock_alert/migration.sql
+./prisma/migrations/20261004010012_pharmacy_finance_ledger/migration.sql
+./prisma/migrations/20261006022130_supplier_credit_notes/migration.sql
+./prisma/migrations/20261006025028_prescription_ocr/migration.sql
+./prisma/migrations/20261122030000_diagnostic_method_footer/migration.sql
+./prisma/migrations/20261007132911_add_prescription_retention_item_18/migration.sql
+=== NPM AUDIT ===
+
+35 vulnerabilities (5 moderate, 30 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+Some issues need review, and may require choosing
+a different dependency.
