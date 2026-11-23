@@ -30,9 +30,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         where: { id },
         data: { status: 'VERIFIED', verifiedById: user.id, verifiedAt: new Date() },
       });
-      await prisma.notification.create({
+      if (doc.doctor.userId) await prisma.notification.create({
         data: {
-          userId: doc.doctor.userId,
+          userId: doc.doctor.userId!,
           title: 'Document Verified',
           message: `Your ${doc.type} document has been verified.`,
           type: 'success',
@@ -49,9 +49,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           rejectionReason: data.rejectionReason,
         },
       });
-      await prisma.notification.create({
+      if (doc.doctor.userId) await prisma.notification.create({
         data: {
-          userId: doc.doctor.userId,
+          userId: doc.doctor.userId!,
           title: 'Document Rejected',
           message: `Your ${doc.type} document was rejected: ${data.rejectionReason}`,
           type: 'warning',

@@ -233,8 +233,51 @@ function NewPrescriptionForm() {
     alert("Draft saved locally! You can safely close this page.");
   };
 
+  
+  const [medQuery, setMedQuery] = useState("");
+  const [medResults, setMedResults] = useState<any[]>([]);
+  const [activeMed, setActiveMed] = useState<number | null>(null);
+  const FORM_MAP: Record<string, string> = { tablet: "Tab", capsule: "Cap", syrup: "Syr", suspension: "Syr", injection: "Inj", drop: "Drop", drops: "Drop", cream: "Cream", ointment: "Cream", inhaler: "Inhaler", suppository: "Supp" };
+  const pickMedicine = (idx: number, m: any) => {
+    const form = FORM_MAP[String(m.category || "").toLowerCase()] || "";
+    setItems(items.map((it, i) => i === idx ? { ...it, medicineName: m.name, strength: m.strength || it.strength, dosageForm: it.dosageForm || form } : it));
+    setActiveMed(null);
+    setMedResults([]);
+  };
+  const [medSuggestions, setMedSuggestions] = useState<string[]>(MEDICINE_SUGGESTIONS);
+  useEffect(() => {
+    const q = medQuery.trim();
+    if (q.length < 2) return;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/master-medicines", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: q }) });
+        const data = await res.json();
+        setMedResults(data.medicines || []);
+        const names: string[] = [];
+        if (names.length) setMedSuggestions(Array.from(new Set(names)));
+      } catch {}
+    }, 300);
+    return () => clearTimeout(t);
+  }, [medQuery]);
+
+  const checkInteractions = async (): Promise<any[]> => {
+    const names = items.map(i => i.medicineName.trim()).filter(Boolean);
+    if (names.length < 2) return [];
+    try {
+      const res = await fetch("/api/pharmacy/interactions/check", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ medicineNames: names }) });
+      const data = await res.json();
+      return data.warnings || [];
+    } catch { return []; }
+  };
+
   const handleSubmit = async (e: React.FormEvent, andPrint: boolean = false) => {
     e.preventDefault();
+    const warnings = await checkInteractions();
+    if (warnings.length > 0) {
+      const lines = warnings.map((w: any) => "• " + (w.severity ? "[" + w.severity + "] " : "") + (w.description || w.message || JSON.stringify(w))).join("\n");
+      if (!window.confirm("Drug interaction warning:\n" + lines + "\n\nSave prescription anyway?")) return;
+    }
+
     if (!selectedPatient) { setMessage("Please select a patient"); return; }
     if (items.some(i => !i.medicineName.trim())) { setMessage("Please fill all medicine names"); return; }
 
@@ -460,13 +503,23 @@ function NewPrescriptionForm() {
                     <label className="text-xs font-bold text-slate-600 mb-1 block">Medicine Name *</label>
                     <input 
                       required 
-                      list="medicine-suggestions"
+                      autoComplete="off"
                       value={item.medicineName} 
-                      onChange={(e) => updateItem(idx, "medicineName", e.target.value)}
+                      onChange={(e) => { updateItem(idx, "medicineName", e.target.value); setMedQuery(e.target.value); setActiveMed(idx); }}
                       onKeyDown={(e) => handleKeyDown(e, idx)}
                       ref={el => { medicineInputRefs.current[idx] = el; }}
                       placeholder="e.g. Napa Extend, Seclo 20" 
                       className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" />
+                {activeMed === idx && medResults.length > 0 && item.medicineName.trim().length >= 2 && (
+                  <div className="mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                    {medResults.slice(0, 12).map((m: any) => (
+                      <button key={m.id} type="button" onClick={() => pickMedicine(idx, m)} className="w-full text-left px-4 py-2.5 border-b border-slate-100 last:border-0 active:bg-blue-100">
+                        <div className="text-sm font-semibold text-slate-900">{m.name}{m.strength ? " " + m.strength : ""}</div>
+                        <div className="text-xs text-slate-500">{[m.genericName, m.category, m.manufacturer].filter(Boolean).join(" · ")}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 mb-1 block">Strength</label>
@@ -620,7 +673,7 @@ function NewPrescriptionForm() {
       </div>
       
       <datalist id="medicine-suggestions">
-        {MEDICINE_SUGGESTIONS.map(med => (
+        {medSuggestions.map(med => (
           <option key={med} value={med} />
         ))}
       </datalist>

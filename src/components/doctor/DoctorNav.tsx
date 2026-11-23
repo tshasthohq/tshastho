@@ -28,6 +28,9 @@ export default function DoctorNav() {
       links: [
         { name: "Telemedicine", href: "/doctor/telemedicine", icon: Video },
         { name: "Local Practice", href: "/doctor/local-practice", icon: MapPin },
+        { name: "New Local Rx", href: "/doctor/local-rx/new", icon: FilePlus },
+        { name: "Local Rx", href: "/doctor/local-rx", icon: FileText },
+        { name: "Local Patients", href: "/doctor/local-patients", icon: Users },
         { name: "New Prescription", href: "/doctor/prescriptions/new", icon: FilePlus },
         { name: "Online Rx", href: "/doctor/prescriptions", icon: FileText },
         { name: "Rx Templates", href: "/doctor/prescription-templates", icon: FileText },
@@ -42,6 +45,8 @@ export default function DoctorNav() {
         { name: "Attendance", href: "/doctor/staff-attendance", icon: UserCheck },
         { name: "Attendance Rules", href: "/doctor/attendance-rules", icon: ShieldAlert },
         { name: "Walk-in Earnings", href: "/doctor/walk-in-earnings", icon: Footprints },
+        { name: "Visits & Commission", href: "/doctor/visits", icon: DollarSign },
+        { name: "Agents", href: "/doctor/agents", icon: UserCheck },
       ]
     },
     {

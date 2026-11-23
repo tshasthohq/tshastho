@@ -6,7 +6,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   try {
     const doctor = await prisma.doctor.findFirst({
-      where: { id, user: { isActive: true, role: "DOCTOR" } },
+      where: {
+        id,
+        OR: [
+          { user: { isActive: true, role: "DOCTOR" } },
+          { claimStatus: { in: ["UNCLAIMED", "PENDING"] } },
+        ],
+      },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
         specialties: true,
@@ -18,7 +24,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       },
     });
     if (!doctor) return NextResponse.json({ success: false, error: "Doctor not found" }, { status: 404 });
-    return NextResponse.json({ success: true, doctor }, { headers: PUBLIC_CACHE });
+    const isClaimed = doctor.claimStatus === "CLAIMED" && !!doctor.userId;
+    const out: any = { ...doctor, isClaimed, displayName: doctor.user?.name || doctor.fullName || "Doctor" };
+    if (!isClaimed) {
+      delete out.bookingPhone;
+      delete out.userId;
+    }
+    return NextResponse.json({ success: true, doctor: out }, { headers: PUBLIC_CACHE });
   } catch (e) {
     console.error("[DOCTOR_GET]", e);
     return NextResponse.json({ success: false, error: "Failed to load doctor" }, { status: 500 });

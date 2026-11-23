@@ -13,9 +13,7 @@ export async function POST(req: Request) {
     const appointments = await prisma.appointment.findMany({
       where: { patientId: user.id },
       include: {
-        doctor: {
-          include: { user: true }
-        },
+        doctor: { include: { user: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } } } },
         telemedicine: true
       },
       orderBy: { createdAt: 'desc' }

@@ -65,7 +65,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
 
       const doctor = payout.doctorId ? await prisma.doctor.findUnique({ where: { id: payout.doctorId } }) : null;
-      if (doctor) {
+      if (doctor?.userId) {
         await prisma.notification.create({
           data: {
             userId: doctor.userId,

@@ -16,17 +16,19 @@ export interface InteractionWarning {
 export async function checkInteractions(medicineNames: string[]): Promise<InteractionWarning[]> {
   if (medicineNames.length < 2) return [];
 
-  const normalized = medicineNames.map((n) => n.trim().toLowerCase()).filter(Boolean);
+  const base = medicineNames.map((n) => n.trim().toLowerCase()).filter(Boolean);
+  const expanded = new Set<string>(base);
+  for (const n of base) {
+    const m =
+      (await prisma.masterMedicine.findFirst({ where: { name: { equals: n, mode: 'insensitive' } }, select: { genericName: true } })) ||
+      (await prisma.masterMedicine.findFirst({ where: { name: { startsWith: n, mode: 'insensitive' } }, select: { genericName: true } }));
+    if (m?.genericName) {
+      m.genericName.toLowerCase().split(/[+,\/]/).map((g) => g.trim()).filter(Boolean).forEach((g) => expanded.add(g));
+    }
+  }
+  const normalized = Array.from(expanded);
 
-  const interactions = await prisma.drugInteraction.findMany({
-    where: {
-      isActive: true,
-      OR: normalized.flatMap((name) => [
-        { drug1Name: { equals: name, mode: 'insensitive' as any } },
-        { drug2Name: { equals: name, mode: 'insensitive' as any } },
-      ]),
-    },
-  });
+  const interactions = await prisma.drugInteraction.findMany({ where: { isActive: true } });
 
   const warnings: InteractionWarning[] = [];
   const seen = new Set<string>();
@@ -34,8 +36,8 @@ export async function checkInteractions(medicineNames: string[]): Promise<Intera
   for (const ix of interactions) {
     const n1 = ix.drug1Name.toLowerCase();
     const n2 = ix.drug2Name.toLowerCase();
-    const has1 = normalized.includes(n1);
-    const has2 = normalized.includes(n2);
+    const has1 = normalized.some((x) => x === n1 || x.includes(n1));
+    const has2 = normalized.some((x) => x === n2 || x.includes(n2));
 
     if (has1 && has2) {
       const key = [n1, n2].sort().join('|');

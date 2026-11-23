@@ -95,8 +95,8 @@ export default function DoctorStaffPage() {
       if (res.ok) { setShowForm(false); resetForm(); load(); }
       else setMessage(data.message || "Failed");
     } else {
-      if (!form.password || form.password.length < 6) {
-        setMessage("Password must be at least 6 characters");
+      if (!form.password || form.password.length < 8) {
+        setMessage("Password must be at least 8 characters");
         setSaving(false);
         return;
       }
@@ -264,7 +264,7 @@ export default function DoctorStaffPage() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm" />
                   <div>
                     <input required type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="Login password (min 6 chars) *"
+                      placeholder="Login password (min 8 chars) *"
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm" />
                     <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                       <KeyRound size={10} /> Share this with the staff member for login

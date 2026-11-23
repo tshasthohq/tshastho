@@ -14,7 +14,8 @@ export function LanguageProvider({ initialLocale, children }: { initialLocale?: 
     try {
       const s = localStorage.getItem("tshastho_lang");
       const n = (navigator.language || "en").slice(0, 2).toLowerCase();
-      const p = ok(s) ? s! : ok(n) ? n : DEFAULT_LOCALE;
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const p = ok(s) ? s! : tz === "Asia/Dhaka" ? "bn" : ok(n) ? n : DEFAULT_LOCALE;
       if (p !== locale) setL(p);
     } catch {}
   }, []);

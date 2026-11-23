@@ -64,3 +64,14 @@ body {
   background-color: #1e293b !important;
   border-left: 1px solid #334155;
 }
+
+
+html[lang="bn"] body { font-family: var(--font-bn), var(--font-inter), system-ui, sans-serif; }
+html[lang="ar"] body, html[lang="ur"] body { font-family: var(--font-ar), var(--font-inter), system-ui, sans-serif; }
+
+
+.rv { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+.rv.rv-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1; transform: none; transition: none; }
+}

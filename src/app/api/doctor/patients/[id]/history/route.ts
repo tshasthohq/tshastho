@@ -30,10 +30,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // 🚀 DEEP DEBUG DIAGNOSTIC
   const allConsentsRaw: any[] = await prisma.$queryRaw`SELECT * FROM "DoctorPatientConsent"`;
   
-  console.log("\n=== 🕵️‍♂️ CONSENT DIAGNOSTIC START ===");
-  console.log("Target Patient ID:", `"${actualPatientUserId}"`, "Length:", actualPatientUserId?.length);
-  console.log("Target Doctor ID:", `"${doctor.id}"`, "Length:", doctor.id?.length);
-  console.log("Total consents in DB:", allConsentsRaw.length);
 
   const consent = allConsentsRaw.find((c: any) => {
     const dbPatientId = String(c.patientId || '').trim();
@@ -41,18 +37,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const targetPatientId = String(actualPatientUserId || '').trim();
     const targetDoctorId = String(doctor.id || '').trim();
 
-    console.log(`Checking DB Record -> Patient: "${dbPatientId}", Doctor: "${dbDoctorId}", Status: "${c.status}", Expires: ${c.expiresAt}`);
     return dbPatientId === targetPatientId && dbDoctorId === targetDoctorId;
   }) || null;
 
   if (consent) {
-    console.log("✅ MATCH FOUND!");
-    console.log("Consent Status exact string:", `"${consent.status}"`);
-    console.log("Consent ExpiresAt exact value:", consent.expiresAt, "Type:", typeof consent.expiresAt);
   } else {
-    console.log("❌ NO MATCH FOUND IN LOOP.");
   }
-  console.log("=== 🕵️‍♂️ CONSENT DIAGNOSTIC END ===\n");
 
   // ৩. কনসেন্ট স্ট্যাটাস চেক (আরও রোবাস্ট করা হলো)
   const hasActiveConsent =

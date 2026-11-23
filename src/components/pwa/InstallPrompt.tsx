@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 
@@ -9,6 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PWAInstallPrompt() {
+  const { t: tr } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [show, setShow] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -57,20 +59,20 @@ export default function PWAInstallPrompt() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-[100] md:max-w-md md:left-auto md:right-4">
+    <div className="fixed bottom-20 md:bottom-4 left-4 right-4 z-[100] md:max-w-md md:left-auto md:right-4">
       <div className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 animate-in slide-in-from-bottom duration-300">
         <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
           <Download size={22} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm">Install Tshastho App</p>
+          <p className="font-bold text-sm">{tr("pwa.title", "Install Tshastho App")}</p>
           {isIOS ? (
             <p className="text-xs text-purple-100 leading-snug">
-              Tap <span className="font-bold">Share</span> → <span className="font-bold">Add to Home Screen</span>
+              {tr("pwa.tap", "Tap")} <span className="font-bold">{tr("pwa.share", "Share")}</span> → <span className="font-bold">{tr("pwa.add", "Add to Home Screen")}</span>
             </p>
           ) : (
             <p className="text-xs text-purple-100 leading-snug">
-              Fast access from home screen
+              {tr("pwa.fast", "Fast access from home screen")}
             </p>
           )}
         </div>
@@ -79,7 +81,7 @@ export default function PWAInstallPrompt() {
             onClick={handleInstall}
             className="bg-white text-purple-700 font-bold text-xs px-3 py-2 rounded-lg flex-shrink-0"
           >
-            Install
+            {tr("pwa.install", "Install")}
           </button>
         )}
         <button

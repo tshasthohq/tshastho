@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       where: { id: appointmentId },
       data: updateData,
       include: {
-        doctor: { include: { user: true } },
+        doctor: { include: { user: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } } } },
         patient: true,
       },
     });
@@ -49,13 +49,13 @@ export async function POST(req: Request) {
 
     if (status === "CONFIRMED") {
       title = "✅ Appointment Confirmed!";
-      message = `Dr. ${appointment.doctor.user.name} confirmed your appointment on ${appointment.date} at ${appointment.time}`;
+      message = `Dr. ${appointment.doctor.user?.name ?? "Doctor"} confirmed your appointment on ${appointment.date} at ${appointment.time}`;
     } else if (status === "REJECTED") {
       title = "❌ Appointment Rejected";
-      message = `Dr. ${appointment.doctor.user.name} could not confirm your appointment. Reason: ${reason || 'Not specified'}`;
+      message = `Dr. ${appointment.doctor.user?.name ?? "Doctor"} could not confirm your appointment. Reason: ${reason || 'Not specified'}`;
     } else if (status === "RESCHEDULED") {
       title = "🔄 Appointment Rescheduled";
-      message = `Dr. ${appointment.doctor.user.name} rescheduled your appointment to ${newDate} at ${newTime}.`;
+      message = `Dr. ${appointment.doctor.user?.name ?? "Doctor"} rescheduled your appointment to ${newDate} at ${newTime}.`;
     }
 
     await prisma.notification.create({

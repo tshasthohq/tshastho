@@ -1,31 +1,65 @@
-"use client";
-import Link from "next/link";
-import { ArrowLeft, FileText } from "lucide-react";
+import LegalPage from "@/components/LegalPage";
+
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        <Link href="/register" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-blue-600 mb-8 transition-colors">
-          <ArrowLeft size={16} /> Back to Registration
-        </Link>
-        <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-slate-200">
-          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
-            <FileText size={32} />
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-6">Terms of Service</h1>
-          <div className="prose prose-slate text-slate-600 text-sm leading-relaxed space-y-4">
-            <p>Welcome to Tshastho. By accessing or using our platform, you agree to be bound by these Terms of Service.</p>
-            <h3 className="text-slate-900 font-bold text-lg mt-6">1. Medical Disclaimer</h3>
-            <p>Tshastho does not provide medical advice, diagnosis, or treatment. The content on our platform is for informational purposes only. Always seek the advice of a qualified healthcare provider for any medical conditions.</p>
-            <h3 className="text-slate-900 font-bold text-lg mt-6">2. User Responsibilities</h3>
-            <p>You are responsible for maintaining the confidentiality of your account credentials and for providing accurate personal and medical information during registration and consultations.</p>
-            <h3 className="text-slate-900 font-bold text-lg mt-6">3. Privacy & Data Security</h3>
-            <p>Your medical data is highly sensitive. We implement state-of-the-art encryption to protect your data. Please refer to our Privacy Policy for detailed information on how we handle your data.</p>
-            <p className="mt-8 text-xs text-slate-400">Last updated: November 2026</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <LegalPage
+      title="Terms of Service"
+      updated="19 November 2026"
+      intro="These terms apply when you use Tshastho. By creating an account or using our website or app, you agree to them. Please read them carefully."
+      sections={[
+        { h: "About Tshastho", p: [
+          "Tshastho is a platform that connects patients with independent doctors, pharmacies and diagnostic providers. Tshastho itself does not practise medicine and does not give medical advice. Medical advice and treatment come from the doctors and providers you choose.",
+        ] },
+        { h: "Not for emergencies", p: [
+          "Tshastho is not an emergency service. In an emergency, call 999 or go to the nearest hospital immediately.",
+        ] },
+        { h: "Your account", list: [
+          "You must give accurate information and keep it up to date.",
+          "You are responsible for activity on your account, so keep your password private.",
+          "You must be an adult to hold an account. A parent or guardian may book care for a child.",
+        ] },
+        { h: "Appointments and consultations", p: [
+          "Consultation fees and availability are set by each doctor. Cancellation and rescheduling rules shown at the time of booking apply. Video consultations may not suit every condition, and a doctor may advise an in-person visit instead.",
+        ] },
+        { h: "Medicine orders", list: [
+          "Prescription-only medicines need a valid prescription.",
+          "Prices, VAT, delivery fees and availability are shown before you confirm an order.",
+          "Delivery times are estimates. Please check your order on delivery and report any problem promptly.",
+        ] },
+        { h: "Payments, wallet and refunds", p: [
+          "You agree to pay the amounts shown at checkout. Wallet top-ups and refunds follow the rules shown in the app. Refunds, where due, are returned to the original payment method or your wallet.",
+        ] },
+        { h: "Acceptable use", list: [
+          "Do not misuse the service, attempt to break into it, or interfere with others.",
+          "Do not post false, harmful or unlawful content, or impersonate anyone.",
+          "Do not use the service for fraud or to order medicine you are not entitled to.",
+        ] },
+        { h: "Your content", p: [
+          "You keep ownership of the information and files you submit. You allow us and the providers you choose to use them to deliver the service to you.",
+        ] },
+        { h: "Doctors and pharmacies", p: [
+          "Doctors and pharmacies on Tshastho must hold valid registrations and licences and are responsible for the care and products they provide. We review profiles before listing, but we cannot guarantee any individual outcome.",
+        ] },
+        { h: "Disclaimers", p: [
+          "The service is provided as available. Information on Tshastho is for general purposes and is not a substitute for professional medical advice.",
+        ] },
+        { h: "Limitation of liability", p: [
+          "To the extent permitted by law, Tshastho is not liable for indirect or consequential loss, or for the acts of independent doctors, pharmacies and other providers.",
+        ] },
+        { h: "Suspension and termination", p: [
+          "We may suspend or close accounts that break these terms or put others at risk. You may stop using Tshastho at any time.",
+        ] },
+        { h: "Changes to these terms", p: [
+          "We may update these terms. The latest version is always on this page, and continued use means you accept it.",
+        ] },
+        { h: "Governing law", p: [
+          "These terms are governed by the laws of Bangladesh, and the courts of Bangladesh have jurisdiction.",
+        ] },
+        { h: "Contact", p: [
+          "For questions about these terms, please use our Contact page or call our hotline.",
+        ] },
+      ]}
+    />
   );
 }

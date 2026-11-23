@@ -1,5 +1,7 @@
 "use client";
 
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +12,7 @@ import { Eye, EyeOff, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 
 export default function Login() {
+  const { t: tr } = useLanguage();
   const router = useRouter();
   const { branding } = useBranding();
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -36,13 +39,13 @@ export default function Login() {
         setMessage(data.message || "Google login failed");
       }
     } catch (err) {
-      setMessage("Network error during Google login");
+      setMessage(tr("auth.netGoogle", "Network error during Google login"));
     }
   };
 
   const loginWithGoogle = useGoogleLogin({
     onSuccess: handleGoogleLogin,
-    onError: () => setMessage("Google Login Failed"),
+    onError: () => setMessage(tr("auth.googleFail", "Google Login Failed")),
   });
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,12 +64,12 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage("Login Successful! Redirecting...");
+        setMessage(tr("auth.loginOk", "Login Successful! Redirecting..."));
         const role = data.user?.role;
         const routes: Record<string, string> = {
           SUPER_ADMIN: "/admin", DOCTOR: "/doctor", DOCTOR_STAFF: "/doctor",
           PHARMACY_OWNER: "/pharmacy", PHARMACY_STAFF: "/staff",
-          DIAGNOSTIC_OWNER: "/diagnostic", HOSPITAL_ADMIN: "/hospital", CUSTOMER: "/dashboard",
+          DIAGNOSTIC_OWNER: "/diagnostic", BLOOD_BANK_OWNER: "/blood-bank/dashboard", HOSPITAL_ADMIN: "/hospital", CUSTOMER: "/dashboard",
         };
         const target = routes[role] || "/dashboard";
         setTimeout(() => router.push(target), 800);
@@ -74,7 +77,7 @@ export default function Login() {
         setMessage(data.message || data.error || "Invalid credentials");
       }
     } catch (error) {
-      setMessage("Error connecting to server");
+      setMessage(tr("auth.serverErr", "Error connecting to server"));
     } finally {
       setLoading(false);
     }
@@ -88,8 +91,9 @@ export default function Login() {
         href="/" 
         className="absolute top-6 left-6 flex items-center gap-2 text-slate-700 hover:text-blue-600 font-bold transition-all bg-white/70 backdrop-blur-md px-4 py-2 rounded-full shadow-sm border border-slate-200/50 z-20"
       >
-        <ArrowLeft size={18} /> Home
+        <ArrowLeft size={18} /> {tr("auth.home", "Home")}
       </Link>
+      <div className="absolute top-4 right-4 z-30"><LanguageSwitcher /></div>
 
       {/* Decorative Background Elements */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
@@ -110,8 +114,8 @@ export default function Login() {
               }}
             />
           </Link>
-          <h2 className="text-2xl font-bold text-slate-800">Welcome Back!</h2>
-          <p className="text-slate-500 text-sm mt-2">Log in to continue to your account</p>
+          <h2 className="text-2xl font-bold text-slate-800">{tr("auth.welcome", "Welcome Back!")}</h2>
+          <p className="text-slate-500 text-sm mt-2">{tr("auth.loginSub", "Log in to continue to your account")}</p>
         </div>
 
         
@@ -127,45 +131,45 @@ export default function Login() {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
-          Continue with Google
+          {tr("auth.google", "Continue with Google")}
         </button>
 
         <div className="flex items-center gap-4 mb-6">
           <div className="h-px bg-slate-200 flex-1"></div>
-          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Or login with email</span>
+          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">{tr("auth.orLogin", "Or login with email")}</span>
           <div className="h-px bg-slate-200 flex-1"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Email or Phone</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">{tr("auth.emailPhone", "Email or Phone")}</label>
             <Input
               name="email"
               value={formData.email}
               onChange={handleChange}
               type="text"
-              placeholder="Enter email or phone"
+              placeholder={tr("auth.phEmailPhone", "Enter email or phone")}
               className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">{tr("auth.password", "Password")}</label>
             <div className="relative">
               <Input
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 type={showPassword ? "text" : "password"}
-                placeholder="Enter password"
+                placeholder={tr("auth.phPassword", "Enter password")}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium text-slate-900"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -174,7 +178,7 @@ export default function Login() {
 
           <div className="flex justify-end">
             <Link href="/forgot-password" className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline">
-              Forgot Password?
+              {tr("auth.forgot", "Forgot Password?")}
             </Link>
           </div>
 
@@ -185,21 +189,27 @@ export default function Login() {
           )}
 
           <Button type="submit" disabled={loading} className="w-full py-6 rounded-xl font-bold text-base bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
-            {loading ? "Logging in..." : "Log In"}
+            {loading ? tr("auth.loggingIn", "Logging in...") : tr("auth.btnLogin", "Log In")}
           </Button>
         </form>
 
         <div className="mt-8 pt-6 border-t border-slate-100">
-          <p className="text-center text-sm text-slate-500 mb-4">Don't have an account?</p>
-          <div className="grid grid-cols-3 gap-2">
+          <p className="text-center text-sm text-slate-500 mb-4">{tr("auth.noAccount", "Don't have an account?")}</p>
+          <div className="grid grid-cols-2 gap-2">
             <Link href="/register" className="text-center bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition-colors">
-              Patient
+              {tr("auth.patient", "Patient")}
             </Link>
             <Link href="/register/doctor" className="text-center bg-blue-50 hover:bg-blue-100 text-blue-600 py-2.5 rounded-xl text-xs font-bold transition-colors">
-              Doctor
+              {tr("auth.doctor", "Doctor")}
             </Link>
             <Link href="/register/pharmacy" className="text-center bg-emerald-50 hover:bg-emerald-100 text-emerald-600 py-2.5 rounded-xl text-xs font-bold transition-colors">
-              Pharmacy
+              {tr("auth.pharmacy", "Pharmacy")}
+            </Link>
+            <Link href="/register/diagnostic" className="text-center bg-orange-50 hover:bg-orange-100 text-orange-600 py-2.5 rounded-xl text-xs font-bold transition-colors">
+              {tr("auth.diagnostic", "Diagnostic")}
+            </Link>
+            <Link href="/register/hospital" className="text-center bg-sky-50 hover:bg-sky-100 text-sky-600 py-2.5 rounded-xl text-xs font-bold transition-colors">
+              Hospital
             </Link>
           </div>
         </div>

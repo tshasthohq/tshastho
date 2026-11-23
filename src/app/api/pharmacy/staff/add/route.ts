@@ -1,3 +1,4 @@
+import { hashPassword } from '@/lib/auth/password';
 import { NextResponse } from "next/server";
 import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib/prisma';
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Email or Phone already registered!" }, { status: 400 });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
     // Part D-5: Permission validation + sanitization
     const rawPerms = Array.isArray(permissions) && permissions.length > 0
       ? permissions

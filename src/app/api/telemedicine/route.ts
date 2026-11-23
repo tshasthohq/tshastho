@@ -64,9 +64,9 @@ export async function POST(req: Request) {
     });
 
     // Notify doctor
-    await prisma.notification.create({
+    if (doctor.userId) await prisma.notification.create({
       data: {
-        userId: doctor.userId,
+        userId: doctor.userId!,
         title: 'New Telemedicine Session',
         message: `Patient booked a ${data.type.toLowerCase()} consultation.`,
         type: 'info',

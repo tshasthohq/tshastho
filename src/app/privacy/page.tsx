@@ -1,31 +1,64 @@
-"use client";
-import Link from "next/link";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import LegalPage from "@/components/LegalPage";
+
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        <Link href="/register" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-emerald-600 mb-8 transition-colors">
-          <ArrowLeft size={16} /> Back to Registration
-        </Link>
-        <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-slate-200">
-          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6">
-            <ShieldCheck size={32} />
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-6">Privacy Policy</h1>
-          <div className="prose prose-slate text-slate-600 text-sm leading-relaxed space-y-4">
-            <p>At Tshastho, your privacy is our top priority. This policy explains how we collect, use, and protect your health information.</p>
-            <h3 className="text-slate-900 font-bold text-lg mt-6">1. Data We Collect</h3>
-            <p>We collect personal details (name, email, phone), medical history, and appointment records to provide you with the best healthcare experience.</p>
-            <h3 className="text-slate-900 font-bold text-lg mt-6">2. HIPAA & Data Protection</h3>
-            <p>We adhere to strict data protection protocols. Your medical records are encrypted and only accessible to doctors you explicitly grant access to via our Consent Management system.</p>
-            <h3 className="text-slate-900 font-bold text-lg mt-6">3. Third-Party Sharing</h3>
-            <p>We never sell your data. We only share necessary information with pharmacies or diagnostic centers when you explicitly place an order or book a test.</p>
-            <p className="mt-8 text-xs text-slate-400">Last updated: November 2026</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <LegalPage
+      title="Privacy Policy"
+      updated="19 November 2026"
+      intro="Tshastho connects patients with doctors, pharmacies and diagnostic services in Bangladesh. This policy explains what personal information we collect, why we collect it, and the choices you have."
+      sections={[
+        { h: "Information we collect", list: [
+          "Account details: your name, phone number, email address and password (stored securely).",
+          "Health and care information: appointments you book, prescriptions, medicine orders, test reports and notes you choose to share.",
+          "Payment and wallet records: top-ups, payments, refunds and invoices. Payment credentials are handled by our payment partners where applicable.",
+          "Device and usage information: browser type, IP address and pages visited, used to keep the service secure and working.",
+          "Notification settings: if you enable push notifications, we store a notification token for your device.",
+        ] },
+        { h: "How we use your information", list: [
+          "To create your account and provide appointments, consultations, orders and deliveries.",
+          "To send confirmations, reminders and updates about your appointments and orders.",
+          "To process payments, wallet balances and refunds.",
+          "To keep Tshastho secure, prevent fraud and fix problems.",
+          "To improve our services and comply with the law.",
+        ] },
+        { h: "Health information", p: [
+          "Health information is sensitive. We share it only with the doctor, pharmacy or diagnostic provider you choose to interact with, and only as needed to give you the service. We do not sell your personal information.",
+        ] },
+        { h: "Who we share information with", list: [
+          "Doctors, pharmacies and diagnostic centres you book or order from.",
+          "Delivery and payment partners who help complete your order.",
+          "Service providers such as hosting, messaging and notification services, bound to protect your data.",
+          "Authorities, when the law requires us to.",
+        ] },
+        { h: "Cookies and local storage", p: [
+          "We use cookies and similar storage to keep you signed in and to remember your choices, such as your language. You can clear them in your browser at any time, though some features may stop working.",
+        ] },
+        { h: "Notifications", p: [
+          "Push notifications are optional. You can turn them off any time in your browser or device settings.",
+        ] },
+        { h: "How long we keep information", p: [
+          "We keep information for as long as your account is active and as needed to provide the service, meet legal and medical record-keeping duties, and resolve disputes.",
+        ] },
+        { h: "Security", p: [
+          "We use reasonable technical and organisational measures to protect your information. No online service can be completely secure, so please keep your password private.",
+        ] },
+        { h: "Your choices and rights", p: [
+          "You can view and update your profile in your account. You can ask us to correct or delete your information through our Contact page. Some records may need to be kept where the law or medical practice requires it.",
+        ] },
+        { h: "Children", p: [
+          "Tshastho is intended for adults. A parent or guardian may use the service to book care for a child.",
+        ] },
+        { h: "International care", p: [
+          "If you use international care services, we may share the information needed with overseas providers, only at your request.",
+        ] },
+        { h: "Changes to this policy", p: [
+          "We may update this policy from time to time. We will post the new version here with a new date.",
+        ] },
+        { h: "Contact", p: [
+          "For privacy questions or requests, please use our Contact page or call our hotline.",
+        ] },
+      ]}
+    />
   );
 }

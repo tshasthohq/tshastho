@@ -38,12 +38,16 @@ export default function PurchasesPage() {
   useEffect(() => { if (user && activeBranch !== undefined) load(); }, [user, filter, activeBranch?.id]);
 
   const handleReceive = async (id: string) => {
-    if (!confirm("Receive this purchase order? This will create batches and add stock.")) return;
+    const input = prompt("কত শতাংশ receive করবেন? (১-১০০)। সব বাকি receive করতে 100 রাখুন।", "100");
+    if (input === null) return;
+    const percent = Math.min(100, Math.max(1, parseInt(input) || 0));
     setReceiving(id);
     try {
       const res = await fetch(`/api/pharmacy/purchases/${id}/receive`, {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ percent }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -76,6 +80,7 @@ export default function PurchasesPage() {
     switch (s) {
       case "RECEIVED": return "bg-emerald-100 text-emerald-700 border-emerald-200";
       case "ORDERED": return "bg-blue-100 text-blue-700 border-blue-200";
+    case "PARTIAL": return "bg-amber-100 text-amber-700 border-amber-200";
       case "PARTIAL": return "bg-amber-100 text-amber-700 border-amber-200";
       case "DRAFT": return "bg-slate-100 text-slate-700 border-slate-200";
       case "CANCELLED": return "bg-red-100 text-red-700 border-red-200";
@@ -83,7 +88,7 @@ export default function PurchasesPage() {
     }
   };
 
-  const TABS = ["", "DRAFT", "ORDERED", "RECEIVED", "CANCELLED"];
+  const TABS = ["", "DRAFT", "ORDERED", "PARTIAL", "RECEIVED", "CANCELLED"];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24">
@@ -194,7 +199,7 @@ export default function PurchasesPage() {
                       <CheckCircle size={16} /> Mark as Ordered
                     </button>
                   )}
-                  {p.status === "ORDERED" && (
+                  {(p.status === "ORDERED" || p.status === "PARTIAL") && (
                     <button onClick={() => handleReceive(p.id)} disabled={receiving === p.id} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-md shadow-emerald-500/20 disabled:opacity-50">
                       {receiving === p.id ? <RefreshCw size={16} className="animate-spin" /> : <Package size={16} />}
                       {receiving === p.id ? "Receiving..." : "Receive & Add Stock"}

@@ -12,15 +12,25 @@ export async function GET(req: Request) {
   const maxFee = url.searchParams.get('maxFee');
   const sort = url.searchParams.get('sort') || 'rating';
   const limit = Math.min(Number(url.searchParams.get('limit') || 50), 100);
+  const lite = url.searchParams.get('lite') === '1';
 
-  const where: any = { user: { isActive: true, role: 'DOCTOR' } };
+  const mode = url.searchParams.get('mode') || 'all';
+  const registeredCond = { user: { isActive: true, role: 'DOCTOR' } };
+  const directoryCond = { claimStatus: { in: ['UNCLAIMED', 'PENDING'] as any } };
+  const where: any = {
+    AND: [
+      mode === 'booking' ? registeredCond : mode === 'directory' ? directoryCond : { OR: [registeredCond, directoryCond] },
+    ],
+  };
 
   if (q) {
-    where.OR = [
+    where.AND.push({ OR: [
       { user: { name: { contains: q, mode: 'insensitive' } } },
       { specialty: { contains: q, mode: 'insensitive' } },
       { specialties: { some: { name: { contains: q, mode: 'insensitive' } } } },
-    ];
+      { fullName: { contains: q, mode: 'insensitive' } },
+      { licenseNumber: { contains: q, mode: 'insensitive' } },
+    ] });
   }
   if (specialty) where.specialties = { some: { name: { contains: specialty, mode: 'insensitive' } } };
   if (city) where.chamberAddress = { contains: city, mode: 'insensitive' };
@@ -44,10 +54,18 @@ export async function GET(req: Request) {
     include: {
       user: { select: { id: true, name: true, avatarUrl: true } },
       specialties: true,
-      qualifications: { orderBy: { year: 'desc' }, take: 3 },
-      chambers: { where: { isActive: true }, orderBy: { isPrimary: 'desc' } },
+      ...(lite ? {} : {
+        qualifications: { orderBy: { year: 'desc' }, take: 3 },
+        chambers: { where: { isActive: true }, orderBy: { isPrimary: 'desc' } },
+      }),
     },
   });
 
-  return NextResponse.json({ success: true, doctors, count: doctors.length }, { headers: PUBLIC_CACHE });
+  const out = doctors.map((d: any) => {
+    const isClaimed = d.claimStatus === 'CLAIMED' && !!d.userId;
+    const base: any = { ...d, isClaimed, displayName: d.user?.name || d.fullName || 'Doctor' };
+    if (!isClaimed) { delete base.bookingPhone; delete base.userId; }
+    return base;
+  });
+  return NextResponse.json({ success: true, doctors: out, count: out.length }, { headers: PUBLIC_CACHE });
 }

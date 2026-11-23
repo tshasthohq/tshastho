@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { sendPush } from '@/lib/push'
 
 function makeClient() {
-  const base = new PrismaClient()
+  const base = new PrismaClient({ omit: { user: { password: true } } })
   return base.$extends({
     query: {
       notification: {

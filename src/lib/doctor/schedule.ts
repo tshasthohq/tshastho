@@ -28,6 +28,9 @@ export type SlotInfo = {
   isAvailable: boolean;
   scheduleId?: string;
   overrideId?: string;
+  bookingMode?: string;
+  nextSerial?: number;
+  estimatedTime?: string;
 };
 
 export async function getAvailableSlots(doctorId: string, dateStr: string): Promise<SlotInfo[]> {
@@ -58,7 +61,7 @@ export async function getAvailableSlots(doctorId: string, dateStr: string): Prom
       date: dateStr,
       status: { in: ['REQUESTED', 'CONFIRMED', 'PATIENT_CONFIRMED', 'RESCHEDULED'] as any },
     },
-    select: { time: true },
+    select: { time: true, scheduleId: true },
   });
   const bookedTimes = appointments.map(a => a.time);
 
@@ -84,7 +87,33 @@ export async function getAvailableSlots(doctorId: string, dateStr: string): Prom
       if (duration <= 0) duration = 30;
       const maxPatients = Number(src.maxPatients) || 10;
 
-      for (let t = startMins; t + duration <= endMins; t += duration) {
+      if (src.source === 'schedule' && src.bookingMode === 'SERIAL') {
+      const cap = Number(src.maxSerials) || Math.max(1, Math.floor((endMins - startMins) / duration));
+      const activeCount = appointments.filter((a: any) => a.scheduleId === src.id).length;
+      const agg = await prisma.appointment.aggregate({
+        where: { doctorId, date: dateStr, scheduleId: src.id },
+        _max: { serialNo: true },
+      });
+      const nextSerial = (agg._max.serialNo || 0) + 1;
+      slots.push({
+        startTime: minutesToTime(startMins),
+        endTime: minutesToTime(endMins),
+        slotType: src.slotType || 'IN_PERSON',
+        chamberAddress: src.chamberAddress || src.chamber?.address || '',
+        chamberId: src.chamberId || undefined,
+        chamberName: src.chamber?.name || undefined,
+        consultationFee: src.consultationFee ? Number(src.consultationFee) : undefined,
+        bookedCount: activeCount,
+        maxPatients: cap,
+        isAvailable: activeCount < cap,
+        scheduleId: src.id,
+        bookingMode: 'SERIAL',
+        nextSerial,
+        estimatedTime: minutesToTime(startMins + (nextSerial - 1) * duration),
+      });
+      continue;
+    }
+    for (let t = startMins; t + duration <= endMins; t += duration) {
       const slotStart = minutesToTime(t);
       const slotEnd = minutesToTime(t + duration);
       const bookedCount = bookedTimes.filter(bt => bt === slotStart).length;
@@ -109,8 +138,8 @@ export async function getAvailableSlots(doctorId: string, dateStr: string): Prom
   return slots;
 }
 
-export async function isSlotAvailable(doctorId: string, dateStr: string, time: string): Promise<boolean> {
+export async function isSlotAvailable(doctorId: string, dateStr: string, time: string, scheduleId?: string): Promise<boolean> {
   const slots = await getAvailableSlots(doctorId, dateStr);
-  const target = slots.find(s => s.startTime === time);
+  const target = slots.find(s => s.startTime === time && (!scheduleId || !s.scheduleId || s.scheduleId === scheduleId));
   return !!target && target.isAvailable;
 }

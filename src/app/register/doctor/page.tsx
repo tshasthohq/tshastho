@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,10 @@ export default function DoctorRegister() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  useEffect(() => {
+    const b = new URLSearchParams(window.location.search).get("bmdc");
+    if (b) setFormData((f: any) => ({ ...f, licenseNumber: b }));
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,7 +30,7 @@ export default function DoctorRegister() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/register/doctor", {
+      const res = await fetch("/api/auth/register/doctor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -82,7 +86,7 @@ export default function DoctorRegister() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password *</label>
             <div className="relative">
-              <Input name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="Min 6 characters" required />
+              <Input name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="Min 8 characters" required />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>

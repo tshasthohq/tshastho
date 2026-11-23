@@ -56,8 +56,10 @@ export async function proxy(request: NextRequest) {
   const isPublicApi = publicApiRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
   // Protected page routes
-  const protectedRoutes = ['/dashboard', '/profile', '/admin', '/doctor', '/pharmacy', '/international'];
-  const isProtectedPage = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+  const protectedRoutes = ['/dashboard', '/profile', '/admin', '/doctor', '/pharmacy', '/hospital', '/international', '/blood-bank/dashboard', '/blood-bank/prices', '/blood-bank/reports', '/blood-bank/memo'];
+  const isProtectedPage = [...protectedRoutes, '/doctors/book'].some(
+    route => request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith(route + '/')
+  );
 
   if (isPublicApi) {
     return NextResponse.next();

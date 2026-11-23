@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PUBLIC_CACHE } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
+import { memo } from "@/lib/memo";
 
 
 export async function GET() {
@@ -14,9 +15,9 @@ export async function GET() {
       "tshastho_support_email",
     ];
 
-    const settings = await prisma.systemSetting.findMany({
-      where: { key: { in: keys } },
-    });
+    const settings = await memo("branding", 60_000, () =>
+      prisma.systemSetting.findMany({ where: { key: { in: keys } } })
+    );
 
     const branding: any = {
       logo: "",

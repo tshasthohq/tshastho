@@ -43,3 +43,6 @@ backups/
 
 # Allow env template
 !.env.example
+
+# local backups
+*.bak*

@@ -66,6 +66,8 @@ export async function POST(req: Request) {
 
     if (!bloodGroup || hospital.length < 3 || !division || !district)
       return NextResponse.json({ error: "Blood group, hospital and location are required" }, { status: 400 });
+    if (b.confirmGenuine !== true)
+      return NextResponse.json({ error: "Please confirm this request is genuine" }, { status: 400 });
     if (!BD_PHONE.test(contactPhone))
       return NextResponse.json({ error: "Enter a valid Bangladeshi phone number" }, { status: 400 });
 

@@ -6,12 +6,14 @@ import Link from "next/link";
 import { Home, FileText, Bell, User, ShoppingBag, DollarSign } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const { unread } = useNotifications();
+  const { t: tr } = useLanguage();
 
   const navItems = [
     { href: "/dashboard", icon: Home, label: "Home" },
@@ -25,20 +27,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-500">Loading...</p>
+        <p className="text-slate-500">{tr("dn.loading", "Loading...")}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen pb-24" style={{ background: "linear-gradient(180deg,#dbeafe 0%,#eff6ff 38%,#f8fafc 100%)" }}>
       <main className="max-w-4xl mx-auto p-4 print:pb-0">{children}</main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-50 print:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-white/70 shadow-[0_-8px_30px_rgba(30,64,175,0.1)] z-50 print:hidden">
         <div className="max-w-4xl mx-auto flex justify-around py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href;
+            const active = item.href === "/dashboard" ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
@@ -48,14 +50,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 }`}
               >
                 <span className="relative">
-                <Icon size={20} />
+                <Icon size={22} />
                 {item.href === "/dashboard/notifications" && unread > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1.5 -end-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
                     {unread > 9 ? "9+" : unread}
                   </span>
                 )}
               </span>
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-xs font-semibold">{tr("dn." + item.label.toLowerCase(), item.label)}</span>
               </Link>
             );
           })}

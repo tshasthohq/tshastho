@@ -14,6 +14,7 @@ const schema = z.object({
   slotType: z.string().optional(),
   fee: z.coerce.number().min(0).optional(),
   paymentMethod: z.enum(['WALLET', 'CASH']).default('WALLET'),
+  scheduleId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -29,9 +30,14 @@ export async function POST(req: Request) {
     // 1. Verify doctor exists
     const doctor = await prisma.doctor.findUnique({ where: { id: data.doctorId } });
     if (!doctor) return errorResponse(ErrorCodes.RESOURCE_NOT_FOUND, 'Doctor not found', 404);
+    if (doctor.claimStatus !== 'CLAIMED' || !doctor.userId) {
+      return errorResponse(ErrorCodes.VALIDATION_ERROR, 'This doctor is not available for online booking yet', 400);
+    }
 
     // 2. Check slot availability
-    const available = await isSlotAvailable(data.doctorId, data.date, data.time);
+    const sched = data.scheduleId ? await prisma.doctorSchedule.findUnique({ where: { id: data.scheduleId } }) : null;
+    const isSerial = !!sched && sched.doctorId === data.doctorId && sched.bookingMode === 'SERIAL';
+    const available = await isSlotAvailable(data.doctorId, data.date, data.time, data.scheduleId);
     if (!available) return errorResponse(ErrorCodes.CONFLICT, 'This slot is no longer available', 409);
 
     // 3. Prevent duplicate booking
@@ -40,7 +46,7 @@ export async function POST(req: Request) {
         doctorId: data.doctorId,
         patientId: user.id,
         date: data.date,
-        time: data.time,
+        ...(isSerial ? { scheduleId: data.scheduleId } : { time: data.time }),
         status: { in: ['REQUESTED', 'CONFIRMED', 'PATIENT_CONFIRMED', 'RESCHEDULED'] },
       },
     });
@@ -85,12 +91,27 @@ export async function POST(req: Request) {
       }
 
       // Create Appointment
+      let serialInfo: { serialNo: number; scheduleId: string; time: string } | null = null;
+      if (isSerial && sched) {
+        const agg = await tx.appointment.aggregate({
+          where: { doctorId: data.doctorId, date: data.date, scheduleId: sched.id },
+          _max: { serialNo: true },
+        });
+        const serialNo = (agg._max.serialNo || 0) + 1;
+        const sm = sched.startTime.split(':').map(Number);
+        const dur = Number(sched.slotDuration) || 10;
+        const mins = sm[0] * 60 + sm[1] + (serialNo - 1) * dur;
+        const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
+        const mm = String(mins % 60).padStart(2, '0');
+        serialInfo = { serialNo, scheduleId: sched.id, time: hh + ':' + mm };
+      }
       const appointment = await tx.appointment.create({
         data: {
           patientId: user.id,
           doctorId: data.doctorId,
           date: data.date,
-          time: data.time,
+          time: serialInfo ? serialInfo.time : data.time,
+          ...(serialInfo ? { serialNo: serialInfo.serialNo, scheduleId: serialInfo.scheduleId, source: 'ONLINE' } : {}),
           slotType: data.slotType,
           consultationFee: fee,
           paymentStatus: paymentStatus,
@@ -109,7 +130,7 @@ export async function POST(req: Request) {
             roomId: 'tsh-' + crypto.randomBytes(8).toString('hex'),
             type: 'VIDEO',
             status: 'SCHEDULED',
-            scheduledAt: new Date(`${data.date}T${data.time}:00+06:00`),
+            scheduledAt: new Date(`${data.date}T${serialInfo ? serialInfo.time : data.time}:00+06:00`),
           }
         });
       }
@@ -128,9 +149,9 @@ export async function POST(req: Request) {
       });
 
       // Notify doctor
-      await tx.notification.create({
+      if (doctor.userId) await tx.notification.create({
         data: {
-          userId: doctor.userId,
+          userId: doctor.userId!,
           title: 'New Appointment Request',
           message: `New appointment on ${data.date} at ${data.time}`,
           type: 'info',
@@ -156,6 +177,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, appointment: result }, { status: 201 });
 
   } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return errorResponse(ErrorCodes.CONFLICT, 'Someone just took that serial. Please try again.', 409);
+    }
     if (error instanceof z.ZodError) {
       return errorResponse(ErrorCodes.VALIDATION_ERROR, error.issues[0].message, 400);
     }

@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins", "omitApi"]
 }
 
 datasource db {
@@ -21,6 +22,8 @@ enum Role {
   PHARMA_COMPANY
   AMBULANCE_PROVIDER
   BLOOD_BANK_ADMIN
+  BLOOD_BANK_OWNER
+  BLOOD_BANK_STAFF
   MARKETING_MANAGER
   FIELD_EXECUTIVE
   DELIVERY_MAN
@@ -34,12 +37,14 @@ enum AccountStatus {
 }
 
 model User {
+  hospitalMemberships    HospitalMember[]
   bloodDonor             BloodDonor?
   bloodRequests          BloodRequest[]
   avatarUrl              String?
   topUpRequests          TopUpRequest[]
   sessions               Session[]
   diagnostic             Diagnostic?
+  bloodBank              BloodBank?
   diagnosticStaffProfile DiagnosticStaff?
   auditLogs              AuditLog[]
   id                     String           @id @default(cuid())
@@ -148,13 +153,14 @@ model User {
 
   agreedToTermsAt  DateTime?
   referredById     String?
-  referredBy       User?     @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
-  referrals        User[]    @relation("UserReferrals")
-  myReferralCode   String?   @unique
+  referredBy       User?            @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals        User[]           @relation("UserReferrals")
+  myReferralCode   String?          @unique
   otpCode          String?
   otpExpiry        DateTime?
   resetToken       String?
   resetTokenExpiry DateTime?
+  medicineReviews  MedicineReview[] @relation("CustomerMedicineReviews")
 }
 
 model Patient {
@@ -170,12 +176,18 @@ model Patient {
 }
 
 model Doctor {
+  hospitalLinks        HospitalDoctor[]
   payoutMethods        PayoutMethod[]
   id                   String                   @id @default(cuid())
-  userId               String                   @unique
-  user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String?                  @unique
+  user                 User?                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialty            String
-  licenseNumber        String
+  licenseNumber        String                   @unique
+  claimStatus          DoctorClaimStatus        @default(CLAIMED)
+  fullName             String?
+  degrees              String?
+  district             String?
+  source               String?
   signatureUrl         String?                  @unique
   experience           Int
   consultationFee      Decimal
@@ -226,9 +238,12 @@ model Doctor {
   certificates         MedicalCertificate[]     @relation("DoctorCertificates")
   followUps            FollowUpReminder[]       @relation("DoctorFollowUps")
   sampleDistributions  SampleDistribution[]
+  visitAgents          DoctorAgent[]
+  doctorVisits         DoctorVisit[]
 }
 
 model Pharmacy {
+  ownDeliveryEnabled     Boolean                  @default(false)
   phone                  String?
   id                     String                   @id @default(cuid())
   userId                 String                   @unique
@@ -322,6 +337,8 @@ model MasterMedicine {
   dosage       String?
   warnings     String?
   sellingPrice Float      @default(0)
+
+  reviews MedicineReview[]
 
   @@unique([name, brand, strength])
 }
@@ -533,6 +550,11 @@ model Appointment {
   earning       DoctorEarning?
   telemedicine  TelemedicineSession?
 
+  serialNo   Int?
+  scheduleId String?
+  source     String  @default("ONLINE")
+
+  @@unique([doctorId, date, scheduleId, serialNo])
   @@index([patientId, status])
   @@index([doctorId, status])
   @@index([doctorId, date])
@@ -1861,6 +1883,9 @@ model DoctorSchedule {
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+
+  bookingMode String @default("SLOT")
+  maxSerials  Int?
 
   @@index([doctorId, dayOfWeek])
   @@index([doctorId, isActive])
@@ -3903,29 +3928,40 @@ enum DiagnosticStaffRole {
 }
 
 model Diagnostic {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  centerName     String
-  logo           String?
-  phone          String?
-  address        String
-  area           String?
-  city           String
-  tradeLicense   String?
-  dghsLicense    String?
-  isOpen         Boolean  @default(true)
-  openTime       String?
-  closeTime      String?
-  homeCollection Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  centerName      String
+  logo            String?
+  phone           String?
+  address         String
+  area            String?
+  city            String
+  tradeLicense    String?
+  dghsLicense     String?
+  tradeLicenseUrl String?
+  dghsLicenseUrl  String?
+  isOpen          Boolean  @default(true)
+  openTime        String?
+  closeTime       String?
+  homeCollection  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  branches    DiagnosticBranch[]
-  staff       DiagnosticStaff[]
-  departments DiagnosticDepartment[]
-  tests       DiagnosticTest[]
-  packages    DiagnosticPackage[]
+  branches      DiagnosticBranch[]
+  staff         DiagnosticStaff[]
+  departments   DiagnosticDepartment[]
+  tests         DiagnosticTest[]
+  packages      DiagnosticPackage[]
+  patients      DiagnosticPatient[]
+  referrers     DiagnosticReferrer[]
+  orders        DiagnosticOrder[]
+  tagline       String?
+  email         String?
+  website       String?
+  dghsRegNo     String?
+  helpline      String?
+  footerAddress String?
 }
 
 model DiagnosticBranch {
@@ -3941,7 +3977,8 @@ model DiagnosticBranch {
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
 
-  staff DiagnosticStaff[]
+  staff  DiagnosticStaff[]
+  orders DiagnosticOrder[]
 
   @@unique([diagnosticId, code])
   @@index([diagnosticId])
@@ -4004,6 +4041,8 @@ model DiagnosticTest {
   updatedAt       DateTime              @updatedAt
 
   packageItems DiagnosticPackageItem[]
+  orderItems   DiagnosticOrderItem[]
+  method       String?
 
   @@unique([diagnosticId, code])
   @@index([diagnosticId, isActive])
@@ -4033,4 +4072,829 @@ model DiagnosticPackageItem {
   test      DiagnosticTest    @relation(fields: [testId], references: [id], onDelete: Cascade)
 
   @@unique([packageId, testId])
+}
+
+model MedicineReview {
+  id               String         @id @default(cuid())
+  masterMedicineId String
+  masterMedicine   MasterMedicine @relation(fields: [masterMedicineId], references: [id], onDelete: Cascade)
+  customerId       String
+  customer         User           @relation("CustomerMedicineReviews", fields: [customerId], references: [id], onDelete: Cascade)
+  orderId          String?
+  rating           Int // 1-5
+  title            String?
+  comment          String?
+  isVerified       Boolean        @default(false)
+  status           String         @default("PUBLISHED") // PUBLISHED | HIDDEN | DELETED
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([masterMedicineId, customerId])
+  @@index([masterMedicineId, status, createdAt])
+  @@index([customerId])
+  @@map("medicine_reviews")
+}
+
+model BloodBank {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  logo         String?
+  phone        String
+  address      String
+  area         String?
+  district     String
+  division     String?
+  dghsLicense  String   @unique
+  tradeLicense String?
+  licenseUrl   String?
+  is24h        Boolean  @default(false)
+  openTime     String?
+  closeTime    String?
+  isOpen       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bags   BloodBag[]
+  issues BloodIssue[]
+  logs   BloodBankLog[]
+
+  crossmatches BloodCrossmatch[]
+  serviceItems BloodServiceItem[]
+  invoices     BloodInvoice[]
+
+  @@index([district])
+}
+
+enum VisitCommissionType {
+  PERCENT
+  FIXED
+}
+
+enum VisitCommissionStatus {
+  PENDING
+  PAID
+}
+
+model DoctorAgent {
+  id             String              @id @default(cuid())
+  doctorId       String
+  doctor         Doctor              @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  name           String
+  organization   String?
+  agentType      String              @default("AGENT")
+  phone          String?
+  address        String?
+  commissionType VisitCommissionType @default(PERCENT)
+  commissionRate Decimal             @default(0)
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  visits         DoctorVisit[]
+
+  @@index([doctorId])
+}
+
+model DoctorVisit {
+  id               String                @id @default(cuid())
+  doctorId         String
+  doctor           Doctor                @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  agentId          String?
+  agent            DoctorAgent?          @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  visitDate        DateTime              @default(now())
+  patientName      String?
+  agentName        String?
+  organization     String?
+  visitFee         Decimal               @default(0)
+  commissionType   VisitCommissionType   @default(PERCENT)
+  commissionRate   Decimal               @default(0)
+  commissionAmount Decimal               @default(0)
+  netIncome        Decimal               @default(0)
+  status           VisitCommissionStatus @default(PENDING)
+  paidAt           DateTime?
+  note             String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  source              String  @default("MANUAL")
+  localPrescriptionId String? @unique
+  chamberId           String?
+
+  @@index([doctorId, visitDate])
+  @@index([chamberId])
+  @@index([agentId])
+}
+
+// ==========================================
+// DIAGNOSTIC MODULE - PHASE 2 (Patient, Order, Payment)
+// ==========================================
+
+enum DiagnosticOrderStatus {
+  REGISTERED
+  SAMPLE_COLLECTED
+  IN_PROGRESS
+  COMPLETED
+  DELIVERED
+  CANCELLED
+}
+
+enum DiagnosticPayStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum DiagnosticPayMethod {
+  CASH
+  BKASH
+  NAGAD
+  CARD
+  BANK
+  OTHER
+}
+
+enum DiagnosticReferrerType {
+  DOCTOR
+  AGENT
+  PC
+}
+
+enum DiagnosticItemStatus {
+  PENDING
+  SAMPLE_COLLECTED
+  RESULT_ENTERED
+  VERIFIED
+  APPROVED
+}
+
+model DiagnosticPatient {
+  id           String     @id @default(cuid())
+  diagnosticId String
+  diagnostic   Diagnostic @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  patientNo    String
+  userId       String?
+  name         String
+  phone        String?
+  age          Int?
+  ageUnit      String     @default("Y")
+  gender       String?
+  address      String?
+  createdAt    DateTime   @default(now())
+
+  orders DiagnosticOrder[]
+
+  @@unique([diagnosticId, patientNo])
+  @@index([diagnosticId, phone])
+  @@index([diagnosticId, name])
+}
+
+model DiagnosticReferrer {
+  id              String                 @id @default(cuid())
+  diagnosticId    String
+  diagnostic      Diagnostic             @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  type            DiagnosticReferrerType @default(DOCTOR)
+  name            String
+  phone           String?
+  degree          String?
+  isActive        Boolean                @default(true)
+  createdAt       DateTime               @default(now())
+  orders          DiagnosticOrder[]      @relation("OrderReferrer")
+  specialty       String?
+  commissionMode  String                 @default("TEST_DEFAULT")
+  commissionValue Decimal                @default(0)
+  notes           String?
+  agentOrders     DiagnosticOrder[]      @relation("OrderAgent")
+  commissions     DiagnosticCommission[]
+
+  @@index([diagnosticId, type])
+}
+
+model DiagnosticOrder {
+  id           String                @id @default(cuid())
+  diagnosticId String
+  diagnostic   Diagnostic            @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  branchId     String?
+  branch       DiagnosticBranch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  orderNo      String
+  patientId    String
+  patient      DiagnosticPatient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  referrerId   String?
+  referrer     DiagnosticReferrer?   @relation("OrderReferrer", fields: [referrerId], references: [id], onDelete: SetNull)
+  source       String                @default("WALKIN")
+  status       DiagnosticOrderStatus @default(REGISTERED)
+  payStatus    DiagnosticPayStatus   @default(UNPAID)
+  subtotal     Decimal               @default(0)
+  discount     Decimal               @default(0)
+  total        Decimal               @default(0)
+  paid         Decimal               @default(0)
+  due          Decimal               @default(0)
+  note         String?
+  createdById  String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  items       DiagnosticOrderItem[]
+  payments    DiagnosticOrderPayment[]
+  agentId     String?
+  agent       DiagnosticReferrer?      @relation("OrderAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  commissions DiagnosticCommission[]
+
+  @@unique([diagnosticId, orderNo])
+  @@index([diagnosticId, createdAt])
+  @@index([diagnosticId, status])
+  @@index([patientId])
+  @@index([agentId])
+}
+
+model DiagnosticOrderItem {
+  id                String                    @id @default(cuid())
+  orderId           String
+  order             DiagnosticOrder           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  testId            String
+  test              DiagnosticTest            @relation(fields: [testId], references: [id], onDelete: Restrict)
+  testCode          String
+  testName          String
+  price             Decimal
+  discount          Decimal                   @default(0)
+  commissionType    String                    @default("PERCENT")
+  commissionValue   Decimal                   @default(0)
+  status            DiagnosticItemStatus      @default(PENDING)
+  promisedAt        DateTime?
+  sampleCollectedAt DateTime?
+  sampleCollectedBy String?
+  resultEnteredAt   DateTime?
+  resultEnteredBy   String?
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  results           Json?
+  interpretation    String?
+  signers           Json?
+  reportVersion     Int                       @default(0)
+  reportHash        String?
+  reportVersions    DiagnosticReportVersion[]
+
+  @@index([orderId])
+  @@index([testId])
+  @@index([status])
+}
+
+model DiagnosticOrderPayment {
+  id           String              @id @default(cuid())
+  orderId      String
+  order        DiagnosticOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount       Decimal
+  method       DiagnosticPayMethod @default(CASH)
+  isRefund     Boolean             @default(false)
+  reference    String?
+  note         String?
+  receivedById String?
+  createdAt    DateTime            @default(now())
+
+  @@index([orderId])
+}
+
+model DiagnosticCounter {
+  diagnosticId String
+  key          String
+  value        Int    @default(0)
+
+  @@id([diagnosticId, key])
+}
+
+enum BloodComponent {
+  WHOLE_BLOOD
+  RBC
+  PLATELETS
+  PLASMA
+}
+
+enum BloodBagStatus {
+  AVAILABLE
+  RESERVED
+  ISSUED
+  EXPIRED
+  DISCARDED
+}
+
+model BloodBag {
+  id            String         @id @default(cuid())
+  bloodBankId   String
+  bloodBank     BloodBank      @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+  bagNumber     String
+  bloodGroup    BloodGroup
+  component     BloodComponent @default(WHOLE_BLOOD)
+  volumeMl      Int            @default(450)
+  donorName     String?
+  donorPhone    String?
+  collectedAt   DateTime
+  expiresAt     DateTime
+  testsClear    Boolean        @default(false)
+  status        BloodBagStatus @default(AVAILABLE)
+  discardReason String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  issue         BloodIssue?
+
+  confirmedGroup BloodGroup?
+  confirmedById  String?
+  tests          BloodBagTest[]
+  crossmatches   BloodCrossmatch[]
+
+  @@unique([bloodBankId, bagNumber])
+  @@index([bloodBankId, status, bloodGroup, expiresAt])
+}
+
+model BloodIssue {
+  id             String    @id @default(cuid())
+  bloodBankId    String
+  bloodBank      BloodBank @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+  bagId          String    @unique
+  bag            BloodBag  @relation(fields: [bagId], references: [id], onDelete: Cascade)
+  recipientName  String
+  recipientPhone String?
+  hospital       String?
+  serviceCharge  Decimal   @default(0)
+  issuedById     String
+  note           String?
+  issuedAt       DateTime  @default(now())
+
+  invoice BloodInvoice?
+
+  @@index([bloodBankId, issuedAt])
+}
+
+model BloodBankLog {
+  id          String    @id @default(cuid())
+  bloodBankId String
+  bloodBank   BloodBank @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+  userId      String
+  action      String
+  detail      String?
+  createdAt   DateTime  @default(now())
+
+  @@index([bloodBankId, createdAt])
+}
+
+enum DeliveryMode {
+  PHARMACY
+  TSHASTHO
+}
+
+enum DeliveryJobStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  ON_THE_WAY
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+model DeliveryRider {
+  id          String        @id @default(cuid())
+  ownerType   DeliveryMode
+  pharmacyId  String?
+  userId      String?       @unique
+  name        String
+  phone       String
+  vehicle     String?
+  area        String?
+  isActive    Boolean       @default(true)
+  isOnline    Boolean       @default(false)
+  ratingSum   Int           @default(0)
+  ratingCount Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  jobs        DeliveryJob[]
+
+  @@index([ownerType, isActive])
+  @@index([pharmacyId])
+}
+
+model DeliveryJob {
+  id            String            @id @default(cuid())
+  jobNumber     String            @unique
+  orderId       String            @unique
+  pharmacyId    String
+  mode          DeliveryMode
+  status        DeliveryJobStatus @default(PENDING)
+  riderId       String?
+  rider         DeliveryRider?    @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  customerFee   Decimal           @default(0)
+  riderPayout   Decimal           @default(0)
+  platformEarn  Decimal           @default(0)
+  codAmount     Decimal           @default(0)
+  codCollected  Decimal           @default(0)
+  codSettledAt  DateTime?
+  otpHash       String?
+  failureReason String?
+  notes         String?
+  assignedAt    DateTime?
+  pickedUpAt    DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  events        DeliveryEvent[]
+
+  @@index([status, createdAt])
+  @@index([pharmacyId, createdAt])
+  @@index([riderId, status])
+}
+
+model DeliveryEvent {
+  id        String            @id @default(cuid())
+  jobId     String
+  job       DeliveryJob       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status    DeliveryJobStatus
+  note      String?
+  actorId   String?
+  createdAt DateTime          @default(now())
+
+  @@index([jobId, createdAt])
+}
+
+model DiagnosticCommission {
+  id           String             @id @default(cuid())
+  diagnosticId String
+  orderId      String
+  order        DiagnosticOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  referrerId   String
+  referrer     DiagnosticReferrer @relation(fields: [referrerId], references: [id], onDelete: Restrict)
+  role         String
+  base         Decimal
+  amount       Decimal
+  status       String             @default("PENDING")
+  paidAt       DateTime?
+  createdAt    DateTime           @default(now())
+
+  @@index([diagnosticId, status])
+  @@index([orderId])
+  @@index([referrerId, status])
+}
+
+model DiagnosticAuditLog {
+  id           String   @id @default(cuid())
+  diagnosticId String
+  entity       String
+  entityId     String
+  entityLabel  String?
+  action       String
+  changes      Json?
+  reason       String?
+  userId       String?
+  userName     String?
+  createdAt    DateTime @default(now())
+
+  @@index([diagnosticId, entity, entityId])
+  @@index([diagnosticId, createdAt])
+}
+
+enum BloodTestType {
+  HIV
+  HBSAG
+  HCV
+  SYPHILIS
+  MALARIA
+}
+
+enum BloodTestResult {
+  PENDING
+  NON_REACTIVE
+  REACTIVE
+  INVALID
+}
+
+enum CrossmatchType {
+  MAJOR
+  MINOR
+}
+
+enum CrossmatchResult {
+  COMPATIBLE
+  INCOMPATIBLE
+}
+
+enum BloodInvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  WAIVED
+}
+
+model BloodBagTest {
+  id         String          @id @default(cuid())
+  bagId      String
+  bag        BloodBag        @relation(fields: [bagId], references: [id], onDelete: Cascade)
+  test       BloodTestType
+  result     BloodTestResult @default(PENDING)
+  method     String?
+  kitLot     String?
+  testedById String?
+  testedAt   DateTime?
+  note       String?
+
+  @@unique([bagId, test])
+}
+
+model BloodCrossmatch {
+  id           String           @id @default(cuid())
+  bloodBankId  String
+  bloodBank    BloodBank        @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+  bagId        String
+  bag          BloodBag         @relation(fields: [bagId], references: [id], onDelete: Cascade)
+  patientName  String
+  patientGroup BloodGroup
+  type         CrossmatchType   @default(MAJOR)
+  result       CrossmatchResult
+  doneById     String
+  note         String?
+  doneAt       DateTime         @default(now())
+
+  @@index([bagId, result])
+  @@index([bloodBankId, doneAt])
+}
+
+model BloodServiceItem {
+  id          String    @id @default(cuid())
+  bloodBankId String
+  bloodBank   BloodBank @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+  name        String
+  price       Decimal   @default(0)
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+
+  @@unique([bloodBankId, name])
+}
+
+model BloodInvoice {
+  id             String             @id @default(cuid())
+  bloodBankId    String
+  bloodBank      BloodBank          @relation(fields: [bloodBankId], references: [id], onDelete: Cascade)
+  invoiceNumber  String
+  issueId        String?            @unique
+  issue          BloodIssue?        @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  recipientName  String
+  recipientPhone String?
+  hospital       String?
+  subtotal       Decimal            @default(0)
+  discount       Decimal            @default(0)
+  total          Decimal            @default(0)
+  paid           Decimal            @default(0)
+  status         BloodInvoiceStatus @default(UNPAID)
+  paymentMethod  String?
+  note           String?
+  createdById    String
+  createdAt      DateTime           @default(now())
+  items          BloodInvoiceItem[]
+
+  @@unique([bloodBankId, invoiceNumber])
+  @@index([bloodBankId, createdAt])
+}
+
+model BloodInvoiceItem {
+  id        String       @id @default(cuid())
+  invoiceId String
+  invoice   BloodInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  name      String
+  quantity  Int          @default(1)
+  unitPrice Decimal      @default(0)
+  amount    Decimal      @default(0)
+}
+
+model DiagnosticSigner {
+  id           String   @id @default(cuid())
+  diagnosticId String
+  role         String
+  name         String
+  degree       String?
+  designation  String?
+  regNo        String?
+  signatureUrl String?
+  isDefault    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([diagnosticId, role, isActive])
+}
+
+model DiagnosticReportVersion {
+  id        String              @id @default(cuid())
+  itemId    String
+  item      DiagnosticOrderItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  version   Int
+  snapshot  Json
+  hash      String
+  reason    String?
+  createdBy String?
+  createdAt DateTime            @default(now())
+
+  @@unique([itemId, version])
+  @@index([itemId])
+}
+
+// ============================================
+// HOSPITAL PLATFORM - FOUNDATION
+// ============================================
+
+enum HospitalStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum HospitalMemberRole {
+  OWNER
+  ADMIN
+  BRANCH_MANAGER
+  DOCTOR
+  NURSE
+  RECEPTIONIST
+  ACCOUNTANT
+  LAB_STAFF
+  PHARMACIST
+}
+
+enum HospitalMemberStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum HospitalInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model Hospital {
+  doctors         HospitalDoctor[]
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  name            String
+  nameBn          String?
+  logo            String?
+  coverImage      String?
+  about           String?
+  type            String           @default("GENERAL")
+  registrationNo  String?
+  licenseNo       String?          @unique
+  licenseDocUrl   String?
+  website         String?
+  email           String?
+  phone           String?
+  country         String           @default("BD")
+  status          HospitalStatus   @default(PENDING)
+  verifiedAt      DateTime?
+  rejectionReason String?
+  metadata        Json?
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  branches  HospitalBranch[]
+  members   HospitalMember[]
+  invites   HospitalInvite[]
+  auditLogs HospitalAuditLog[]
+
+  @@index([status, country])
+}
+
+model HospitalBranch {
+  doctors        HospitalDoctor[]
+  id             String           @id @default(cuid())
+  hospitalId     String
+  hospital       Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  address        String
+  area           String?
+  city           String?
+  district       String?
+  country        String           @default("BD")
+  latitude       Float?
+  longitude      Float?
+  phone          String?
+  emergencyPhone String?
+  is24x7         Boolean          @default(false)
+  hasEmergency   Boolean          @default(false)
+  isMain         Boolean          @default(false)
+  isActive       Boolean          @default(true)
+  bedCount       Int?
+  openTime       String?
+  closeTime      String?
+  metadata       Json?
+  deletedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  departments HospitalDepartment[]
+
+  @@unique([hospitalId, code])
+  @@index([city, isActive])
+  @@index([hospitalId, isActive])
+}
+
+model HospitalDepartment {
+  id        String         @id @default(cuid())
+  branchId  String
+  branch    HospitalBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name      String
+  nameBn    String?
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+
+  @@unique([branchId, name])
+}
+
+model HospitalMember {
+  id          String               @id @default(cuid())
+  hospitalId  String
+  hospital    Hospital             @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        HospitalMemberRole
+  status      HospitalMemberStatus @default(ACTIVE)
+  branchIds   String[]
+  permissions Json?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([hospitalId, userId])
+  @@index([userId])
+  @@index([hospitalId, role, status])
+}
+
+model HospitalInvite {
+  id          String               @id @default(cuid())
+  hospitalId  String
+  hospital    Hospital             @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  email       String?
+  phone       String?
+  role        HospitalMemberRole
+  branchIds   String[]
+  tokenHash   String               @unique
+  status      HospitalInviteStatus @default(PENDING)
+  invitedById String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime             @default(now())
+
+  @@index([hospitalId, status])
+}
+
+model HospitalAuditLog {
+  id         String   @id @default(cuid())
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  branchId   String?
+  userId     String?
+  action     String
+  resource   String?
+  resourceId String?
+  ipAddress  String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([hospitalId, createdAt])
+}
+
+enum HospitalDoctorStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  REMOVED
+}
+
+model HospitalDoctor {
+  id            String               @id @default(cuid())
+  hospitalId    String
+  hospital      Hospital             @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  branchId      String
+  branch        HospitalBranch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        Doctor               @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  department    String?
+  designation   String?
+  status        HospitalDoctorStatus @default(PENDING)
+  requestedById String?
+  respondedAt   DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@unique([branchId, doctorId])
+  @@index([doctorId, status])
+  @@index([hospitalId, status])
+}
+
+enum DoctorClaimStatus {
+  UNCLAIMED
+  PENDING
+  CLAIMED
+  REJECTED
 }

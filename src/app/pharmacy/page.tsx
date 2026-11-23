@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Pill, Package, ShoppingCart, LogOut, Bell, TrendingUp, 
@@ -13,6 +13,65 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBranch } from "@/context/BranchContext";
 import DashboardCharts from "@/components/pharmacy/DashboardCharts";
 import PharmacyNav from "@/components/pharmacy/PharmacyNav";
+
+const DASH_CSS = `
+@keyframes dash-up { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes dash-pop { from { opacity: 0; transform: translateY(10px) scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes dash-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes dash-ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); } 50% { box-shadow: 0 0 0 9px rgba(239, 68, 68, 0); } }
+
+.dash-stagger > * { animation: dash-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.dash-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.dash-stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.dash-stagger > *:nth-child(3) { animation-delay: 0.14s; }
+.dash-stagger > *:nth-child(4) { animation-delay: 0.20s; }
+.dash-stagger > *:nth-child(5) { animation-delay: 0.26s; }
+.dash-stagger > *:nth-child(6) { animation-delay: 0.32s; }
+.dash-stagger > *:nth-child(7) { animation-delay: 0.38s; }
+.dash-stagger > *:nth-child(8) { animation-delay: 0.44s; }
+
+.dash-cards > * { animation: dash-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.dash-cards > *:nth-child(1) { animation-delay: 0.16s; }
+.dash-cards > *:nth-child(2) { animation-delay: 0.24s; }
+.dash-cards > *:nth-child(3) { animation-delay: 0.32s; }
+.dash-cards > *:nth-child(4) { animation-delay: 0.40s; }
+.dash-cards > *:active { transform: scale(0.97); }
+
+.dash-skel .bg-slate-200, .dash-skel .bg-slate-100 {
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.75) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: dash-shimmer 1.5s linear infinite;
+}
+.dash-ring { animation: dash-ring 2.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-stagger > *, .dash-cards > *, .dash-skel .bg-slate-200, .dash-skel .bg-slate-100, .dash-ring { animation: none !important; }
+}
+`;
+
+function AnimatedNumber({ value, decimals = 0 }: { value: number; decimals?: number }) {
+  const [display, setDisplay] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    const from = fromRef.current;
+    const to = Number(value) || 0;
+    if (from === to) { setDisplay(to); return; }
+    const start = performance.now();
+    const duration = 600;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const current = t === 1 ? to : from + (to - from) * eased;
+      fromRef.current = current;
+      setDisplay(current);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{display.toFixed(decimals)}</>;
+}
 
 export default function PharmacyDashboard() {
   const { user } = useAuth();
@@ -95,7 +154,7 @@ export default function PharmacyDashboard() {
         };;;
 
     loadData();
-    const interval = setInterval(loadData, 30000);
+    const interval = setInterval(() => { if (!document.hidden) loadData(); }, 60000);
     return () => { 
       isCurrent = false; 
       // Abort removed
@@ -106,10 +165,25 @@ export default function PharmacyDashboard() {
   
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-medium animate-pulse">Loading Dashboard...</p>
+    <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
+      <PharmacyNav pendingOrders={0} />
+      <style>{DASH_CSS}</style>
+      <div className="max-w-5xl mx-auto p-4 space-y-5 dash-skel">
+        <div className="h-36 rounded-3xl bg-slate-200" />
+        <div className="rounded-3xl bg-white border border-slate-100 p-5 space-y-4">
+          <div className="h-5 w-40 rounded bg-slate-200" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-24 rounded-2xl bg-slate-200" />
+            <div className="h-24 rounded-2xl bg-slate-100" />
+            <div className="h-24 rounded-2xl bg-slate-100" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-20 rounded-2xl bg-white border border-slate-100" />
+          ))}
+        </div>
+        <div className="h-64 rounded-3xl bg-white border border-slate-100" />
       </div>
     </div>
   );
@@ -132,10 +206,11 @@ export default function PharmacyDashboard() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
       <PharmacyNav pendingOrders={stats.pendingOrders} />
+      <style>{DASH_CSS}</style>
       
       
 
-      <div className="max-w-5xl mx-auto p-4 space-y-5">
+      <div className="max-w-5xl mx-auto p-4 space-y-5 dash-stagger">
         
         {/* Next-Gen Hero Banner */}
         <div className="relative overflow-hidden bg-[#0B1120] rounded-[2rem] p-6 sm:p-8 shadow-2xl shadow-indigo-900/20 text-white">
@@ -147,12 +222,12 @@ export default function PharmacyDashboard() {
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-md mb-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <p className="text-slate-300 text-[10px] font-semibold tracking-widest uppercase">{greeting}</p>
+                <p className="text-slate-300 text-[11px] font-semibold tracking-widest uppercase">{greeting}</p>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 mb-2">
                 {pharmacy.shopName}
               </h1>
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                 <span className="flex items-center gap-1"><Activity size={12}/> {pharmacy.area}, {pharmacy.city}</span>
               </div>
             </div>
@@ -232,7 +307,7 @@ export default function PharmacyDashboard() {
         {profileView === "custom" && (
           <div className="flex flex-col sm:flex-row items-center gap-2 mt-4 mb-2 bg-slate-50 p-2 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2">
             <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="bg-white px-3 py-2 rounded-lg border border-slate-200 text-sm w-full outline-none focus:border-indigo-500" />
-            <span className="text-slate-400 text-sm font-medium hidden sm:block">to</span>
+            <span className="text-slate-500 text-sm font-medium hidden sm:block">to</span>
             <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="bg-white px-3 py-2 rounded-lg border border-slate-200 text-sm w-full outline-none focus:border-indigo-500" />
             <button 
               onClick={() => { setAppliedStart(customStart); setAppliedEnd(customEnd); }}
@@ -249,8 +324,8 @@ export default function PharmacyDashboard() {
               <div className="relative z-10">
                 <p className="text-emerald-50 text-xs font-semibold mb-1 uppercase tracking-wider">Net Profit</p>
                 <div className="flex items-end gap-2">
-                  <h3 className="text-3xl font-black">৳{(currentProfit.netProfit || 0).toFixed(2)}</h3>
-                  <span className="flex items-center text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white mb-1">
+                  <h3 className="text-3xl font-black">৳<AnimatedNumber value={currentProfit.netProfit || 0} decimals={2} /></h3>
+                  <span className="flex items-center text-[11px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white mb-1">
                     <ArrowUpRight size={10} className="mr-0.5"/> Live
                   </span>
                 </div>
@@ -258,26 +333,26 @@ export default function PharmacyDashboard() {
             </div>
             
             <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-100 flex flex-col justify-center hover:bg-slate-50 transition-colors">
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Total Revenue</p>
-              <h3 className="text-2xl font-bold text-slate-800">৳{(currentProfit.revenue || 0).toFixed(2)}</h3>
+              <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider mb-1">Total Revenue</p>
+              <h3 className="text-2xl font-bold text-slate-800">৳<AnimatedNumber value={currentProfit.revenue || 0} decimals={2} /></h3>
             </div>
 
             <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-100 flex flex-col justify-center hover:bg-slate-50 transition-colors">
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Total Orders</p>
-              <h3 className="text-2xl font-bold text-slate-800">{currentProfit.orderCount || 0}</h3>
+              <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider mb-1">Total Orders</p>
+              <h3 className="text-2xl font-bold text-slate-800"><AnimatedNumber value={currentProfit.orderCount || 0} /></h3>
             </div>
           </div>
         </div>
 
         {/* Modern Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 dash-cards">
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shrink-0 border border-blue-200/50">
               <Package size={18} className="text-blue-600" />
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Medicines</p>
-              <p className="font-black text-slate-800 text-xl">{stats.medicineCount}</p>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Medicines</p>
+              <p className="font-black text-slate-800 text-xl"><AnimatedNumber value={stats.medicineCount || 0} /></p>
             </div>
           </div>
           
@@ -286,8 +361,8 @@ export default function PharmacyDashboard() {
               <ShoppingCart size={18} className="text-orange-600" />
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Orders</p>
-              <p className="font-black text-slate-800 text-xl">{currentProfit?.orderCount || 0}</p>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Orders</p>
+              <p className="font-black text-slate-800 text-xl"><AnimatedNumber value={currentProfit?.orderCount || 0} /></p>
             </div>
           </div>
 
@@ -296,8 +371,8 @@ export default function PharmacyDashboard() {
               <Users size={18} className="text-purple-600" />
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Customers</p>
-              <p className="font-black text-slate-800 text-xl">{currentProfit?.customerCount || 0}</p>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Customers</p>
+              <p className="font-black text-slate-800 text-xl"><AnimatedNumber value={currentProfit?.customerCount || 0} /></p>
             </div>
           </div>
 
@@ -306,11 +381,40 @@ export default function PharmacyDashboard() {
               <Clock size={18} className="text-amber-600" />
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pending</p>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Pending</p>
               <p className="font-black text-slate-800 text-xl">{stats.pendingOrders || 0}</p>
             </div>
           </div>
         </div>
+
+        {/* Stock & Expiry Alerts */}
+        {((stats.lowStock || 0) + (stats.expired || 0) + (stats.expiringSoon || 0)) > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { label: "Low Stock", sub: "Reorder soon", value: stats.lowStock || 0, href: "/pharmacy/stock-alerts", box: "bg-amber-50 border-amber-200", icon: "bg-amber-100 text-amber-600", num: "text-amber-700" },
+              { label: "Expiring Soon", sub: "Within 90 days", value: stats.expiringSoon || 0, href: "/pharmacy/stock-alerts", box: "bg-orange-50 border-orange-200", icon: "bg-orange-100 text-orange-600", num: "text-orange-700" },
+              { label: "Expired", sub: "Remove from shelf", value: stats.expired || 0, href: "/pharmacy/expiry-write-off", box: "bg-red-50 border-red-200", icon: "bg-red-100 text-red-600", num: "text-red-700" },
+            ]
+              .filter((a) => a.value > 0)
+              .map((a) => (
+                <Link
+                  key={a.label}
+                  href={a.href}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${a.box} ${a.label === "Expired" ? "dash-ring" : ""}`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${a.icon}`}>
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{a.label}</p>
+                    <p className={`font-black text-xl ${a.num}`}>{a.value}</p>
+                    <p className="text-[11px] text-slate-500 truncate">{a.sub}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300" />
+                </Link>
+              ))}
+          </div>
+        )}
 
         {/* Charts Container */}
         <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-1 sm:p-2 overflow-hidden">
@@ -327,14 +431,14 @@ export default function PharmacyDashboard() {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Selling Value</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Selling Value</p>
               <p className="text-xl font-black text-indigo-600">৳{(stats.stockValue || 0).toLocaleString()}</p>
-              <p className="text-[10px] text-slate-400 mt-1">মোট বিক্রয় মূল্য</p>
+              <p className="text-[11px] text-slate-500 mt-1">মোট বিক্রয় মূল্য</p>
             </div>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Cost Value</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Cost Value</p>
               <p className="text-xl font-black text-slate-800">৳{(stats.stockCost || 0).toLocaleString()}</p>
-              <p className="text-[10px] text-slate-400 mt-1">মোট ক্রয় মূল্য</p>
+              <p className="text-[11px] text-slate-500 mt-1">মোট ক্রয় মূল্য</p>
             </div>
           </div>
         </div>
@@ -356,18 +460,18 @@ export default function PharmacyDashboard() {
           <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
             <div className="flex items-center gap-1.5 mb-1">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>
-              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Stock In</p>
+              <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Stock In</p>
             </div>
             <p className="text-xl font-black text-emerald-700">{stockMovement.in} <span className="text-xs font-semibold text-emerald-600">pcs</span></p>
-            <p className="text-[10px] text-emerald-600/70 mt-1">PO, Returns, Transfers</p>
+            <p className="text-[11px] text-emerald-600/70 mt-1">Purchases, Returns, Adjustments</p>
           </div>
           <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
             <div className="flex items-center gap-1.5 mb-1">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>
-              <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider">Stock Out</p>
+              <p className="text-[11px] font-bold text-red-700 uppercase tracking-wider">Stock Out</p>
             </div>
             <p className="text-xl font-black text-red-700">{stockMovement.out} <span className="text-xs font-semibold text-red-600">pcs</span></p>
-            <p className="text-[10px] text-red-600/70 mt-1">Sales, Transfers</p>
+            <p className="text-[11px] text-red-600/70 mt-1">Sales, Damage, Adjustments</p>
           </div>
         </div>
       </div>

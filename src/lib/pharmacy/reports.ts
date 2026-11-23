@@ -170,6 +170,24 @@ export async function pnlReport(pharmacyId: string, range: DateRange) {
     }
   }
 
+  // POS (walk-in) sales: previously missing from this report
+  let posCount = 0;
+  try {
+    const pos = await prisma.posSale.aggregate({
+      where: { pharmacyId, createdAt: { gte: range.from, lte: range.to } },
+      _sum: { totalAmount: true, discountAmount: true, profit: true },
+      _count: { _all: true },
+    });
+    const posRevenue = Number(pos._sum.totalAmount ?? 0);
+    const posProfit = Number(pos._sum.profit ?? 0);
+    revenue += posRevenue;
+    cogs += posRevenue - posProfit;
+    discount += Number(pos._sum.discountAmount ?? 0);
+    posCount = pos._count._all;
+  } catch {
+    // keep orders-only numbers if the POS query fails
+  }
+
   // Expenses (if model exists)
   let expenses = 0;
   let expenseBreakdown: { category: string; amount: number }[] = [];
@@ -202,7 +220,7 @@ export async function pnlReport(pharmacyId: string, range: DateRange) {
     netProfit,
     margin,
     expenseBreakdown,
-    orderCount: orders.length,
+    orderCount: orders.length + posCount,
     range,
   };
 }

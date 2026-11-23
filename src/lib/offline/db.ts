@@ -2,7 +2,7 @@
 // Minimal, no external library.
 
 const DB_NAME = 'tshastho-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface PendingSale {
   id: string;            // client UUID
@@ -37,6 +37,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('meta')) {
         db.createObjectStore('meta', { keyPath: 'key' });
+    }
+    if (!db.objectStoreNames.contains('pending_rx')) {
+      db.createObjectStore('pending_rx', { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -108,4 +111,15 @@ export function uuid(): string {
     return crypto.randomUUID();
   }
   return 'off-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+// ===== pending_rx (doctor offline prescriptions) =====
+export async function rxPut(rec: any): Promise<void> {
+  await tx('pending_rx', 'readwrite', (s) => s.put(rec));
+}
+export async function rxAll(): Promise<any[]> {
+  return tx('pending_rx', 'readonly', (s) => s.getAll());
+}
+export async function rxDelete(id: string): Promise<void> {
+  await tx('pending_rx', 'readwrite', (s) => s.delete(id));
 }

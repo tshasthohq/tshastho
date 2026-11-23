@@ -18,11 +18,22 @@ export async function POST(req: Request) {
 
     const medicines = await prisma.masterMedicine.findMany({
       where,
-      take: 40,
+      take: 300,
       orderBy: { name: "asc" },
     });
 
-    return NextResponse.json({ medicines }, { status: 200 });
+    const q = String(query || "").trim().toLowerCase();
+    const rank = (m: any) => {
+      const n = (m.name || "").toLowerCase();
+      const b = (m.brand || "").toLowerCase();
+      if (n.startsWith(q) || b.startsWith(q)) return 0;
+      if (n.includes(q) || b.includes(q)) return 1;
+      return 2;
+    };
+    const ranked = q
+      ? [...medicines].sort((x: any, y: any) => rank(x) - rank(y) || x.name.localeCompare(y.name)).slice(0, 40)
+      : medicines;
+    return NextResponse.json({ medicines: ranked }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ message: "Error", error: String(error) }, { status: 500 });
   }

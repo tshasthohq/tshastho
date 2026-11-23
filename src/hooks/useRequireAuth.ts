@@ -23,7 +23,7 @@ export function useRequireAuth(allowedRoles?: string[]) {
         DOCTOR: "/doctor",
         PHARMACY_OWNER: "/pharmacy",
         PHARMACY_STAFF: "/pharmacy/staff",
-        DIAGNOSTIC_OWNER: "/diagnostic",
+        DIAGNOSTIC_OWNER: "/diagnostic", BLOOD_BANK_OWNER: "/blood-bank/dashboard",
         HOSPITAL_ADMIN: "/hospital",
         CUSTOMER: "/dashboard",
       };

@@ -33,6 +33,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     if (!donor.isAvailable || !isEligible(donor.lastDonationDate, donor.gender))
       return NextResponse.json({ error: "You are not eligible to donate right now" }, { status: 400 });
 
+    const active = await prisma.bloodRequestResponse.count({
+      where: { donorId: donor.id, status: "ACCEPTED", requestId: { not: id }, request: { status: { in: ["OPEN", "MATCHED"] } } },
+    });
+    if (active >= 3)
+      return NextResponse.json({ error: "You already have 3 active commitments. Please complete them first." }, { status: 429 });
+
     await prisma.bloodRequestResponse.upsert({
       where: { requestId_donorId: { requestId: id, donorId: donor.id } },
       create: { requestId: id, donorId: donor.id },
